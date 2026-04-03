@@ -48,9 +48,9 @@ ln -s ~/path/to/context-keeper ~/.claude/skills/context-keeper
 ```
 docs/
 ├── plans/
-│   └── YYYY-MM-DD-HHmm-[功能模块]需求.md     # 需求文档（7 章节）
+│   └── YYYY-MM-DD-HHmmss-[功能模块]需求.md     # 需求文档（7 章节）
 └── worklog/
-    └── YYYY-MM-DD-HHmm-[功能模块].md          # 工作日志（7 章节 + 快速摘要）
+    └── YYYY-MM-DD-HHmmss-[功能模块].md          # 工作日志（7 章节 + 快速摘要）
 ```
 
 **快速摘要**格式（写在工作日志末尾，~150 tokens）：
