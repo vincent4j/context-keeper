@@ -10,13 +10,14 @@ Claude Code skill — 对话上下文管理工具，帮助在多个对话之间�
 ## 安装
 
 ```bash
-cp -r . ~/.claude/skills/context-keeper
+git clone https://github.com/vincent4j/context-keeper ~/.claude/skills/context-keeper
 ```
 
 或软链接（推荐，修改后立即生效）：
 
 ```bash
-ln -s $(pwd) ~/.claude/skills/context-keeper
+git clone https://github.com/vincent4j/context-keeper ~/path/to/context-keeper
+ln -s ~/path/to/context-keeper ~/.claude/skills/context-keeper
 ```
 
 ## 使用
