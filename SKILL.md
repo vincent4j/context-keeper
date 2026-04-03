@@ -31,7 +31,7 @@ Context Keeper - 对话上下文管理工具
 
 1. **分析信息来源**
    - 回顾整个对话历史：提取用户需求、技术决策、解决的问题
-   - 运行 `git status`、`git diff HEAD`、`git log --oneline -10` 获取实际变更
+   - 运行 `git status`、`git diff HEAD` 获取实际变更（不查询 git log）
 
 2. **推断功能模块名称**
    - 从对话内容中自动推断，例如 "Solutions页面导航栏添加"
