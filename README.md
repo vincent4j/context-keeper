@@ -152,7 +152,3 @@ context-keeper/
 - 快速摘要支持类型标签（feature/bugfix/refactor/research/config）
 - 项目记忆索引支持主题摘要区块（按类型聚合）和时间线
 - 支持 `npx skills add vincent4j/context-keeper` 安装
-
-## v0.2.0 Release 简版
-
-v0.2.0 强化了保存、续接和检索项目记忆的体验：新增 `context keeper 保存/继续/查找` 直接命令，支持基于当前会话自动检索相似历史经验，并在保存完成后输出高价值"值得回看"摘要。`memory-keeper.md` 也升级为包含模块、触发词、关键经验和合同候选的项目记忆索引。
