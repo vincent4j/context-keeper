@@ -49,6 +49,52 @@ def _quick_summary(path: Path, full: bool = False, details: bool = False, max_li
     return [_clip(line, 180) for line in block if line.startswith(wanted)]
 
 
+def _quick_summary_fields(path: Path) -> dict[str, str]:
+    lines = _read_text(path).splitlines()
+    start = next((idx for idx, line in enumerate(lines) if line.strip() == "## 快速摘要（用于下次对话）"), None)
+    if start is None:
+        return {}
+    fields: dict[str, str] = {}
+    pattern = re.compile(r"^\*\*(类型|完成|问题|经验|下一步|文件)：\*\*\s*(.*)$")
+    for line in lines[start + 1 : start + 14]:
+        match = pattern.match(line.strip())
+        if match:
+            fields[match.group(1)] = match.group(2).strip()
+    return fields
+
+
+def _user_visible_items(path: Path) -> tuple[list[tuple[str, str, str]], bool]:
+    lines = _read_text(path).splitlines()
+    start = next((idx for idx, line in enumerate(lines) if line.strip() == "## 给用户看的增量认知"), None)
+    if start is None:
+        return [], False
+    item_pattern = re.compile(r"^- \*\*(盲点|复盘|隐患|决策影响|合同候选)：\*\*\s*(.+)$")
+    value_pattern = re.compile(r"^- \*\*影响：\*\*\s*(.+)$")
+    items: list[tuple[str, str, str]] = []
+    pending: tuple[str, str] | None = None
+    no_extra = False
+    for raw_line in lines[start + 1 :]:
+        line = raw_line.strip()
+        if line.startswith("## "):
+            break
+        if line == "本轮未发现需要额外提醒的盲点或隐患。":
+            no_extra = True
+            continue
+        item_match = item_pattern.match(line)
+        if item_match:
+            if pending:
+                items.append((pending[0], pending[1], ""))
+            pending = (item_match.group(1), item_match.group(2).strip())
+            continue
+        value_match = value_pattern.match(line)
+        if value_match and pending:
+            items.append((pending[0], pending[1], value_match.group(1).strip()))
+            pending = None
+    if pending:
+        items.append((pending[0], pending[1], ""))
+    return items, no_extra
+
+
 def _theme_summary(memory_path: Path) -> list[str]:
     if not memory_path.exists():
         return []
@@ -205,6 +251,71 @@ def cmd_status(args: argparse.Namespace) -> int:
     return 0
 
 
+def _save_report_error(message: str) -> int:
+    print(f"Context Keeper 用户报告校验失败：{message}")
+    return 2
+
+
+def cmd_save_report(args: argparse.Namespace) -> int:
+    root = Path(args.root).resolve()
+    if args.worklog:
+        worklog = Path(args.worklog)
+        if not worklog.is_absolute():
+            worklog = root / worklog
+    else:
+        worklogs = _worklog_files(root, 1)
+        if not worklogs:
+            return _save_report_error("未找到 docs/worklog/*.md")
+        worklog = worklogs[-1]
+    worklog = worklog.resolve()
+    if not worklog.is_file():
+        return _save_report_error(f"工作日志不存在：{_rel(root, worklog)}")
+
+    fields = _quick_summary_fields(worklog)
+    missing = [name for name in ("类型", "完成", "下一步", "文件") if not fields.get(name)]
+    if missing:
+        return _save_report_error("快速摘要缺少字段：" + "、".join(missing))
+
+    visible_items, no_extra = _user_visible_items(worklog)
+    if not visible_items and not no_extra:
+        return _save_report_error("工作日志缺少“给用户看的增量认知”")
+    if visible_items and no_extra:
+        return _save_report_error("不能同时写增量认知和“无新增提醒”")
+    if len(visible_items) > 3:
+        return _save_report_error("“给用户看的增量认知”最多 3 条")
+    if any(not value for _, _, value in visible_items):
+        return _save_report_error("每条增量认知都必须说明影响")
+    if any(len(content) > 120 for _, content, _ in visible_items):
+        return _save_report_error("单条增量认知不能超过 120 字")
+    if any(len(impact) > 80 for _, _, impact in visible_items):
+        return _save_report_error("单条影响不能超过 80 字")
+
+    memory_path = root / "docs" / "memory-keeper.md"
+    if not memory_path.is_file():
+        return _save_report_error("未找到 docs/memory-keeper.md")
+    worklog_rel = _rel(root / "docs", worklog)
+    memory_entry = next(
+        (entry for entry in _memory_entries(memory_path) if worklog.name in "\n".join(entry)),
+        None,
+    )
+    if memory_entry is None:
+        return _save_report_error("项目记忆中缺少指向本次工作日志的时间线条目")
+
+    print("已保存上下文。")
+    if no_extra:
+        print("\n本轮未发现需要额外提醒的盲点或隐患。")
+    else:
+        print("\n你可能还没意识到：")
+        for index, (kind, content, impact) in enumerate(visible_items, 1):
+            print(f"{index}. [{kind}] {content}")
+            print(f"   影响：{impact}")
+
+    print("\n详细内容：")
+    print(f"- 工作日志：[{worklog_rel}]({worklog_rel})")
+    print("- 项目记忆：[memory-keeper.md](memory-keeper.md)")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Context Keeper capped probes")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -228,6 +339,11 @@ def build_parser() -> argparse.ArgumentParser:
     status = sub.add_parser("status", help="输出 git 状态、文件名和 stat")
     status.add_argument("--root", default=".")
     status.set_defaults(func=cmd_status)
+
+    save_report = sub.add_parser("save-report", help="校验保存产物并生成精简的增量认知报告")
+    save_report.add_argument("--root", default=".")
+    save_report.add_argument("--worklog", help="工作日志路径；默认使用最新工作日志")
+    save_report.set_defaults(func=cmd_save_report)
     return parser
 
 
