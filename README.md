@@ -1,154 +1,137 @@
-# context-keeper
+# Context Keeper
 
-Claude Code 技能 — 保存进度、延续上下文、查找历史经验的项目记忆助手，帮助在多个对话之间保持项目上下文的连续性。
+Context Keeper 帮助本地 Agent 保存项目进度、继续上次工作、查找有证据的历史事实，并把用户纠正或已验证的新结果沉淀为以后可以复用的经验。
 
-## 设计理念
-
-Claude Code 每次对话都是全新开始——它不记得上次做了什么，不知道踩过哪些坑，也不清楚下一步该往哪走。
-
-常见的解法是把项目状态写进 `CLAUDE.md`，让它每次自动加载。但这意味着每次对话都要消耗 2000–5000 个上下文 token，不管你这次是否真的需要那些信息。
-
-context-keeper 的设计围绕两个核心原则：
-
-**1. 跨会话记忆** — 每次工作结束时，把关键信息压缩成精简摘要存入工作日志，同时积累项目记忆。下次开启新对话，立刻能看到最近几次做了什么、遇到了什么问题、学到了什么；遇到似曾相识的问题时，也能按当前会话自动检索历史经验。
-
-**2. 节省上下文** — 采用按需加载策略。继续上次进度默认只读最近 3 次摘要 + 近期经验（约 750 个上下文 token），查找相似经验时在 `docs/memory-keeper.md` 全文件范围搜索，但只读取命中条目。相比 `CLAUDE.md` 方案，日常使用节省 70–90% 的上下文 token。
+它按需读取：普通新需求不查历史；需要追溯时先查索引和少量项目记录，关键判断仍缺证据时才检索原始会话。
 
 ## 功能
 
-- **保存本次上下文**：分析对话历史和 git 变更，生成需求文档（`docs/plans/`）和工作日志（`docs/worklog/`），更新项目记忆（`docs/memory-keeper.md`），并在窗口输出值得回看的重点摘要
-- **继续上次进度**：读取最近 3 次工作日志的"快速摘要"章节 + 近期经验，快速恢复项目状态
-- **查找相似经验**：基于当前会话自动提取关键词，在 `docs/memory-keeper.md` 全文件范围搜索并只读命中条目；如果新会话没有上下文，再提示用户补充问题描述
+- 保存用户需求、实施计划、工作结果和未完成事项。
+- 续接最近 3 份工作摘要和最多 5 条相关经验。
+- 自动从当前上下文提取关键词，分层查找进化经验、历史索引、plans 和 worklogs。
+- 按项目定位 Codex 和 Claude Code 原始会话，避免用猜测代替过去事实。
+- 用户纠正或出现已验证的新结果时沉淀到 `evolution/`，实际复用后在对话中告知用户。
+- 同一会话可以更新同一记录；跨会话由脚本创建新记录，交付检查发现旧记录改写或删除时阻断完成报告。
+- 支持项目经验经用户明确批准后晋升为用户级跨项目经验。
+- 支持 Codex 和 Claude Code 的用户级、项目级安装、入口配置和卸载。
 
-## 安装
+## 项目记录
 
-```bash
-npx skills add vincent4j/context-keeper
-```
-
-或手动克隆：
-
-```bash
-git clone https://github.com/vincent4j/context-keeper ~/.claude/skills/context-keeper
-```
-
-软链接（推荐用于本地开发，修改后立即生效）：
-
-```bash
-git clone https://github.com/vincent4j/context-keeper ~/path/to/context-keeper
-ln -s ~/path/to/context-keeper ~/.claude/skills/context-keeper
-```
-
-## 使用
-
-在 Claude Code 中输入：
-
-```
-/context-keeper
-```
-
-然后选择：
-- `1` — 保存本次上下文
-- `2` — 继续上次进度
-- `3` — 查找相似经验
-
-也可以直接输入：
+第一次保存时默认创建：
 
 ```text
-context keeper 保存
-context keeper 继续
-context keeper 查找
-```
-
-`context keeper 查找` 会优先根据当前会话自动提取关键词；只有在新会话没有可用上下文时，才要求你补充问题描述或粘贴报错。
-
-## 生成的文件
-
-**保存操作**会在项目中生成/更新以下文件：
-
-```
-docs/
-├── plans/
-│   └── YYYY-MM-DD-[功能模块]需求.md        # 需求文档（7 章节）
-├── worklog/
-│   └── YYYY-MM-DD-[功能模块].md             # 工作日志（复盘分级 + 快速摘要）
-└── memory-keeper.md                        # 项目记忆索引（主题摘要 + 时间线）
-```
-
-同一对话多次保存覆盖同一文件；文件名冲突时末尾加序号（`-2`、`-3`）。
-
-**快速摘要**格式（写在工作日志末尾，约 150 个上下文 token）：
-
-```markdown
-## 快速摘要（用于下次对话）
-
-**类型：** feature | 项目：项目名
-**完成：** 一句话描述完成的工作
-**问题：** 遇到的主要问题及解决方案（事实描述）
-**经验：** 学到了什么 + 下次怎么做（经验提炼）
-**下一步：** 下一步计划
-**文件：** 新增/修改的关键文件
-```
-
-类型：`feature`（新功能）/ `bugfix`（问题修复）/ `refactor`（重构优化）/ `research`（调研探索）/ `config`（配置环境）
-
-**项目记忆索引**（`docs/memory-keeper.md`）结构：
-
-```markdown
-## 主题摘要（按类型）
-
-**bugfix（N条）：** 关键词1，关键词2，关键词3
-**refactor（N条）：** 关键词1，关键词2
-
-## 时间线（最新在前）
-
-## YYYY-MM-DD - [功能模块] `[类型]`
-- **模块：** 模块名或功能域
-- **触发词：** 需求、报错、字段、接口、文件名、模型名等关键词
-- **任务：** 一句话描述任务
-- **关键经验：** 关键经验，分号分隔
-- **合同候选：** 可交给 PRD / 合同系统长期固化的强约束；没有则写“无”
-- **详见：** [worklog/...](...)
-```
-
-`memory-keeper.md` 是历史经验和合同候选的检索入口，不是硬约束来源。只安装 context-keeper 时，它用于提醒相似问题；如果项目还有 PRD / 合同工具，可把“合同候选”继续提炼为正式约束。
-
-保存完成后，Context Keeper 会在对话窗口输出简短的"值得回看"摘要：先按可复用性、踩坑风险、认知增量、决策价值和约束强度筛选高价值信息，再输出最多 3 条重要经验、最多 2 条合同候选或风险提醒。每条只写行动结论、价值理由和 MD 链接，不复述完整过程。
-
-## 上下文消耗对比
-
-| 场景 | 方案 | 上下文消耗 |
-|------|------|-----------|
-| 每次对话自动加载 | CLAUDE.md | 2000–5000 个上下文 token |
-| 继续上次进度 | context keeper 继续 | 约 750 个上下文 token |
-| 查找相似经验 | context keeper 查找 | 命中条目为主，按需读取 worklog |
-| 需要完整历史 | 按需加载工作日志 | 约 2000 个上下文 token |
-| 需要完整需求 | 按需加载需求文档 | 约 3000 个上下文 token |
-
-## 文件结构
-
-```
 context-keeper/
-├── SKILL.md          # Skill 主文件（Claude Code 读取）
-└── README.md
+├── memory-keeper.md
+├── plans/
+│   └── YYYY-MM-DD-中文主题.md
+├── worklogs/
+│   └── YYYY-MM-DD-中文主题.md
+└── evolution/
+    ├── index.md
+    └── 中文主题.md
 ```
 
-## 更新日志
+自定义位置：
 
-### v0.2.0 — 2026-07-02
+```bash
+python3 scripts/context_keeper_probe.py init --root <repo> --store-dir <path>
+```
 
-- 菜单升级为“保存本次上下文 / 继续上次进度 / 查找相似经验”
-- 支持直接命令：`context keeper 保存`、`context keeper 继续`、`context keeper 查找`
-- `memory-keeper.md` 条目新增模块、触发词、任务、关键经验、合同候选
-- 查找相似经验时可基于当前会话自动提取关键词，全文件范围搜索项目记忆，只读取命中条目
-- 保存完成后输出"值得回看"摘要，按价值筛选重要经验、合同候选和相关 MD 链接
+已有记录改位置必须显式迁移：
 
-### v0.1.0 — 2026-05-15
+```bash
+python3 scripts/context_keeper_probe.py init \
+  --root <repo> --store-dir <path> --migrate
+```
 
-首次发布。
+选择记录在项目根目录的 `context-keeper.json`。目标目录非空时迁移停止，避免产生两套事实源。旧版 `docs/plans/`、`docs/worklog/`、`docs/worklogs/` 和 `docs/memory-keeper.md` 继续可读，不自动迁移。
 
-- 保存本次上下文：生成需求文档、工作日志，更新项目记忆索引（`docs/memory-keeper.md`）
-- 继续上次进度：读取最近 3 次工作摘要 + 近期经验（约 750 个上下文 token）
-- 快速摘要支持类型标签（feature/bugfix/refactor/research/config）
-- 项目记忆索引支持主题摘要区块（按类型聚合）和时间线
-- 支持 `npx skills add vincent4j/context-keeper` 安装
+## 安装与入口
+
+用户级安装，对当前用户的项目生效：
+
+```bash
+python3 scripts/install.py --all
+```
+
+项目级安装：
+
+```bash
+python3 scripts/install.py --project <repo> --all
+```
+
+只配置自动入口：
+
+```bash
+python3 scripts/install.py --all --bridge-only
+```
+
+卸载 Skill 和自身入口区块：
+
+```bash
+python3 scripts/install.py --all --uninstall
+```
+
+可以用 `--codex` 或 `--claude` 只处理一个 Agent。安装器会分别报告 Skill、入口和移除结果，重复运行不会重复追加。其他 Agent 只有在其规则入口和 Skill 目录经过实际验证后才能宣称支持。
+
+## 主要命令
+
+```bash
+# 初始化
+python3 scripts/context_keeper_probe.py init --root <repo>
+
+# 创建当前会话拥有的记录
+python3 scripts/context_keeper_probe.py record-path --root <repo> \
+  --kind plan --title '中文主题' --session-id '<session-id>'
+
+# 编辑前防止跨会话覆盖
+python3 scripts/context_keeper_probe.py record-guard --root <repo> \
+  --path <record> --session-id '<session-id>'
+
+# 轻量续接并筛选当前相关事项
+python3 scripts/context_keeper_probe.py resume --root <repo> --query '<关键词>'
+
+# 分层历史搜索
+python3 scripts/context_keeper_probe.py search --root <repo> --query '<关键词>'
+
+# 关键判断需要原文时搜索原始会话
+python3 scripts/context_keeper_probe.py history-search --root <repo> --query '<关键词>'
+
+# 用户批准后晋升跨项目经验
+python3 scripts/context_keeper_probe.py promote-evolution --root <repo> \
+  --source <evolution-file> --approved
+
+# 一行覆盖检查；加 --details 才展开
+python3 scripts/context_keeper_probe.py coverage --root <repo>
+
+# 保存交付校验
+python3 scripts/context_keeper_probe.py save-report --root <repo> \
+  --worklog <worklog> --session-id '<session-id>'
+```
+
+## 自我进化边界
+
+Context Keeper 不自动修改自己的代码。它更新项目 `evolution/` 中的经验数据：编号、状态、触发条件、已知事实、证据、建议动作和适用范围。
+
+只有用户明确纠正、失败后出现可核验的新结果，或旧经验被新证据修正时才沉淀。搜索排除已替代经验，待验证经验不会包装成成功结论。同一经验已经沉淀后只能报告复用或修正，不能再次宣称首次学会。
+
+经验命中不等于已经复用，复用也不等于已经有效。只有经验实际改变本次判断或动作时才报告“本次复用”，只有本轮结果提供证据时才报告有效。
+
+## Token 控制
+
+- 续接：3 份短摘要，最多 5 条相关经验。
+- 进化经验：最多 3 个候选。
+- 搜索总候选：最多 5 个，只展开 1～2 份。
+- 原始会话：先按项目和关键词定位，只输出有限片段。
+- 覆盖检查：默认一行计数，详情按需展开。
+- 同一问题本轮只查一次；普通任务不查历史。
+
+## 已验证范围
+
+Codex/gpt-6-astra 的本次行为用例通过。本机 Claude Code/MiniMax-M3 显式保存可用，但自动沉淀未通过，检索读取量也未严格遵守约束。原生 Claude 验收由用户决定延期。安装成功不等于所有模型均能可靠自动执行；完整结果保存在源码仓库的 `acceptance-review.md` 和 `behavior-verification.md`。
+
+## 验证
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -v
+```
