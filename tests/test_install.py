@@ -14,6 +14,73 @@ INSTALLER = Path(__file__).parents[1] / "scripts" / "install.py"
 
 
 class InstallTests(unittest.TestCase):
+    def test_first_use_project_and_user_copy_or_symlink(self):
+        for agent in ('codex', 'claude'):
+            for scope in ('user', 'project'):
+                for linked in (False, True):
+                    with self.subTest(agent=agent,scope=scope,linked=linked), tempfile.TemporaryDirectory() as d:
+                        root = Path(d)
+                        home = root / 'home';home.mkdir()
+                        project = root / 'project';project.mkdir()
+                        base = home if scope == 'user' else project
+                        folder = '.agents' if agent == 'codex' else '.claude'
+                        skill = base / folder / 'skills/context-keeper'
+                        skill.parent.mkdir(parents=True)
+                        if linked:
+                            skill.symlink_to(INSTALLER.parents[1])
+                        else:
+                            import shutil
+                            shutil.copytree(INSTALLER.parents[1],skill,ignore=shutil.ignore_patterns('.git','__pycache__'))
+                        bridge = (home / ('.codex/AGENTS.md' if agent=='codex' else '.claude/CLAUDE.md')
+                                  if scope=='user' else project / ('AGENTS.md' if agent=='codex' else 'CLAUDE.md'))
+                        bridge.parent.mkdir(parents=True,exist_ok=True)
+                        bridge.write_text('# 用户内容\n\n不要修改。\n')
+                        cmd = ['python3',str(skill/'scripts/install.py'),'--ensure-bridge','--'+agent,'--skill-dir',str(skill),'--root',str(project)]
+                        env = dict(os.environ, HOME=str(home))
+                        result = subprocess.run(cmd,env=env,text=True,capture_output=True)
+                        self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+                        self.assertEqual(json.loads(result.stdout)['scope'],scope)
+                        self.assertTrue(bridge.read_text().startswith('# 用户内容\n\n不要修改。\n'))
+                        before = bridge.stat().st_mtime_ns
+                        result = subprocess.run(cmd,env=env,text=True,capture_output=True)
+                        self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+                        self.assertEqual(json.loads(result.stdout)['action'],'unchanged')
+                        self.assertEqual(bridge.stat().st_mtime_ns,before)
+                        other = project/'CLAUDE.md' if agent=='codex' else project/'AGENTS.md'
+                        self.assertFalse(other.exists())
+                        self.assertFalse((project/'context-keeper').exists())
+
+    def test_first_use_resolved_source_prefers_project_alias(self):
+        with tempfile.TemporaryDirectory() as d:
+            home=Path(d)/'home';project=home/'project';project.mkdir(parents=True)
+            for base in (home,project):
+                skill=base/'.agents/skills/context-keeper';skill.parent.mkdir(parents=True)
+                skill.symlink_to(INSTALLER.parents[1])
+            result=subprocess.run(['python3',str(INSTALLER),'--ensure-bridge','--codex','--root',str(project)],env=dict(os.environ,HOME=str(home)),capture_output=True,text=True)
+            self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+            self.assertEqual(json.loads(result.stdout)['scope'],'project')
+            self.assertFalse((home/'.codex/AGENTS.md').exists())
+
+    def test_first_use_unknown_scope_does_not_write(self):
+        with tempfile.TemporaryDirectory() as d:
+            result=subprocess.run(['python3',str(INSTALLER),'--ensure-bridge','--codex','--root',d],env=dict(os.environ,HOME=d),capture_output=True,text=True)
+            self.assertEqual(result.returncode,2,result.stdout+result.stderr)
+            self.assertEqual(list(Path(d).iterdir()),[])
+
+    def test_bridge_update_preserves_surroundings_and_rejects_bad_markers(self):
+        spec=importlib.util.spec_from_file_location('installer_bootstrap',INSTALLER)
+        installer=importlib.util.module_from_spec(spec);spec.loader.exec_module(installer)
+        with tempfile.TemporaryDirectory() as d:
+            p=Path(d)/'AGENTS.md'
+            prefix='\n# Before  \n\n';suffix='\n\n# After  \n\n'
+            p.write_text(prefix+installer.BRIDGE_START+'\nold\n'+installer.BRIDGE_END+suffix)
+            self.assertEqual(installer._upsert_bridge(p),'updated')
+            self.assertEqual(p.read_text(),prefix+installer.BRIDGE.rstrip('\n')+suffix)
+            for malformed in (installer.BRIDGE_START,installer.BRIDGE_END,installer.BRIDGE*2):
+                p.write_text(malformed)
+                with self.assertRaises(RuntimeError):installer._upsert_bridge(p)
+                self.assertEqual(p.read_text(),malformed)
+
     def test_uninstall_refuses_real_source_but_unlinks_installed_alias(self):
         spec = importlib.util.spec_from_file_location('installer_under_test', INSTALLER)
         installer = importlib.util.module_from_spec(spec)

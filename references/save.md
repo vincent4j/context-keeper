@@ -2,6 +2,8 @@
 
 ## 1. 初始化与会话边界
 
+命令返回“需要迁移”（退出码 3）时停止，按 [迁移说明](migrate.md) 预览并取得用户确认；不得绕过门禁读写旧记录。
+
 ```bash
 python3 <skill-dir>/scripts/context_keeper_probe.py init --root <repo>
 python3 <skill-dir>/scripts/context_keeper_probe.py status --root <repo>

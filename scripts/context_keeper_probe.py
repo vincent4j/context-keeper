@@ -10,6 +10,7 @@ import re
 import shutil
 import sqlite3
 import subprocess
+import tempfile
 from pathlib import Path
 from typing import NamedTuple
 
@@ -81,7 +82,7 @@ def _configured_value(root: Path, store: Path) -> str:
 
 def _write_config(root: Path, store: Path) -> None:
     (root / CONFIG_FILE).write_text(
-        json.dumps({"directory": _configured_value(root, store)}, ensure_ascii=False, indent=2) + "\n",
+        json.dumps({"directory": _configured_value(root, store), "schema_version": 2}, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
 
@@ -98,25 +99,203 @@ def _legacy_plan_dirs(root: Path) -> list[Path]:
     return [root / "docs" / "plans"]
 
 
+def _legacy_sources(root: Path) -> list[tuple[Path, str]]:
+    sources = [(path, "memory-keeper.md") for path in _legacy_memory_paths(root) if path.is_file()]
+    for directories, kind in ((_legacy_plan_dirs(root), "plans"), (_legacy_worklog_dirs(root), "worklogs")):
+        for directory in directories:
+            if directory.is_dir() and any(directory.iterdir()):
+                sources.append((directory, kind))
+    return sources
+
+
+def _migration_warning(root: Path) -> int:
+    sources = _legacy_sources(root)
+    print("需要迁移：发现旧版 Context Keeper 记录；新版已停止读取和写入旧结构。")
+    for path, kind in sources:
+        print(f"- {_rel(root, path)} → {kind}")
+    print("请先运行 migrate 查看迁移范围，并询问用户是否确认。只有用户明确确认后，才运行 migrate --approved；未确认或拒绝时停止本 Skill。")
+    return 3
+
+
+def _migrated_records(root: Path) -> set[Path]:
+    manifest = _layout(root).store / "migration-manifest.json"
+    if not manifest.is_file():
+        return set()
+    data = json.loads(manifest.read_text(encoding="utf-8"))
+    return {(_layout(root).store / item).resolve() for item in data.get("historical_records", [])}
+
+
+def cmd_migrate(args: argparse.Namespace) -> int:
+    root = Path(args.root).resolve()
+    sources = _legacy_sources(root)
+    if not sources:
+        print("未发现旧版记录，无需迁移。")
+        return 0
+    layout = _layout(root, args.store_dir)
+    if layout.store == root or layout.store.is_relative_to(root / "docs"):
+        raise ValueError("迁移目标不能是项目根目录或旧 docs 目录内部。")
+    if layout.store.exists() and (not layout.store.is_dir() or any(layout.store.iterdir())):
+        raise ValueError("新旧结构同时存在或目标非空；停止迁移，请先确认冲突，绝不覆盖。")
+    directory_mapping = {source.resolve(): layout.store / kind for source, kind in sources if source.is_dir()}
+    mapping: dict[Path, Path] = {}
+    for source, kind in sources:
+        files = [source] if source.is_file() else list(source.rglob("*"))
+        if source.is_symlink() or any(path.is_symlink() for path in files):
+            raise ValueError("旧记录包含软链接，停止迁移，请先确认实际文件归属。")
+        for path in files:
+            if not path.is_file():
+                continue
+            target = layout.store / kind if source.is_file() else layout.store / kind / path.relative_to(source)
+            if target in mapping.values():
+                raise ValueError(f"旧目录存在同名目标，停止迁移：{target}")
+            mapping[path.resolve()] = target
+    print(f"旧版迁移预览：{len(mapping)} 个文件 → {layout.store}")
+    for source, kind in sources:
+        print(f"- {source} → {layout.store / kind}")
+
+    def rewrite(text: str, old: Path, new: Path) -> str:
+        def replace(match: re.Match[str]) -> str:
+            raw = match.group(1) or match.group(2)
+            local, sep, fragment = raw.partition("#")
+            if not local or re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*:", local):
+                return match.group(0)
+            before = (old.parent / local).resolve()
+            after = mapping.get(before, before)
+            for source_dir, target_dir in directory_mapping.items():
+                if before.is_relative_to(source_dir):
+                    after = target_dir / before.relative_to(source_dir)
+                    break
+            if old == new and after == before:
+                return match.group(0)
+            updated = str(after) if Path(local).is_absolute() else os.path.relpath(after, new.parent)
+            updated += sep + fragment
+            if updated == raw:
+                return match.group(0)
+            if match.group(1) is None and " " in updated:
+                updated = "<" + updated + ">"
+            start, end = match.span(1 if match.group(1) is not None else 2)
+            return match.group(0)[:start-match.start()] + updated + match.group(0)[end-match.start():]
+        return LOCAL_LINK_RE.sub(replace, text)
+
+    # Only Markdown links are rebased; history prose and code are not rewritten.
+    external: dict[Path, bytes] = {}
+    excluded = {".git", ".context-keeper-backups", "node_modules", ".venv", "venv", "vendor"}
+    for parent, dirs, files in os.walk(root):
+        dirs[:] = [name for name in dirs if name not in excluded and not (Path(parent)/name).is_symlink()]
+        for name in files:
+            path = Path(parent) / name
+            if path.suffix != ".md" or path.is_symlink() or path.resolve() in mapping:
+                continue
+            original = path.read_bytes()
+            try:
+                text = original.decode("utf-8")
+            except UnicodeDecodeError:
+                continue
+            changed = rewrite(text, path, path)
+            if changed != text:
+                external[path] = changed.encode("utf-8")
+    print(f"需同步修正 {len(external)} 个项目 Markdown 文件中的链接；先备份原文件，只更改链接地址。")
+    print("历史正文不补写、不推断；建立 evolution 空索引，旧经验按需核对后再沉淀。")
+    if not args.approved:
+        print("尚未迁移。请取得用户明确确认后运行 migrate --approved。")
+        return 3
+
+    backup_root = root / ".context-keeper-backups"
+    backup_root.mkdir(exist_ok=True)
+    backup = Path(tempfile.mkdtemp(prefix="migration-", dir=backup_root))
+    originals = {path: path.read_bytes() for path in [*mapping, *external]}
+    config = root / CONFIG_FILE
+    old_config = config.read_bytes() if config.exists() else None
+    for path, content in originals.items():
+        saved = backup / path.relative_to(root)
+        saved.parent.mkdir(parents=True, exist_ok=True)
+        saved.write_bytes(content)
+    if old_config is not None:
+        (backup / CONFIG_FILE).write_bytes(old_config)
+    layout.store.parent.mkdir(parents=True, exist_ok=True)
+    stage = Path(tempfile.mkdtemp(prefix=".context-keeper-migration-", dir=layout.store.parent))
+    published = False
+    try:
+        for source, target in mapping.items():
+            output = stage / target.relative_to(layout.store)
+            output.parent.mkdir(parents=True, exist_ok=True)
+            content = originals[source]
+            if source.suffix == ".md":
+                content = rewrite(content.decode("utf-8"), source, target).encode("utf-8")
+            output.write_bytes(content)
+        for kind in ("plans", "worklogs", "evolution"):
+            (stage / kind).mkdir(exist_ok=True)
+        memory = stage / "memory-keeper.md"
+        text = memory.read_text() if memory.exists() else "# 项目记忆索引\n"
+        text = text.replace("## 未完成事项", "## 历史未完成事项（迁移时未复核）")
+        text += "\n---\n\n## 未完成事项\n\n- 暂无\n\n## 进化经验入口\n\n- [进化经验索引](evolution/index.md)\n"
+        text += "\n## 迁移记录入口\n\n"
+        records = []
+        for target in mapping.values():
+            relative = target.relative_to(layout.store)
+            if relative.parts[0] in ("plans", "worklogs") and target.suffix == ".md":
+                records.append(str(relative))
+                text += f"- [{target.stem}]({relative})\n"
+        memory.write_text(text)
+        (stage / "evolution/index.md").write_text("# 自我进化索引\n\n## 有效经验\n\n- 暂无\n")
+        manifest = {"schema_version": 2, "backup": str(backup), "historical_records": records,
+                    "files": [{"old": str(p.relative_to(root)), "new": str(t), "sha256": hashlib.sha256(originals[p]).hexdigest()} for p,t in mapping.items()]}
+        (stage / "migration-manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2)+"\n")
+        # Abort if anything changed since preparing the backup.
+        if any(not p.exists() or p.read_bytes() != content for p,content in originals.items()):
+            raise ValueError("迁移期间源文件发生变化，已停止；请重新预览。")
+        if layout.store.exists():
+            layout.store.rmdir()
+        stage.rename(layout.store)
+        published = True
+        for path, content in external.items():
+            path.write_bytes(content)
+        _write_config(root, layout.store)
+        for path in mapping:
+            path.unlink()
+    except Exception:
+        if published:
+            for path, content in originals.items():
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(content)
+            if old_config is None:
+                config.unlink(missing_ok=True)
+            else:
+                config.write_bytes(old_config)
+            shutil.rmtree(layout.store)
+        elif stage.exists():
+            shutil.rmtree(stage)
+        raise
+    for source, _ in sources:
+        if source.is_dir():
+            for directory in sorted((p for p in source.rglob("*") if p.is_dir()), reverse=True):
+                if not any(directory.iterdir()):
+                    directory.rmdir()
+            if not any(source.iterdir()):
+                source.rmdir()
+    print(f"迁移完成：{layout.store}；原始备份：{backup}。历史缺项保持原状，不冒充新验证。")
+    return 0
+
+
 def _memory_paths(root: Path) -> list[Path]:
-    candidates = [_layout(root).memory, *_legacy_memory_paths(root)]
+    candidates = [_layout(root).memory]
     return list(dict.fromkeys(path for path in candidates if path.is_file()))
 
 
 def _worklog_dirs(root: Path) -> list[Path]:
-    candidates = [_layout(root).worklogs, *_legacy_worklog_dirs(root)]
+    candidates = [_layout(root).worklogs]
     return list(dict.fromkeys(path for path in candidates if path.is_dir()))
 
 
 def _plan_dirs(root: Path) -> list[Path]:
-    candidates = [_layout(root).plans, *_legacy_plan_dirs(root)]
+    candidates = [_layout(root).plans]
     return list(dict.fromkeys(path for path in candidates if path.is_dir()))
 
 
 def _markdown_files(directories: list[Path]) -> list[Path]:
     files: list[Path] = []
     for directory in directories:
-        files.extend(directory.glob("*.md"))
+        files.extend(directory.rglob("*.md"))
     return sorted(dict.fromkeys(path.resolve() for path in files), key=lambda path: (path.name, str(path)))
 
 
@@ -533,11 +712,11 @@ def cmd_record_path(args: argparse.Namespace) -> int:
         return 2
     _capture_baseline(root, args.session_id)
     base = directory / f"{date}-{title}.md"
-    if base.exists() and _session_id(base) != args.session_id:
+    if base.exists() and (_session_id(base) != args.session_id or base in _migrated_records(root)):
         index = 2
         while True:
             candidate = directory / f"{date}-{title}-{index}.md"
-            if not candidate.exists() or _session_id(candidate) == args.session_id:
+            if not candidate.exists() or (_session_id(candidate) == args.session_id and candidate not in _migrated_records(root)):
                 base = candidate
                 break
             index += 1
@@ -557,6 +736,9 @@ def cmd_record_guard(args: argparse.Namespace) -> int:
     allowed = any(parent == path.parent for parent in (layout.plans, layout.worklogs))
     if not allowed or not path.is_file():
         print(f"记录不存在或不在当前记录目录：{_rel(root, path)}")
+        return 2
+    if path in _migrated_records(root):
+        print("迁移保留的历史记录不可更新；请创建当前会话的新记录。")
         return 2
     _capture_baseline(root, args.session_id)
     actual = _session_id(path)
@@ -594,6 +776,16 @@ def cmd_resume(args: argparse.Namespace) -> int:
     if pending:
         print("\n相关未完成事项：" if pattern else "\n未完成事项：")
         print("\n".join(pending[: args.pending]))
+
+    historical_pending = []
+    for path in memory_paths:
+        historical_pending.extend(_section_items(path, "## 历史未完成事项（迁移时未复核）", None))
+    if pattern:
+        historical_pending = [item for item in historical_pending if pattern.search(item)]
+    historical_pending = historical_pending[:max(0, args.pending - len(pending[:args.pending]))]
+    if historical_pending:
+        print("\n迁移保留的历史待办（尚未复核，不代表当前状态或授权）：")
+        print("\n".join(historical_pending))
 
     if memory_paths:
         theme = _theme_summary(memory_paths[0])
@@ -972,7 +1164,7 @@ def cmd_coverage(args: argparse.Namespace) -> int:
     unindexed_plans = [path for path in plans if path not in indexed]
     unindexed_worklogs = [path for path in worklogs if path not in indexed]
     missing_summary = [path for path in worklogs if not _quick_summary_fields(path)]
-    current_records = [path for path in [*plans, *worklogs] if path.is_relative_to(layout.store)]
+    current_records = [path for path in [*plans, *worklogs] if path.is_relative_to(layout.store) and path not in _migrated_records(root)]
     missing_session = [path for path in current_records if not _session_id(path)]
     evolution_files = [path for path in layout.evolution.glob("*.md") if path.name != "index.md"] if layout.evolution.is_dir() else []
     evolution_index = layout.evolution / "index.md"
@@ -997,7 +1189,7 @@ def cmd_coverage(args: argparse.Namespace) -> int:
         if _evolution_status(path) != "已替代":
             themes.setdefault(title, []).append(path)
     duplicate_themes = {key: paths for key, paths in themes.items() if len(paths) > 1}
-    invalid_plans = [(path, _validate_plan(path)) for path in plans if path.parent == layout.plans and _validate_plan(path)]
+    invalid_plans = [(path, _validate_plan(path)) for path in plans if path.parent == layout.plans and path not in _migrated_records(root) and _validate_plan(path)]
     broken_links: list[tuple[Path, Path]] = []
     for source in [*memories, evolution_index, *worklogs, *plans, *evolution_files]:
         if source and source.is_file():
@@ -1072,6 +1264,8 @@ def cmd_save_report(args: argparse.Namespace) -> int:
     worklog = worklog.resolve()
     if not worklog.is_file():
         return _save_report_error(f"工作日志不存在：{_rel(root, worklog)}")
+    if worklog in _migrated_records(root):
+        return _save_report_error("迁移历史不能作为本轮保存记录；请新建日志")
     if worklog.is_relative_to(layout.worklogs):
         if not args.session_id:
             return _save_report_error("新目录工作日志必须提供 --session-id")
@@ -1156,6 +1350,11 @@ def cmd_save_report(args: argparse.Namespace) -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Context Keeper bounded probes")
     sub = parser.add_subparsers(dest="command", required=True)
+    migrate = sub.add_parser("migrate", help="预览旧版迁移；用户确认后使用 --approved")
+    migrate.add_argument("--root", default=".")
+    migrate.add_argument("--store-dir")
+    migrate.add_argument("--approved", action="store_true")
+    migrate.set_defaults(func=cmd_migrate)
     init = sub.add_parser("init", help="初始化或迁移 Context Keeper 记录目录")
     init.add_argument("--root", default=".")
     init.add_argument("--store-dir", help="自定义记录目录；默认 context-keeper")
@@ -1229,6 +1428,9 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
+        root = Path(args.root).resolve()
+        if args.command != "migrate" and _legacy_sources(root):
+            return _migration_warning(root)
         return int(args.func(args))
     except ValueError as exc:
         print(str(exc))

@@ -2,6 +2,30 @@
 
 Context Keeper 的核心流程不依赖特定 Agent。安装器分别完成两件事：复制 Skill 文件，以及写入短入口规则。
 
+## 推荐入口：npx 安装，首次使用补齐配置
+
+```bash
+npx skills add vincent4j/context-keeper
+```
+
+安装器提供 Skill 文件。用户首次选择 `/context-keeper` 后，Agent 按 SKILL.md 执行以下检查（用户不需要手动执行）：
+
+```bash
+python3 <skill-dir>/scripts/install.py --ensure-bridge --skill-dir <skill-dir> --root <repo> --codex
+```
+
+当前宿主是 Claude Code 时使用 `--claude`。只配置当前宿主，不使用 `--all`。
+
+- 用户级安装对应用户级规则；项目级安装对应安装项目的规则，不以当前工作目录猜安装范围。
+- 支持 `.agents/skills`、对应宿主的 `.codex/skills` 或 `.claude/skills`，复制与软链接均可。
+- 宿主只提供软链接解析后的源码路径时，从当前项目及其祖先、用户安装位置找回指向同一源码的别名，项目优先。
+- 同一会话检查一次；规则已是当前版本时不写文件，不重复通知。更新版本时替换自己的区块并读回检查，保留区块外原文。
+- 未知路径、宿主不明、损坏或重复标记时停止配置，说明原因；不得猜测全局范围或覆盖用户内容。
+- `--ensure-bridge` 不复制 Skill、不初始化记录、不迁移项目、不触发 hooks。显示菜单及后续动作由调用它的 Agent 继续执行。
+- 首次运行依赖 Agent 遵循 Skill 指令；配置成功不证明宿主已重新加载规则。后续新会话才有机会按宿主机制加载入口，不承诺所有模型可靠自动触发。
+
+以下命令用于手动管理或排查，不需要放在面向用户的快速安装步骤中。
+
 ## 用户级
 
 对当前用户的所有项目生效：

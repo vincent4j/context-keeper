@@ -7,6 +7,18 @@ description: 保存和续接项目上下文，查找有证据的历史事实，�
 
 用有限上下文保存进度、恢复工作、检索历史事实，并在有证据时积累可复用经验。普通新需求不自动搜索历史。
 
+## 首次使用：补齐自动入口
+
+本会话首次调用本 Skill 时，先运行下面的一次性检查，再显示菜单或执行用户指定动作。`<skill-dir>` 使用当前实际加载的 Skill 目录（优先保留安装路径，不主动解析软链接），`<repo>` 为当前项目；按当前宿主选 `--codex` 或 `--claude`，只能选一个，不根据机器上装了哪些程序猜宿主。
+
+```bash
+python3 <skill-dir>/scripts/install.py --ensure-bridge --skill-dir <skill-dir> --root <repo> --codex
+```
+
+Claude Code 将最后的 `--codex` 换成 `--claude`。这属于首次使用初始化：按安装位置自动判断用户级或项目级，补齐当前宿主的短入口，不复制 Skill、不创建项目记录、不迁移数据。无需额外要求用户输入安装命令。
+
+返回 `created/appended/updated` 时简短告知“已配置自动入口”，然后继续原操作；`unchanged` 时静默继续。同一会话已检查成功就复用结果，不在每条消息里重复检查。未知宿主、范围不明或写入失败时如实说明未启用自动入口，按需读 [安装说明](references/install.md)，不擅自扩大为全局安装。不要将配置成功说成模型行为已验证，也不要声称新规则已经被宿主重新加载。
+
 ## 事实边界
 
 - 用户记忆与记录不一致时查找过去事实；不迎合记忆，不猜测或编造。
@@ -38,7 +50,9 @@ context-keeper/
     └── 中文主题.md
 ```
 
-旧版 `docs/plans/`、`docs/worklog/`、`docs/worklogs/` 和 `docs/memory-keeper.md` 只兼容读取，不自动迁移或改写。
+旧版 `docs/plans/`、`docs/worklog/`、`docs/worklogs/` 和 `docs/memory-keeper.md` 不再兼容读取。每个操作命令都会检查旧结构，发现旧记录返回退出码 3 并停止；不得绕过脚本读取旧目录。
+
+出现“需要迁移”时，先运行 `migrate --root <repo>` 展示目录、文件数量、受影响链接和备份范围，询问用户是否迁移；只有用户明确确认后运行 `migrate --root <repo> --approved`。拒绝或未回复则停止本 Skill。细节按需读取 [references/migrate.md](references/migrate.md)。迁移授权只对应当前项目，不代表允许批量迁移其他项目。
 
 ## Token 与耗时边界
 
@@ -59,7 +73,19 @@ context-keeper/
 - 查找：从当前上下文提取关键词运行 `search`，再读 [references/search.md](references/search.md)。
 - 安装、卸载、用户级或项目级入口：读 [references/install.md](references/install.md)。
 
-用户只调用 Context Keeper 且没有说明动作时，展示保存、继续、查找三个选项。直接命令 `context keeper 保存/继续/查找` 对应三个操作。
+用户通过 `/context-keeper` 或其他方式只调用 Skill、没有说明动作时，展示以下菜单，并将用户下一条回复的 1、2、3 分别路由到保存、继续、查找：
+
+```text
+你想做什么？
+
+1. 保存 —— 记下本次需求、进度和未完成事项，方便下次继续。
+2. 继续 —— 找回上次进度，接着做没完成的任务。
+3. 查找 —— 查找当前问题的历史记录和相关经验。
+
+回复 1、2 或 3 即可。
+```
+
+用户已说明动作时直接执行，不重复展示菜单。直接命令 `context keeper 保存/继续/查找` 仍对应三个操作。
 
 ## 自动触发边界
 

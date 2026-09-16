@@ -367,12 +367,13 @@ class SaveReportTests(unittest.TestCase):
             self.assertEqual(result, 0, output)
             self.assertIn("自我进化：", output)
 
-    def test_supports_legacy_layout(self):
+    def test_legacy_layout_requires_migration(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             worklog = _write_valid_context(root, legacy=True)
             result, output = _save(root, worklog, legacy=True)
-            self.assertEqual(result, 0, output)
+            self.assertEqual(result, 3, output)
+            self.assertIn("需要迁移", output)
 
     def test_blocks_wrong_session_for_new_layout(self):
         with tempfile.TemporaryDirectory() as temp_dir:
