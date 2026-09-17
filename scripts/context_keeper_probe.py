@@ -19,10 +19,11 @@ ENTRY_RE = re.compile(r"^## \d{4}-\d{2}-\d{2} .*$")
 SESSION_RE = re.compile(r"<!--\s*context-keeper:\s*session-id=([^\s>]+)\s*-->")
 LOCAL_LINK_RE = re.compile(r"!?\[[^\]]*\]\((?:<([^>]+)>|([^\s)]+))(?:\s+[\"\'][^)]*[\"\'])?\)")
 LINK_RE = re.compile(r"\[[^\]]+\]\(([^)]+\.md(?:#[^)]+)?)\)")
-DEFAULT_STORE = "context-keeper"
+DEFAULT_STORE = "docs/context-keeper"
 CONFIG_FILE = "context-keeper.json"
 EVOLUTION_FIELDS = ("编号", "状态", "触发条件", "已知事实", "证据位置", "建议动作", "适用范围")
 EVOLUTION_STATUSES = {"待验证", "已验证", "已替代"}
+RC_NEEDS_CONFIRMATION = 5
 
 
 class Layout(NamedTuple):
@@ -65,12 +66,39 @@ def _load_config(root: Path) -> dict:
 
 def _layout(root: Path, store_dir: str | None = None) -> Layout:
     root = root.resolve()
-    configured = store_dir or str(_load_config(root).get("directory") or DEFAULT_STORE)
+    if store_dir:
+        configured = store_dir
+    else:
+        discovered = _discover_store(root)
+        configured = str(discovered) if discovered is not None else str(_load_config(root).get("directory") or DEFAULT_STORE)
     store = Path(configured).expanduser()
     if not store.is_absolute():
         store = root / store
     store = store.resolve()
     return Layout(root, store, store / "memory-keeper.md", store / "plans", store / "worklogs", store / "evolution")
+
+
+def _discovery_candidates(root: Path) -> list[Path]:
+    return [(root / "docs" / "context-keeper").resolve(), (root / "context-keeper").resolve()]
+
+
+def _looks_like_store(path: Path) -> bool:
+    markers = ("memory-keeper.md", "worklogs", "plans", "evolution", "migration-manifest.json")
+    return path.is_dir() and any((path / marker).exists() for marker in markers)
+
+
+def _discover_store(root: Path) -> Path | None:
+    """按目录名自动发现记录库：根目录与 docs/ 下各一个候选；歧义时明确报错，绝不静默二选一。"""
+    found = [candidate for candidate in _discovery_candidates(root) if _looks_like_store(candidate)]
+    if not found:
+        return None
+    if len(found) > 1:
+        raise ValueError(
+            "发现多个记录库："
+            + "、".join(_rel(root, path) for path in found)
+            + "。任一命令都可用 --store-dir 显式指定要用的目录，或删除多余的目录。"
+        )
+    return found[0]
 
 
 def _configured_value(root: Path, store: Path) -> str:
@@ -117,12 +145,12 @@ def _migration_warning(root: Path) -> int:
     return 3
 
 
-def _migrated_records(root: Path) -> set[Path]:
-    manifest = _layout(root).store / "migration-manifest.json"
+def _migrated_records(root: Path, store_dir: str | None = None) -> set[Path]:
+    manifest = _layout(root, store_dir).store / "migration-manifest.json"
     if not manifest.is_file():
         return set()
     data = json.loads(manifest.read_text(encoding="utf-8"))
-    return {(_layout(root).store / item).resolve() for item in data.get("historical_records", [])}
+    return {(_layout(root, store_dir).store / item).resolve() for item in data.get("historical_records", [])}
 
 
 def cmd_migrate(args: argparse.Namespace) -> int:
@@ -132,10 +160,16 @@ def cmd_migrate(args: argparse.Namespace) -> int:
         print("未发现旧版记录，无需迁移。")
         return 0
     layout = _layout(root, args.store_dir)
-    if layout.store == root or layout.store.is_relative_to(root / "docs"):
-        raise ValueError("迁移目标不能是项目根目录或旧 docs 目录内部。")
+    docs_exception = (root / "docs" / "context-keeper").resolve()
+    if layout.store == root or (layout.store.is_relative_to(root / "docs") and layout.store != docs_exception):
+        raise ValueError(
+            f"迁移目标 {_rel(root, layout.store)} 不能是项目根目录或 docs/ 下的非 context-keeper 子路径，"
+            f"会覆盖项目文档。请显式 --store-dir 指到根目录 context-keeper/ 或其他非 docs 子路径。"
+        )
     if layout.store.exists() and (not layout.store.is_dir() or any(layout.store.iterdir())):
-        raise ValueError("新旧结构同时存在或目标非空；停止迁移，请先确认冲突，绝不覆盖。")
+        raise ValueError(
+            f"目标位置 {_rel(root, layout.store)} 已存在非空内容；停止迁移，绝不覆盖。请清理目标或用 --store-dir 指定其他位置。"
+        )
     directory_mapping = {source.resolve(): layout.store / kind for source, kind in sources if source.is_dir()}
     mapping: dict[Path, Path] = {}
     for source, kind in sources:
@@ -149,9 +183,15 @@ def cmd_migrate(args: argparse.Namespace) -> int:
             if target in mapping.values():
                 raise ValueError(f"旧目录存在同名目标，停止迁移：{target}")
             mapping[path.resolve()] = target
-    print(f"旧版迁移预览：{len(mapping)} 个文件 → {layout.store}")
-    for source, kind in sources:
-        print(f"- {source} → {layout.store / kind}")
+    print(f"旧版迁移预览：{len(mapping)} 个文件 → {_rel(root, layout.store)}")
+    preview_limit = 20
+    shown = 0
+    for source, target in mapping.items():
+        if shown >= preview_limit:
+            print(f"  · ... 其余 {len(mapping) - shown} 个文件略")
+            break
+        print(f"  · {_rel(root, source)} → {_rel(root, target)}")
+        shown += 1
 
     def rewrite(text: str, old: Path, new: Path) -> str:
         def replace(match: re.Match[str]) -> str:
@@ -194,7 +234,10 @@ def cmd_migrate(args: argparse.Namespace) -> int:
             changed = rewrite(text, path, path)
             if changed != text:
                 external[path] = changed.encode("utf-8")
-    print(f"需同步修正 {len(external)} 个项目 Markdown 文件中的链接；先备份原文件，只更改链接地址。")
+    print(f"需同步修正 {len(external)} 个项目 Markdown 文件中的链接：")
+    for path in sorted(external):
+        print(f"  · {_rel(root, path)}")
+    print("先备份原文件，只更改链接地址。")
     print("历史正文不补写、不推断；建立 evolution 空索引，旧经验按需核对后再沉淀。")
     if not args.approved:
         print("尚未迁移。请取得用户明确确认后运行 migrate --approved。")
@@ -242,17 +285,26 @@ def cmd_migrate(args: argparse.Namespace) -> int:
                     "files": [{"old": str(p.relative_to(root)), "new": str(t), "sha256": hashlib.sha256(originals[p]).hexdigest()} for p,t in mapping.items()]}
         (stage / "migration-manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2)+"\n")
         # Abort if anything changed since preparing the backup.
-        if any(not p.exists() or p.read_bytes() != content for p,content in originals.items()):
-            raise ValueError("迁移期间源文件发生变化，已停止；请重新预览。")
+        drifted = [p for p, content in originals.items() if not p.exists() or p.read_bytes() != content]
+        if drifted:
+            print("迁移期间以下源文件发生变化：")
+            for path in drifted:
+                print(f"  · {_rel(root, path)}")
+            raise ValueError(f"迁移期间源文件发生变化（{len(drifted)} 个），已停止；请重新预览。")
         if layout.store.exists():
             layout.store.rmdir()
         stage.rename(layout.store)
         published = True
         for path, content in external.items():
             path.write_bytes(content)
-        _write_config(root, layout.store)
+        if layout.store in _discovery_candidates(root):
+            config.unlink(missing_ok=True)
+        else:
+            _write_config(root, layout.store)
         for path in mapping:
             path.unlink()
+        # 复制 manifest 到备份目录，方便撤销时识别迁移文件
+        shutil.copy2(layout.store / "migration-manifest.json", backup / "migration-manifest.json")
     except Exception:
         if published:
             for path, content in originals.items():
@@ -273,22 +325,26 @@ def cmd_migrate(args: argparse.Namespace) -> int:
                     directory.rmdir()
             if not any(source.iterdir()):
                 source.rmdir()
-    print(f"迁移完成：{layout.store}；原始备份：{backup}。历史缺项保持原状，不冒充新验证。")
+    print(f"迁移完成：{_rel(root, layout.store)}")
+    print(f"  · 迁移文件 {len(mapping)} 个；修改项目链接 {len(external)} 个 Markdown")
+    print(f"  · 原始备份：{_rel(root, backup)}")
+    print(f"  · 迁移清单：{_rel(root, layout.store / 'migration-manifest.json')}（备份目录也有一份）")
+    print(f"  · 历史缺项保持原状，不冒充新验证。")
     return 0
 
 
-def _memory_paths(root: Path) -> list[Path]:
-    candidates = [_layout(root).memory]
+def _memory_paths(root: Path, store_dir: str | None = None) -> list[Path]:
+    candidates = [_layout(root, store_dir).memory]
     return list(dict.fromkeys(path for path in candidates if path.is_file()))
 
 
-def _worklog_dirs(root: Path) -> list[Path]:
-    candidates = [_layout(root).worklogs]
+def _worklog_dirs(root: Path, store_dir: str | None = None) -> list[Path]:
+    candidates = [_layout(root, store_dir).worklogs]
     return list(dict.fromkeys(path for path in candidates if path.is_dir()))
 
 
-def _plan_dirs(root: Path) -> list[Path]:
-    candidates = [_layout(root).plans]
+def _plan_dirs(root: Path, store_dir: str | None = None) -> list[Path]:
+    candidates = [_layout(root, store_dir).plans]
     return list(dict.fromkeys(path for path in candidates if path.is_dir()))
 
 
@@ -299,13 +355,13 @@ def _markdown_files(directories: list[Path]) -> list[Path]:
     return sorted(dict.fromkeys(path.resolve() for path in files), key=lambda path: (path.name, str(path)))
 
 
-def _worklog_files(root: Path, limit: int | None = None) -> list[Path]:
-    files = _markdown_files(_worklog_dirs(root))
+def _worklog_files(root: Path, limit: int | None = None, store_dir: str | None = None) -> list[Path]:
+    files = _markdown_files(_worklog_dirs(root, store_dir))
     return files[-limit:] if limit is not None else files
 
 
-def _plan_files(root: Path) -> list[Path]:
-    return _markdown_files(_plan_dirs(root))
+def _plan_files(root: Path, store_dir: str | None = None) -> list[Path]:
+    return _markdown_files(_plan_dirs(root, store_dir))
 
 
 def _quick_summary(path: Path, full: bool = False, details: bool = False, max_lines: int = 12) -> list[str]:
@@ -393,10 +449,10 @@ def _memory_entries(memory_path: Path) -> list[list[str]]:
     return entries
 
 
-def _all_memory_entries(root: Path) -> list[list[str]]:
+def _all_memory_entries(root: Path, store_dir: str | None = None) -> list[list[str]]:
     entries: list[list[str]] = []
     seen: set[str] = set()
-    for path in _memory_paths(root):
+    for path in _memory_paths(root, store_dir):
         for entry in _memory_entries(path):
             key = "\n".join(entry)
             if key not in seen:
@@ -492,8 +548,8 @@ def _canonical_experience(path: Path) -> str:
     return text
 
 
-def _evolution_files(root: Path, user_dir: str | None = None) -> list[tuple[str, Path]]:
-    layout = _layout(root)
+def _evolution_files(root: Path, user_dir: str | None = None, store_dir: str | None = None) -> list[tuple[str, Path]]:
+    layout = _layout(root, store_dir)
     result: list[tuple[str, Path]] = []
     if layout.evolution.is_dir():
         result.extend(("project", path.resolve()) for path in layout.evolution.glob("*.md") if path.name != "index.md")
@@ -612,8 +668,19 @@ def _theme_summary(memory_path: Path) -> list[str]:
 
 def cmd_init(args: argparse.Namespace) -> int:
     root = Path(args.root).resolve()
+    try:
+        existing = _discover_store(root)
+    except ValueError as exc:
+        print(str(exc))
+        return 2
+    if args.store_dir:
+        target = _layout(root, args.store_dir)
+    else:
+        target = _layout(root, None)
+    if existing is not None and existing == target.store:
+        print(f"Context Keeper 记录库已就绪：{_rel(root, existing)}")
+        return 0
     current = _layout(root)
-    target = _layout(root, args.store_dir) if args.store_dir else current
     if args.store_dir and current.store != target.store and current.store.exists():
         if not args.migrate:
             print(
@@ -645,10 +712,19 @@ def cmd_init(args: argparse.Namespace) -> int:
             target.store.rmdir()
         shutil.move(str(current.store), str(target.store))
         print(f"已迁移记录：{_rel(root, current.store)} → {_rel(root, target.store)}")
+    if not args.approved:
+        if args.store_dir:
+            print(f"Context Keeper 准备在 {_rel(root, target.store)} 创建记录库（来自 --store-dir）。")
+        else:
+            print(f"Context Keeper 准备在 {_rel(root, target.store)} 创建默认记录库。")
+        print(f"确认请加 --approved；改用其他位置请加 --store-dir <path>。")
+        return RC_NEEDS_CONFIRMATION
     existed = target.store.exists()
     for directory in (target.store, target.plans, target.worklogs, target.evolution):
         directory.mkdir(parents=True, exist_ok=True)
-    if args.store_dir:
+    if target.store in _discovery_candidates(root):
+        (root / CONFIG_FILE).unlink(missing_ok=True)
+    elif args.store_dir:
         _write_config(root, target.store)
     if not target.memory.exists():
         target.memory.write_text(
@@ -660,7 +736,10 @@ def cmd_init(args: argparse.Namespace) -> int:
     if not evolution_index.exists():
         evolution_index.write_text("# 自我进化索引\n\n## 有效经验\n\n- 暂无\n\n## 已替代经验\n\n- 暂无\n", encoding="utf-8")
     if not existed:
-        print(f"Context Keeper 默认记录位置：{_rel(root, target.store)}；如需修改，可显式迁移。")
+        if args.store_dir:
+            print(f"Context Keeper 记录位置：{_rel(root, target.store)}")
+        else:
+            print(f"Context Keeper 默认记录位置：{_rel(root, target.store)}；如需修改，可显式迁移。")
     else:
         print(f"Context Keeper 记录位置：{_rel(root, target.store)}")
     return 0
@@ -699,7 +778,8 @@ def _validate_plan(path: Path) -> list[str]:
 
 def cmd_record_path(args: argparse.Namespace) -> int:
     root = Path(args.root).resolve()
-    layout = _layout(root)
+    store_dir = getattr(args, "store_dir", None)
+    layout = _layout(root, store_dir)
     directory = layout.plans if args.kind == "plan" else layout.worklogs
     directory.mkdir(parents=True, exist_ok=True)
     title = _safe_title(args.title)
@@ -712,11 +792,11 @@ def cmd_record_path(args: argparse.Namespace) -> int:
         return 2
     _capture_baseline(root, args.session_id)
     base = directory / f"{date}-{title}.md"
-    if base.exists() and (_session_id(base) != args.session_id or base in _migrated_records(root)):
+    if base.exists() and (_session_id(base) != args.session_id or base in _migrated_records(root, store_dir)):
         index = 2
         while True:
             candidate = directory / f"{date}-{title}-{index}.md"
-            if not candidate.exists() or (_session_id(candidate) == args.session_id and candidate not in _migrated_records(root)):
+            if not candidate.exists() or (_session_id(candidate) == args.session_id and candidate not in _migrated_records(root, store_dir)):
                 base = candidate
                 break
             index += 1
@@ -728,16 +808,17 @@ def cmd_record_path(args: argparse.Namespace) -> int:
 
 def cmd_record_guard(args: argparse.Namespace) -> int:
     root = Path(args.root).resolve()
+    store_dir = getattr(args, "store_dir", None)
     path = Path(args.path)
     if not path.is_absolute():
         path = root / path
     path = path.resolve()
-    layout = _layout(root)
+    layout = _layout(root, store_dir)
     allowed = any(parent == path.parent for parent in (layout.plans, layout.worklogs))
     if not allowed or not path.is_file():
         print(f"记录不存在或不在当前记录目录：{_rel(root, path)}")
         return 2
-    if path in _migrated_records(root):
+    if path in _migrated_records(root, store_dir):
         print("迁移保留的历史记录不可更新；请创建当前会话的新记录。")
         return 2
     _capture_baseline(root, args.session_id)
@@ -751,10 +832,11 @@ def cmd_record_guard(args: argparse.Namespace) -> int:
 
 def cmd_resume(args: argparse.Namespace) -> int:
     root = Path(args.root).resolve()
+    store_dir = getattr(args, "store_dir", None)
     pattern = _compile_pattern(args.query) if args.query else None
-    memory_paths = _memory_paths(root)
+    memory_paths = _memory_paths(root, store_dir)
     print("最近工作摘要：")
-    worklogs = _worklog_files(root, args.worklogs)
+    worklogs = _worklog_files(root, args.worklogs, store_dir)
     if not worklogs:
         print("- 未找到工作日志")
     for idx, path in enumerate(worklogs, 1):
@@ -795,13 +877,13 @@ def cmd_resume(args: argparse.Namespace) -> int:
 
     evolution = []
     if pattern:
-        for scope, path in _evolution_files(root):
+        for scope, path in _evolution_files(root, None, store_dir):
             if _evolution_status(path) != "已替代" and _file_hits(path, pattern, 1):
                 title = next((line[2:] for line in _read_text(path).splitlines() if line.startswith("# ")), path.stem)
                 evolution.append((_field_map(path).get("类型"), f"- [{_evolution_status(path)}] {title}：{_field_map(path).get('建议动作', '')}（{path}）"))
             if len(evolution) >= min(3, args.entries):
                 break
-    entries = _all_memory_entries(root)
+    entries = _all_memory_entries(root, store_dir)
     if pattern:
         entries = [entry for entry in entries if pattern.search("\n".join(entry))]
     candidates = evolution + [(_entry_type(entry), "- " + _entry_resume_line(entry)) for entry in entries]
@@ -821,11 +903,12 @@ def cmd_resume(args: argparse.Namespace) -> int:
 
 def cmd_search(args: argparse.Namespace) -> int:
     root = Path(args.root).resolve()
+    store_dir = getattr(args, "store_dir", None)
     pattern = _compile_pattern(args.query)
     results: list[tuple[str, str, list[str]]] = []
     seen: set[str] = set()
     evolution_count = 0
-    for scope, path in _evolution_files(root, args.user_evolution_dir):
+    for scope, path in _evolution_files(root, args.user_evolution_dir, store_dir):
         if evolution_count >= min(args.evolution_entries, args.entries):
             break
         status = _evolution_status(path)
@@ -845,7 +928,7 @@ def cmd_search(args: argparse.Namespace) -> int:
         evolution_count += 1
 
     if len(results) < args.entries:
-        for memory_path in _memory_paths(root):
+        for memory_path in _memory_paths(root, store_dir):
             for entry in _memory_entries(memory_path):
                 hits = [_clip(line, 180) for line in entry if pattern.search(line)][: args.hit_lines]
                 key = "\n".join(entry)
@@ -859,8 +942,8 @@ def cmd_search(args: argparse.Namespace) -> int:
 
     if len(results) < args.entries:
         scanned = 0
-        historical_files = [("plan", path) for path in _plan_files(root)]
-        historical_files.extend(("worklog", path) for path in _worklog_files(root))
+        historical_files = [("plan", path) for path in _plan_files(root, store_dir)]
+        historical_files.extend(("worklog", path) for path in _worklog_files(root, None, store_dir))
         historical_files.sort(key=lambda item: (item[1].name, str(item[1])), reverse=True)
         for source_kind, path in historical_files:
             if scanned >= args.scan_worklogs:
@@ -1095,7 +1178,7 @@ def cmd_promote_evolution(args: argparse.Namespace) -> int:
         print("只有用户明确确认可跨项目复用后，才能使用 --approved 晋升用户级经验。")
         return 2
     root = Path(args.root).resolve()
-    layout = _layout(root)
+    layout = _layout(root, getattr(args, "store_dir", None))
     source = Path(args.source)
     if not source.is_absolute():
         source = root / source
@@ -1156,15 +1239,16 @@ def _invalid_pending(memory: Path) -> list[str]:
 
 def cmd_coverage(args: argparse.Namespace) -> int:
     root = Path(args.root).resolve()
-    layout = _layout(root)
-    worklogs = _worklog_files(root)
-    plans = _plan_files(root)
-    memories = _memory_paths(root)
+    store_dir = getattr(args, "store_dir", None)
+    layout = _layout(root, store_dir)
+    worklogs = _worklog_files(root, None, store_dir)
+    plans = _plan_files(root, store_dir)
+    memories = _memory_paths(root, store_dir)
     indexed = {target for memory in memories for target in _markdown_links(memory)}
     unindexed_plans = [path for path in plans if path not in indexed]
     unindexed_worklogs = [path for path in worklogs if path not in indexed]
     missing_summary = [path for path in worklogs if not _quick_summary_fields(path)]
-    current_records = [path for path in [*plans, *worklogs] if path.is_relative_to(layout.store) and path not in _migrated_records(root)]
+    current_records = [path for path in [*plans, *worklogs] if path.is_relative_to(layout.store) and path not in _migrated_records(root, store_dir)]
     missing_session = [path for path in current_records if not _session_id(path)]
     evolution_files = [path for path in layout.evolution.glob("*.md") if path.name != "index.md"] if layout.evolution.is_dir() else []
     evolution_index = layout.evolution / "index.md"
@@ -1177,7 +1261,7 @@ def cmd_coverage(args: argparse.Namespace) -> int:
         identifier = _field_map(path).get("编号")
         if identifier:
             identifiers.setdefault(identifier, []).append(path)
-    for scope, path in _evolution_files(root):
+    for scope, path in _evolution_files(root, None, store_dir):
         if scope == "user":
             identifier = _field_map(path).get("编号")
             if identifier and not any(_canonical_experience(p) == _canonical_experience(path) for p in identifiers.get(identifier, [])):
@@ -1189,7 +1273,7 @@ def cmd_coverage(args: argparse.Namespace) -> int:
         if _evolution_status(path) != "已替代":
             themes.setdefault(title, []).append(path)
     duplicate_themes = {key: paths for key, paths in themes.items() if len(paths) > 1}
-    invalid_plans = [(path, _validate_plan(path)) for path in plans if path.parent == layout.plans and path not in _migrated_records(root) and _validate_plan(path)]
+    invalid_plans = [(path, _validate_plan(path)) for path in plans if path.parent == layout.plans and path not in _migrated_records(root, store_dir) and _validate_plan(path)]
     broken_links: list[tuple[Path, Path]] = []
     for source in [*memories, evolution_index, *worklogs, *plans, *evolution_files]:
         if source and source.is_file():
@@ -1245,26 +1329,27 @@ def _save_report_error(message: str) -> int:
     return 2
 
 
-def _previous_worklogs(root: Path, current: Path) -> list[Path]:
-    return [path for path in _worklog_files(root) if path.resolve() != current.resolve()]
+def _previous_worklogs(root: Path, current: Path, store_dir: str | None = None) -> list[Path]:
+    return [path for path in _worklog_files(root, None, store_dir) if path.resolve() != current.resolve()]
 
 
 def cmd_save_report(args: argparse.Namespace) -> int:
     root = Path(args.root).resolve()
-    layout = _layout(root)
+    store_dir = getattr(args, "store_dir", None)
+    layout = _layout(root, store_dir)
     if args.worklog:
         worklog = Path(args.worklog)
         if not worklog.is_absolute():
             worklog = root / worklog
     else:
-        worklogs = _worklog_files(root, 1)
+        worklogs = _worklog_files(root, 1, store_dir)
         if not worklogs:
             return _save_report_error("未找到工作日志")
         worklog = worklogs[-1]
     worklog = worklog.resolve()
     if not worklog.is_file():
         return _save_report_error(f"工作日志不存在：{_rel(root, worklog)}")
-    if worklog in _migrated_records(root):
+    if worklog in _migrated_records(root, store_dir):
         return _save_report_error("迁移历史不能作为本轮保存记录；请新建日志")
     if worklog.is_relative_to(layout.worklogs):
         if not args.session_id:
@@ -1273,7 +1358,7 @@ def cmd_save_report(args: argparse.Namespace) -> int:
             return _save_report_error("当前会话不能保存其他会话的工作日志")
     if args.session_id:
         problems = _check_baseline(root, args.session_id)
-        for plan in _plan_files(root):
+        for plan in _plan_files(root, store_dir):
             if _session_id(plan) == args.session_id:
                 problems.extend(f"{plan.name}：{issue}" for issue in _validate_plan(plan))
         if problems:
@@ -1297,12 +1382,12 @@ def cmd_save_report(args: argparse.Namespace) -> int:
         return _save_report_error("单条增量认知不能超过 120 字")
     if any(len(impact) > 80 for _, _, impact in visible_items):
         return _save_report_error("单条影响不能超过 80 字")
-    previous_logs = _previous_worklogs(root, worklog)[-20:]
+    previous_logs = _previous_worklogs(root, worklog, store_dir)[-20:]
     previous_text = "\n".join(_read_text(path) for path in previous_logs)
     repeated = [content for _, content, _ in visible_items if content in previous_text]
     if repeated:
         return _save_report_error("增量认知与历史记录完全重复；请补充新证据或新场景，或改为无新增提醒")
-    memories = _memory_paths(root)
+    memories = _memory_paths(root, store_dir)
     if not memories:
         return _save_report_error("未找到 memory-keeper.md")
     if not any(worklog in _markdown_links(path) for path in memories):
@@ -1352,16 +1437,18 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
     migrate = sub.add_parser("migrate", help="预览旧版迁移；用户确认后使用 --approved")
     migrate.add_argument("--root", default=".")
-    migrate.add_argument("--store-dir")
+    migrate.add_argument("--store-dir", help="自定义迁移目标目录；默认自动发现")
     migrate.add_argument("--approved", action="store_true")
     migrate.set_defaults(func=cmd_migrate)
     init = sub.add_parser("init", help="初始化或迁移 Context Keeper 记录目录")
     init.add_argument("--root", default=".")
-    init.add_argument("--store-dir", help="自定义记录目录；默认 context-keeper")
+    init.add_argument("--store-dir", help="自定义记录目录；默认 docs/context-keeper（需要 --approved 确认）")
     init.add_argument("--migrate", action="store_true", help="显式迁移已有记录到新目录")
+    init.add_argument("--approved", action="store_true", help="确认使用默认记录位置；不带 --store-dir 时必填")
     init.set_defaults(func=cmd_init)
     record_path = sub.add_parser("record-path", help="按会话边界创建 plan/worklog 文件")
     record_path.add_argument("--root", default=".")
+    record_path.add_argument("--store-dir", help="显式指定记录目录；默认自动发现")
     record_path.add_argument("--kind", choices=["plan", "worklog"], required=True)
     record_path.add_argument("--title", required=True)
     record_path.add_argument("--session-id", required=True)
@@ -1369,11 +1456,13 @@ def build_parser() -> argparse.ArgumentParser:
     record_path.set_defaults(func=cmd_record_path)
     record_guard = sub.add_parser("record-guard", help="写入前校验会话边界")
     record_guard.add_argument("--root", default=".")
+    record_guard.add_argument("--store-dir", help="显式指定记录目录；默认自动发现")
     record_guard.add_argument("--path", required=True)
     record_guard.add_argument("--session-id", required=True)
     record_guard.set_defaults(func=cmd_record_guard)
     resume = sub.add_parser("resume", help="输出轻量续接摘要")
     resume.add_argument("--root", default=".")
+    resume.add_argument("--store-dir", help="显式指定记录目录；默认自动发现")
     resume.add_argument("--query", help="当前任务关键词，用于筛选相关未完成事项和经验")
     resume.add_argument("--worklogs", type=int, default=3)
     resume.add_argument("--entries", type=int, default=5)
@@ -1384,6 +1473,7 @@ def build_parser() -> argparse.ArgumentParser:
     resume.set_defaults(func=cmd_resume)
     search = sub.add_parser("search", help="分层查找历史证据和进化经验")
     search.add_argument("--root", default=".")
+    search.add_argument("--store-dir", help="显式指定记录目录；默认自动发现")
     search.add_argument("--query", required=True)
     search.add_argument("--entries", type=int, default=5)
     search.add_argument("--evolution-entries", type=int, default=3)
@@ -1403,6 +1493,7 @@ def build_parser() -> argparse.ArgumentParser:
     history.set_defaults(func=cmd_history_search)
     promote = sub.add_parser("promote-evolution", help="经用户确认后晋升跨项目经验")
     promote.add_argument("--root", default=".")
+    promote.add_argument("--store-dir", help="显式指定记录目录；默认自动发现")
     promote.add_argument("--source", required=True)
     promote.add_argument("--approved", action="store_true")
     promote.add_argument("--replace", action="store_true")
@@ -1414,11 +1505,13 @@ def build_parser() -> argparse.ArgumentParser:
     status.set_defaults(func=cmd_status)
     coverage = sub.add_parser("coverage", help="检查索引、摘要、会话、经验字段和链接")
     coverage.add_argument("--root", default=".")
+    coverage.add_argument("--store-dir", help="显式指定记录目录；默认自动发现")
     coverage.add_argument("--limit", type=int, default=20)
     coverage.add_argument("--details", action="store_true")
     coverage.set_defaults(func=cmd_coverage)
     save_report = sub.add_parser("save-report", help="校验保存产物并生成精简用户报告")
     save_report.add_argument("--root", default=".")
+    save_report.add_argument("--store-dir", help="显式指定记录目录；默认自动发现")
     save_report.add_argument("--worklog", help="工作日志路径；默认使用最新工作日志")
     save_report.add_argument("--session-id", help="新目录记录必须传入当前会话标识")
     save_report.set_defaults(func=cmd_save_report)

@@ -17,24 +17,24 @@ class AcceptanceTests(unittest.TestCase):
                 root = Path(d)
                 config = root / 'context-keeper.json'
                 config.write_text(content)
-                rc, out = _call('init', '--root', d)
+                rc, out = _call('init', '--root', d, '--approved')
                 self.assertEqual(rc, 2, out)
-                self.assertFalse((root / 'context-keeper').exists())
+                self.assertFalse((root / 'docs' / 'context-keeper').exists())
                 self.assertEqual(config.read_text(), content)
 
     def test_migration_preserves_non_markdown_and_absolute_evidence(self):
         for link in ('../../evidence.json', '../../photo.png', '<../../evidence file.json>', 'ABSOLUTE'):
             with self.subTest(link=link), tempfile.TemporaryDirectory() as d:
                 root = Path(d).resolve()
-                _call('init', '--root', d)
-                store = root / 'context-keeper'
+                _call('init', '--root', d, '--approved')
+                store = root / 'docs' / 'context-keeper'
                 evidence = store / 'evolution/evidence.json'
                 evidence.write_text('{}')
                 destination = str(evidence) if link == 'ABSOLUTE' else link
                 log = store / 'worklogs/2026-09-16-证据.md'
                 original = f'# 证据\n[来源]({destination})\n'
                 log.write_text(original)
-                rc, out = _call('init', '--root', d, '--store-dir', 'notes/deeper/records', '--migrate')
+                rc, out = _call('init', '--root', d, '--store-dir', 'notes/deeper/records', '--migrate', '--approved')
                 self.assertEqual(rc, 2, out)
                 self.assertEqual(log.read_text(), original)
                 self.assertFalse((root / 'notes/deeper/records').exists())
@@ -55,8 +55,8 @@ class AcceptanceTests(unittest.TestCase):
     def test_promote_cannot_overwrite_user_index(self):
         with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as u:
             root = Path(d)
-            _call('init', '--root', d)
-            source = root / 'context-keeper/evolution/经验.md'
+            _call('init', '--root', d, '--approved')
+            source = root / 'docs/context-keeper/evolution/经验.md'
             source.write_text(_experience())
             index = Path(u) / 'index.md'
             index.write_text('# 已有用户索引\n')
@@ -69,7 +69,7 @@ class AcceptanceTests(unittest.TestCase):
         for remove in (False, True):
             with self.subTest(remove=remove), tempfile.TemporaryDirectory() as d:
                 root = Path(d)
-                _call('init', '--root', d)
+                _call('init', '--root', d, '--approved')
                 _, name = _call('record-path', '--root', d, '--kind', 'plan', '--title', '旧计划', '--session-id', 'old')
                 old = root / name.strip()
                 # Begin the new session before editing anything.
@@ -85,7 +85,7 @@ class AcceptanceTests(unittest.TestCase):
 
     def test_plan_quality_and_invalid_date(self):
         with tempfile.TemporaryDirectory() as d:
-            _call('init', '--root', d)
+            _call('init', '--root', d, '--approved')
             rc, _ = _call('record-path', '--root', d, '--kind', 'plan', '--title', '需求', '--session-id', 's', '--date', 'not-a-date')
             self.assertEqual(rc, 2)
             _, name = _call('record-path', '--root', d, '--kind', 'plan', '--title', '需求', '--session-id', 's')
@@ -96,8 +96,8 @@ class AcceptanceTests(unittest.TestCase):
 
     def test_verified_rank_dedup_index_trigger_and_resume(self):
         with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as u:
-            root = Path(d); _call('init', '--root', d)
-            evo = root / 'context-keeper/evolution'
+            root = Path(d); _call('init', '--root', d, '--approved')
+            evo = root / 'docs/context-keeper/evolution'
             (evo/'a.md').write_text(_experience('待验证','CK-A','待验证'))
             valid = _experience('核对计时','CK-Z')
             (evo/'z.md').write_text(valid)
@@ -125,8 +125,8 @@ class AcceptanceTests(unittest.TestCase):
 
     def test_coverage_real_links_and_evolution_entry(self):
         with tempfile.TemporaryDirectory() as d:
-            root=Path(d); _call('init','--root',d)
-            store=root/'context-keeper'; memory=store/'memory-keeper.md'
+            root=Path(d); _call('init','--root',d,'--approved')
+            store=root/'docs'/'context-keeper'; memory=store/'memory-keeper.md'
             plan=store/'plans/2026-09-16-需求.md'; plan.write_text('<!-- context-keeper: session-id=s -->\n# 需求\n[断链](missing.md)')
             memory.write_text('# memory\n'+plan.name)
             rc,out=_call('coverage','--root',d)
@@ -136,8 +136,8 @@ class AcceptanceTests(unittest.TestCase):
 
     def test_pending_state_and_completed_filter(self):
         with tempfile.TemporaryDirectory() as d:
-            root=Path(d); _call('init','--root',d)
-            memory=root/'context-keeper/memory-keeper.md'
+            root=Path(d); _call('init','--root',d,'--approved')
+            memory=root/'docs/context-keeper/memory-keeper.md'
             memory.write_text('# 记忆\n## 未完成事项\n- 已交付；状态：已完成；触发：验收；完成：报告；证据：输出\n- 整体核账；状态：进行中；触发：验收；完成：报告；证据：输出\n')
             _,out=_call('resume','--root',d,'--query','验收')
             self.assertNotIn('已交付',out); self.assertIn('整体核账',out)
@@ -176,7 +176,7 @@ class AcceptanceTests(unittest.TestCase):
 
     def test_same_theme_duplicates_reported(self):
         with tempfile.TemporaryDirectory() as d:
-            root=Path(d);_call('init','--root',d);evo=root/'context-keeper/evolution'
+            root=Path(d);_call('init','--root',d,'--approved');evo=root/'docs/context-keeper/evolution'
             (evo/'one.md').write_text(_experience('相同主题','CK-1'))
             (evo/'two.md').write_text(_experience('相同主题','CK-2'))
             _,out=_call('coverage','--root',d)
@@ -185,7 +185,7 @@ class AcceptanceTests(unittest.TestCase):
     def test_save_rejects_missing_index_entry(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d); worklog=_write_valid_context(root)
-            memory=root/'context-keeper/memory-keeper.md'
+            memory=root/'docs/context-keeper/memory-keeper.md'
             memory.write_text(memory.read_text().replace('- [进化经验索引](evolution/index.md)',''))
             rc,out=_save(root,worklog)
             self.assertEqual(rc,2); self.assertIn('缺少进化经验索引入口',out)
@@ -197,8 +197,8 @@ class AcceptanceTests(unittest.TestCase):
             ('整组复盘遗漏', '单品归档完成不代表五套整体复盘已经交付。', '整组验收后检查整体核账与复盘证据。'),
         ):
             with self.subTest(title=title), tempfile.TemporaryDirectory() as d:
-                root=Path(d);_call('init','--root',d)
-                store=root/'context-keeper'; evo=store/'evolution'/f'{title}.md'
+                root=Path(d);_call('init','--root',d,'--approved')
+                store=root/'docs'/'context-keeper'; evo=store/'evolution'/f'{title}.md'
                 _,name=_call('record-path','--root',d,'--kind','worklog','--title',title,'--session-id','first')
                 log=root/name.strip()
                 evo.write_text(_experience(title).replace('生成后整体处理较慢',fact).replace('先检查已有计时',action).replace('再次分析生成耗时',title))
@@ -223,7 +223,7 @@ class AcceptanceTests(unittest.TestCase):
 
     def test_promote_preserves_relative_evidence_and_is_idempotent(self):
         with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as u:
-            root=Path(d);_call('init','--root',d);store=root/'context-keeper'
+            root=Path(d);_call('init','--root',d,'--approved');store=root/'docs'/'context-keeper'
             source=store/'evolution/经验.md'; evidence=store/'plans/原文.md';evidence.write_text('用户原话')
             source.write_text(_experience().replace('worklogs/2026-08-17-test.md','[原文](../plans/原文.md)'))
             args=('promote-evolution','--root',d,'--source',str(source),'--approved','--user-evolution-dir',u)
@@ -235,7 +235,7 @@ class AcceptanceTests(unittest.TestCase):
 
     def test_kind_budget_includes_evolution(self):
         with tempfile.TemporaryDirectory() as d:
-            root=Path(d);_call('init','--root',d);store=root/'context-keeper'
+            root=Path(d);_call('init','--root',d,'--approved');store=root/'docs'/'context-keeper'
             (store/'evolution/经验.md').write_text(_experience().replace('再次分析生成耗时','公共关键词'))
             memory=store/'memory-keeper.md'
             memory.write_text(memory.read_text()+'\n'+'\n'.join(f'## 2026-09-16 - 公共关键词{i} `research`\n- **任务：** 公共关键词{i}' for i in range(5)))
@@ -245,12 +245,12 @@ class AcceptanceTests(unittest.TestCase):
 
     def test_migration_does_not_redirect_historical_evidence(self):
         with tempfile.TemporaryDirectory() as d:
-            root=Path(d);_call('init','--root',d)
+            root=Path(d);_call('init','--root',d,'--approved')
             (root/'evidence.md').write_text('原始事实')
-            old=root/'context-keeper/worklogs/2026-09-16-历史.md'
+            old=root/'docs/context-keeper/worklogs/2026-09-16-历史.md'
             old.write_text('[证据](../../evidence.md)')
             original=old.read_bytes()
-            rc,out=_call('init','--root',d,'--store-dir','notes/deeper/context','--migrate')
+            rc,out=_call('init','--root',d,'--store-dir','notes/deeper/context','--migrate','--approved')
             self.assertEqual(rc,2)
             self.assertIn('证据链接',out)
             self.assertEqual(old.read_bytes(),original)

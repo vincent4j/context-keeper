@@ -6,21 +6,23 @@
 
 保存、续接、搜索、原文搜索、覆盖检查等所有正常命令在发现旧目录非空或旧记忆文件时返回 3，停止正常读写。空旧目录不报警。识别路径为 `docs/memory-keeper.md`、`docs/plans/`、`docs/worklog/` 和 `docs/worklogs/`。
 
-1. 运行 `migrate --root <repo>`，展示来源、目标、文件数量、需同步修正链接的 Markdown 文件数量。
+1. 运行 `migrate --root <repo>`，展示来源、目标、文件级映射、需同步修正链接的项目 Markdown 文件列表；返回 rc=3 表示预览完成但未批准。
 2. 告知会备份原文件、搬迁历史记录、只修正路径，不重写历史事实。旧目录可能被其他工具使用，确认范围时必须说明目录归属和迁移影响。
 3. 询问用户是否确认迁移当前项目。没有回复或拒绝时，停止本 Skill；不能自动加 `--approved`，不能改用旧路径继续工作。
 4. 明确确认后执行 `migrate --root <repo> --approved`；指定位置时两次均传相同的 `--store-dir`。
 5. 成功后告知目标和备份位置，再继续原任务。
 
+**目标位置选择**：不传 `--store-dir` 时迁到 `docs/context-keeper/`（与新 init 默认一致）。迁回根目录位置用 `--store-dir context-keeper`；其他自定义路径同样支持，但不能是 docs/ 下的非 context-keeper 子路径（避免覆盖项目文档）。
+
 ## 迁移内容
 
-- 记忆索引移到 `context-keeper/memory-keeper.md`；两个旧工作日志目录合并到 `worklogs/`；旧计划进入 `plans/`。子目录和附件保留。
+- 记忆索引移到 `docs/context-keeper/memory-keeper.md`；两个旧工作日志目录合并到 `worklogs/`；旧计划进入 `plans/`。子目录和附件保留。
 - 原始文件及受到影响的项目 Markdown 文件备份到 `.context-keeper-backups/migration-*/`；清单记录原路径、新路径和原内容哈希。
 - 修正搬迁文件内的 Markdown 内联链接，以及项目 Markdown 中指向被搬迁文件的内联链接。只改变地址，不改写需求和工作事实。代码字符串、纯文本路径和非 Markdown 文件不自动重写，需按实际引用另行核对。
 - 创建空的 `evolution/index.md`。不批量总结历史，不伪造验证结果，不推断旧需求的实施计划。
 - 原待办保留为“历史未完成事项（迁移时未复核）”，续接时有界展示并标明未复核；不把旧建议自动当作当前授权。
 - 历史计划、日志不强补会话标识或新模板字段；通过迁移清单识别其历史身份。后续只能新增当前会话记录。旧摘要缺失等问题仍如实报告。
-- 更新配置版本为 2；移除原记录文件，正常命令只读新结构。备份不参与检索。
+- 目标在候选位置（`<repo>/docs/context-keeper/` 或 `<repo>/context-keeper/`）时不写任何配置文件，脚本后续自动发现；`--store-dir` 指到候选之外才写 `context-keeper.json`（版本 2）。移除原记录文件，正常命令只读新结构。备份不参与检索。
 
 ## 失败边界
 

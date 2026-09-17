@@ -29,16 +29,17 @@ class MigrationTests(unittest.TestCase):
             (root/'README.md').write_text('[日志](docs/worklog/'+old.name+')\n[日志目录](docs/worklog/)\n')
             (root/'unrelated.md').write_text('[保留](./evidence.json)\n')
             original = old.read_bytes()
+            expected = old.read_text().replace('../../evidence.json', '../../../evidence.json').encode()
             rc, out = _call('migrate', '--root', d, '--approved')
             self.assertEqual(rc, 0, out)
-            store = root/'context-keeper'
+            store = root/'docs'/'context-keeper'
             migrated = store/'worklogs'/old.name
             self.assertFalse(old.exists())
             self.assertEqual((root/'unrelated.md').read_text(),'[保留](./evidence.json)\n')
-            self.assertEqual(migrated.read_bytes(), original)
-            self.assertIn('context-keeper/worklogs', (root/'README.md').read_text())
+            self.assertEqual(migrated.read_bytes(), expected)
+            self.assertIn('docs/context-keeper/worklogs', (root/'README.md').read_text())
             self.assertNotIn('](docs/worklog', (root/'README.md').read_text())
-            self.assertEqual(json.loads((root/'context-keeper.json').read_text())['schema_version'],2)
+            self.assertFalse((root/'context-keeper.json').exists())
             manifest = json.loads((store/'migration-manifest.json').read_text())
             self.assertEqual((Path(manifest['backup'])/'docs/worklog'/old.name).read_bytes(),original)
             self.assertTrue((store/'evolution/index.md').is_file())
@@ -69,7 +70,7 @@ class MigrationTests(unittest.TestCase):
             with self.subTest(kind=kind),tempfile.TemporaryDirectory() as d:
                 root=Path(d);old=_write_valid_context(root,legacy=True)
                 if kind=='mixed':
-                    (root/'context-keeper').mkdir();(root/'context-keeper/keep.md').write_text('keep')
+                    (root/'docs'/'context-keeper').mkdir();(root/'docs'/'context-keeper/keep.md').write_text('keep')
                 elif kind=='duplicate':
                     (root/'docs/worklogs').mkdir();(root/'docs/worklogs'/old.name).write_text('conflict')
                 else:
@@ -86,15 +87,15 @@ class MigrationTests(unittest.TestCase):
             original=old.read_bytes()
             with patch.object(PROBE,'_write_config',side_effect=OSError('simulated failure')):
                 with self.assertRaises(OSError):
-                    _call('migrate','--root',d,'--approved')
+                    _call('migrate','--root',d,'--store-dir','notes/history','--approved')
             self.assertEqual(old.read_bytes(),original)
-            self.assertFalse((root/'context-keeper').exists())
+            self.assertFalse((root/'notes'/'history').exists())
             self.assertFalse((root/'context-keeper.json').exists())
 
     def test_empty_legacy_dirs_do_not_trigger(self):
         with tempfile.TemporaryDirectory() as d:
             (Path(d)/'docs/worklog').mkdir(parents=True)
-            rc,out=_call('init','--root',d)
+            rc,out=_call('init','--root',d,'--approved')
             self.assertEqual(rc,0,out)
 
     def test_historical_plan_is_not_rewritten_to_fake_new_requirements(self):
@@ -103,8 +104,8 @@ class MigrationTests(unittest.TestCase):
             old=root/'docs/plans/旧需求.md';original='# 原始诉求\n只修这个问题。\n';old.write_text(original)
             rc,out=_call('migrate','--root',d,'--approved')
             self.assertEqual(rc,0,out)
-            self.assertEqual((root/'context-keeper/plans/旧需求.md').read_text(),original)
+            self.assertEqual((root/'docs/context-keeper/plans/旧需求.md').read_text(),original)
             rc,out=_call('coverage','--root',d)
             self.assertEqual(rc,0,out)
-            rc,out=_call('record-guard','--root',d,'--path','context-keeper/plans/旧需求.md','--session-id','new')
+            rc,out=_call('record-guard','--root',d,'--path','docs/context-keeper/plans/旧需求.md','--session-id','new')
             self.assertEqual(rc,2,out)

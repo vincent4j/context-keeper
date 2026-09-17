@@ -30,16 +30,29 @@ Claude Code 将最后的 `--codex` 换成 `--claude`。这属于首次使用初�
 
 ## 默认结构
 
-第一次保存运行：
+第一次保存前，先向用户展示默认记录位置并取得确认，再调用 `init`：
 
 ```bash
+# 询问模式（默认）：打印建议路径，不创建任何目录，等待用户回复；rc=5
 python3 <skill-dir>/scripts/context_keeper_probe.py init --root <repo>
+
+# 用户同意默认位置：加 --approved 确认创建
+python3 <skill-dir>/scripts/context_keeper_probe.py init --root <repo> --approved
+
+# 用户想换位置：用 --store-dir 指到自定义路径（同样需 --approved）
+python3 <skill-dir>/scripts/context_keeper_probe.py init --root <repo> --store-dir <自定义路径> --approved
 ```
 
-默认位置是项目根目录的 `context-keeper/`。用户指定其他位置时使用 `--store-dir`；已有记录改位置必须显式使用 `--migrate`，目标冲突时停止。
+**init 返回值语义**：rc=0 已创建或已就绪；rc=2 拒绝（迁移需 `--migrate`、配置无效、目标冲突）；**rc=5 需要用户确认**——Agent 必须向用户说明建议位置，等用户同意默认位置则重跑加 `--approved`，用户想换位置则改 `--store-dir <path> --approved`。`init --root <repo>` 在项目已有记录库时直接 rc=0 输出"记录库已就绪"，不进入询问。
+
+`init` 任何时候都不能跳过询问直接创建；Agent 也不允许因为"用户已说过想保存"就自动加 `--approved`，除非看到用户明确同意。
+
+**migrate 返回值语义**：rc=0 完成；rc=3 预览完成但未批准——Agent 需把预览结果（含文件级映射、外部链接修改列表）告知用户，等用户明确同意后加 `--approved` 重跑；rc=2 拒绝（目标非法、目标非空、旧结构含软链接）。脚本自动发现记录库：依次检查 `<repo>/docs/context-keeper/` 与 `<repo>/context-keeper/`（按目录内 `memory-keeper.md`、`worklogs/`、`plans/`、`evolution/`、`migration-manifest.json` 等标记识别，同名空目录不算）；两处同时存在会明确报错，此时用 `--store-dir` 指定其一。**所有命令都支持 `--store-dir` 显式指定记录目录，位置不限**。`init`/`migrate` 的目标在两个候选位置内不写任何配置文件，只有指到候选之外才写 `context-keeper.json`（后续命令靠它或 `--store-dir` 找到该位置）。已有记录改位置必须显式使用 `--migrate`，目标冲突时停止。
+
+**migrate 默认目标**：不传 `--store-dir` 时迁到 `docs/context-keeper/`（与新 init 默认一致）；迁回根目录位置用 `--store-dir context-keeper`；其他自定义路径同样支持但不能是 docs/ 下的非 context-keeper 子路径（避免覆盖项目文档）。
 
 ```text
-context-keeper/
+docs/context-keeper/
 ├── memory-keeper.md
 ├── plans/
 │   └── YYYY-MM-DD-中文主题.md

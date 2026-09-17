@@ -42,8 +42,8 @@ def _write_valid_context(root: Path, *, legacy: bool = False, evolution: bool = 
         memory = root / "docs" / "memory-keeper.md"
         link = "worklog/2026-08-17-test.md"
     else:
-        worklog = root / "context-keeper" / "worklogs" / "2026-08-17-test.md"
-        memory = root / "context-keeper" / "memory-keeper.md"
+        worklog = root / "docs" / "context-keeper" / "worklogs" / "2026-08-17-test.md"
+        memory = root / "docs" / "context-keeper" / "memory-keeper.md"
         link = "worklogs/2026-08-17-test.md"
     worklog.parent.mkdir(parents=True)
     extra = """
@@ -93,12 +93,12 @@ def _write_valid_context(root: Path, *, legacy: bool = False, evolution: bool = 
         encoding="utf-8",
     )
     if evolution and not legacy:
-        evolution_file = root / "context-keeper" / "evolution" / "耗时分析.md"
+        evolution_file = root / "docs" / "context-keeper" / "evolution" / "耗时分析.md"
         evolution_file.parent.mkdir(parents=True, exist_ok=True)
         evolution_file.write_text(_experience(), encoding="utf-8")
         (evolution_file.parent / "index.md").write_text("# 索引\n\n- [耗时分析](耗时分析.md)\n", encoding="utf-8")
     elif not legacy:
-        evolution_dir = root / "context-keeper" / "evolution"
+        evolution_dir = root / "docs" / "context-keeper" / "evolution"
         evolution_dir.mkdir(parents=True, exist_ok=True)
         (evolution_dir / "index.md").write_text("# 索引\n", encoding="utf-8")
     PROBE._capture_baseline(root, "session-a")
@@ -113,21 +113,50 @@ def _save(root: Path, worklog: Path, *, legacy: bool = False) -> tuple[int, str]
 
 
 class InitTests(unittest.TestCase):
-    def test_initializes_default_visible_directory_and_index_link(self):
+    def test_default_init_asks_for_approval_and_does_not_create(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             result, output = _call("init", "--root", str(root))
+            self.assertEqual(result, 5)
+            self.assertIn("确认请加 --approved", output)
+            self.assertIn("改用其他位置", output)
+            self.assertFalse((root / "docs" / "context-keeper").exists())
+            self.assertFalse((root / "context-keeper.json").exists())
+
+    def test_init_reports_existing_store_as_ready(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "docs" / "context-keeper" / "plans").mkdir(parents=True)
+            (root / "docs" / "context-keeper" / "memory-keeper.md").write_text("# 项目记忆\n", encoding="utf-8")
+            result, output = _call("init", "--root", str(root))
             self.assertEqual(result, 0)
-            self.assertIn("默认记录位置：context-keeper", output)
-            self.assertTrue((root / "context-keeper" / "plans").is_dir())
-            self.assertTrue((root / "context-keeper" / "worklogs").is_dir())
-            self.assertTrue((root / "context-keeper" / "evolution" / "index.md").is_file())
-            self.assertIn("evolution/index.md", (root / "context-keeper" / "memory-keeper.md").read_text())
+            self.assertIn("已就绪", output)
+            self.assertIn("docs/context-keeper", output)
+
+    def test_init_store_dir_alone_asks_for_approval(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            result, output = _call("init", "--root", str(root), "--store-dir", "notes/history")
+            self.assertEqual(result, 5)
+            self.assertIn("来自 --store-dir", output)
+            self.assertIn("确认请加 --approved", output)
+            self.assertFalse((root / "notes" / "history").exists())
+
+    def test_initializes_default_visible_directory_and_index_link(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            result, output = _call("init", "--root", str(root), "--approved")
+            self.assertEqual(result, 0)
+            self.assertIn("默认记录位置：docs/context-keeper", output)
+            self.assertTrue((root / "docs" / "context-keeper" / "plans").is_dir())
+            self.assertTrue((root / "docs" / "context-keeper" / "worklogs").is_dir())
+            self.assertTrue((root / "docs" / "context-keeper" / "evolution" / "index.md").is_file())
+            self.assertIn("evolution/index.md", (root / "docs" / "context-keeper" / "memory-keeper.md").read_text())
 
     def test_remembers_custom_directory(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            result, _ = _call("init", "--root", str(root), "--store-dir", "project-notes/context")
+            result, _ = _call("init", "--root", str(root), "--store-dir", "project-notes/context", "--approved")
             self.assertEqual(result, 0)
             config = json.loads((root / "context-keeper.json").read_text())
             self.assertEqual(config["directory"], "project-notes/context")
@@ -135,15 +164,14 @@ class InitTests(unittest.TestCase):
     def test_switch_requires_explicit_migration_and_can_return_to_default(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            _call("init", "--root", str(root), "--store-dir", "project-notes/context")
+            _call("init", "--root", str(root), "--store-dir", "project-notes/context", "--approved")
             blocked, output = _call("init", "--root", str(root), "--store-dir", "context-keeper")
             self.assertEqual(blocked, 2)
             self.assertIn("--migrate", output)
-            moved, output = _call("init", "--root", str(root), "--store-dir", "context-keeper", "--migrate")
+            moved, output = _call("init", "--root", str(root), "--store-dir", "context-keeper", "--migrate", "--approved")
             self.assertEqual(moved, 0)
             self.assertIn("已迁移记录", output)
-            config = json.loads((root / "context-keeper.json").read_text())
-            self.assertEqual(config["directory"], "context-keeper")
+            self.assertFalse((root / "context-keeper.json").exists())
             self.assertFalse((root / "project-notes" / "context").exists())
 
 
@@ -151,7 +179,7 @@ class RecordBoundaryTests(unittest.TestCase):
     def test_record_path_creates_session_owned_file_and_other_session_appends(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            _call("init", "--root", str(root))
+            _call("init", "--root", str(root), "--approved")
             args = ("record-path", "--root", str(root), "--kind", "plan", "--title", "上下文优化需求", "--date", "2026-09-16")
             _, first = _call(*args, "--session-id", "session-a")
             first_path = root / first.strip()
@@ -165,7 +193,7 @@ class RecordBoundaryTests(unittest.TestCase):
     def test_guard_blocks_cross_session_write(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            _call("init", "--root", str(root))
+            _call("init", "--root", str(root), "--approved")
             _, path = _call("record-path", "--root", str(root), "--kind", "worklog", "--title", "测试", "--session-id", "a")
             ok, _ = _call("record-guard", "--root", str(root), "--path", path.strip(), "--session-id", "a")
             blocked, output = _call("record-guard", "--root", str(root), "--path", path.strip(), "--session-id", "b")
@@ -178,8 +206,8 @@ class ResumeAndSearchTests(unittest.TestCase):
     def test_resume_defaults_to_five_entries_and_three_plus_two(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            _call("init", "--root", str(root))
-            memory = root / "context-keeper" / "memory-keeper.md"
+            _call("init", "--root", str(root), "--approved")
+            memory = root / "docs" / "context-keeper" / "memory-keeper.md"
             entries = []
             for index, kind in enumerate(("research", "research", "research", "bugfix", "feature"), 1):
                 entries.append(f"## 2026-09-{20-index:02d} - Item {index} `{kind}`\n- **任务：** task {index}\n- **关键经验：** lesson {index}\n")
@@ -191,8 +219,8 @@ class ResumeAndSearchTests(unittest.TestCase):
     def test_resume_query_filters_pending_and_experience(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            _call("init", "--root", str(root))
-            memory = root / "context-keeper" / "memory-keeper.md"
+            _call("init", "--root", str(root), "--approved")
+            memory = root / "docs" / "context-keeper" / "memory-keeper.md"
             memory.write_text("""# 索引
 
 ## 未完成事项
@@ -214,8 +242,8 @@ class ResumeAndSearchTests(unittest.TestCase):
     def test_resume_uses_bounded_fallback_when_summary_is_missing(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            _call("init", "--root", str(root))
-            worklog = root / "context-keeper" / "worklogs" / "2026-09-16-缺摘要.md"
+            _call("init", "--root", str(root), "--approved")
+            worklog = root / "docs" / "context-keeper" / "worklogs" / "2026-09-16-缺摘要.md"
             worklog.write_text("<!-- context-keeper: session-id=a -->\n# 标题\n\n这里记录了集中审核的真实耗时。\n")
             result, output = _call("resume", "--root", str(root))
             self.assertEqual(result, 0)
@@ -224,9 +252,9 @@ class ResumeAndSearchTests(unittest.TestCase):
     def test_search_falls_back_to_unindexed_plan_and_worklog(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            _call("init", "--root", str(root))
-            (root / "context-keeper/plans/2026-09-16-整体复盘.md").write_text("用户要求整体核账。")
-            (root / "context-keeper/worklogs/2026-09-16-耗时.md").write_text("集中审核耗时 9 分 16 秒。")
+            _call("init", "--root", str(root), "--approved")
+            (root / "docs/context-keeper/plans/2026-09-16-整体复盘.md").write_text("用户要求整体核账。")
+            (root / "docs/context-keeper/worklogs/2026-09-16-耗时.md").write_text("集中审核耗时 9 分 16 秒。")
             _, plans = _call("search", "--root", str(root), "--query", "整体核账")
             _, logs = _call("search", "--root", str(root), "--query", "9 分 16 秒")
             self.assertIn("[需求与计划]", plans)
@@ -235,8 +263,8 @@ class ResumeAndSearchTests(unittest.TestCase):
     def test_search_excludes_replaced_and_caps_evolution_at_three(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            _call("init", "--root", str(root))
-            evolution = root / "context-keeper/evolution"
+            _call("init", "--root", str(root), "--approved")
+            evolution = root / "docs/context-keeper/evolution"
             (evolution / "旧经验.md").write_text(_experience("旧经验", "CK-000", "已替代"))
             for index in range(4):
                 text = _experience(f"有效经验{index}", f"CK-{index + 1:03d}").replace("生成耗时", "共同触发词")
@@ -251,7 +279,7 @@ class ResumeAndSearchTests(unittest.TestCase):
             root = Path(temp_dir) / "project"
             user = Path(temp_dir) / "user-evolution"
             root.mkdir()
-            _call("init", "--root", str(root))
+            _call("init", "--root", str(root), "--approved")
             user.mkdir()
             (user / "通用经验.md").write_text(_experience("通用经验").replace("生成耗时", "跨项目线索"))
             result, output = _call("search", "--root", str(root), "--query", "跨项目线索", "--user-evolution-dir", str(user))
@@ -261,7 +289,7 @@ class ResumeAndSearchTests(unittest.TestCase):
     def test_zero_hit_does_not_claim_history_never_existed(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            _call("init", "--root", str(root))
+            _call("init", "--root", str(root), "--approved")
             _, output = _call("search", "--root", str(root), "--query", "不存在的关键词")
             self.assertIn("不代表历史上从未发生", output)
 
@@ -316,8 +344,8 @@ class EvolutionPromotionTests(unittest.TestCase):
             root = Path(temp_dir) / "project"
             user = Path(temp_dir) / "user"
             root.mkdir()
-            _call("init", "--root", str(root))
-            source = root / "context-keeper/evolution/耗时分析.md"
+            _call("init", "--root", str(root), "--approved")
+            source = root / "docs/context-keeper/evolution/耗时分析.md"
             source.write_text(_experience())
             blocked, _ = _call("promote-evolution", "--root", str(root), "--source", str(source), "--user-evolution-dir", str(user))
             ok, output = _call("promote-evolution", "--root", str(root), "--source", str(source), "--user-evolution-dir", str(user), "--approved")
@@ -331,8 +359,8 @@ class CoverageTests(unittest.TestCase):
     def test_default_output_is_compact_and_details_are_optional(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            _call("init", "--root", str(root))
-            worklog = root / "context-keeper/worklogs/2026-09-16-遗漏.md"
+            _call("init", "--root", str(root), "--approved")
+            worklog = root / "docs/context-keeper/worklogs/2026-09-16-遗漏.md"
             worklog.write_text("# 未被索引\n")
             result, output = _call("coverage", "--root", str(root))
             self.assertEqual(result, 1)
@@ -344,12 +372,12 @@ class CoverageTests(unittest.TestCase):
     def test_detects_invalid_experience_duplicate_id_broken_link_and_pending(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            _call("init", "--root", str(root))
-            evolution = root / "context-keeper/evolution"
+            _call("init", "--root", str(root), "--approved")
+            evolution = root / "docs/context-keeper/evolution"
             (evolution / "a.md").write_text(_experience("A", "CK-001"))
             (evolution / "b.md").write_text(_experience("B", "CK-001"))
             (evolution / "bad.md").write_text("# bad\n- **状态：** unknown\n")
-            memory = root / "context-keeper/memory-keeper.md"
+            memory = root / "docs/context-keeper/memory-keeper.md"
             memory.write_text("# 索引\n\n## 未完成事项\n- 不完整事项\n\n[坏链接](missing.md)\n")
             result, output = _call("coverage", "--root", str(root), "--details")
             self.assertEqual(result, 1)
@@ -397,7 +425,7 @@ class SaveReportTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             worklog = _write_valid_context(root, evolution=True)
-            (root / "context-keeper/evolution/耗时分析.md").write_text("# 不完整\n")
+            (root / "docs/context-keeper/evolution/耗时分析.md").write_text("# 不完整\n")
             result, output = _save(root, worklog)
             self.assertEqual(result, 2)
             self.assertIn("字段不完整", output)
