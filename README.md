@@ -32,13 +32,14 @@
 
 Context Keeper 帮 AI 保存项目进度、找回历史事实，更让它在使用中**持续自我进化**：自动沉淀新的纠正和验证结果，修正过时经验，让这次学到的东西改变下一次的做法。
 
-📦 **一条命令安装，也可以复制给 Agent 执行：**
+📦 **保留一个 Git 源码目录，其他 Agent 入口使用软连接：**
 
 ```bash
-npx skills add vincent4j/context-keeper
+git clone https://github.com/vincent4j/context-keeper.git <source-dir>
+python3 <source-dir>/scripts/install.py --all
 ```
 
-按提示选择 Agent 和安装范围。安装后首次打开 `/context-keeper`，AI 会按安装位置补齐自动入口配置，无需再复制其他命令。
+已有源码仓库时跳过 `git clone`。安装器必须从这个带 `.git` 的源码仓库运行；它不会复制 Skill，而是在 Codex、Agents 和 Claude Code 的 Skill 目录创建指向 `<source-dir>` 的软连接。从复制目录执行会被拒绝。安装后首次打开 `/context-keeper`，AI 会按安装位置补齐自动入口配置。
 
 ### ✅ 在你用之前，你可能想知道
 

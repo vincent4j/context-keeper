@@ -1,14 +1,15 @@
 # 安装与自动入口
 
-Context Keeper 的核心流程不依赖特定 Agent。安装器分别完成两件事：复制 Skill 文件，以及写入短入口规则。
+Context Keeper 的核心流程不依赖特定 Agent。安装器分别完成两件事：把 Agent 的 Skill 入口软连接到当前 Git 源码目录，以及写入短入口规则。源码仓库是唯一真实副本，不向安装目录复制 Skill 文件。
 
-## 推荐入口：npx 安装，首次使用补齐配置
+## 推荐入口：Git 源码仓库＋软连接
 
 ```bash
-npx skills add vincent4j/context-keeper
+git clone https://github.com/vincent4j/context-keeper.git <source-dir>
+python3 <source-dir>/scripts/install.py --all
 ```
 
-安装器提供 Skill 文件。用户首次选择 `/context-keeper` 后，Agent 按 SKILL.md 执行以下检查（用户不需要手动执行）：
+已有源码仓库时跳过 `git clone`。安装器必须从带 `.git` 的 Context Keeper 源码仓库运行，并为各 Agent 创建指向该源码目录的软连接；从复制目录运行会被拒绝。用户首次选择 `/context-keeper` 后，Agent 按 SKILL.md 执行以下检查（用户不需要手动执行）：
 
 ```bash
 python3 <skill-dir>/scripts/install.py --ensure-bridge --skill-dir <skill-dir> --root <repo> --codex
@@ -17,7 +18,8 @@ python3 <skill-dir>/scripts/install.py --ensure-bridge --skill-dir <skill-dir> -
 当前宿主是 Claude Code 时使用 `--claude`。只配置当前宿主，不使用 `--all`。
 
 - 用户级安装对应用户级规则；项目级安装对应安装项目的规则，不以当前工作目录猜安装范围。
-- 支持 `.agents/skills`、对应宿主的 `.codex/skills` 或 `.claude/skills`，复制与软链接均可。
+- 支持 `.agents/skills`、对应宿主的 `.codex/skills` 或 `.claude/skills`；这些位置必须是指向当前 Git 源码目录的软连接。
+- 安装位置已经是正确软连接时保持不变；发现真实复制目录时不自动删除，避免丢失局部修改，必须先核对差异再人工迁移为软连接。
 - 宿主只提供软链接解析后的源码路径时，从当前项目及其祖先、用户安装位置找回指向同一源码的别名，项目优先。
 - 同一会话检查一次；规则已是当前版本时不写文件，不重复通知。更新版本时替换自己的区块并读回检查，保留区块外原文。
 - 未知路径、宿主不明、损坏或重复标记时停止配置，说明原因；不得猜测全局范围或覆盖用户内容。
@@ -44,7 +46,7 @@ python3 scripts/install.py --all
 python3 scripts/install.py --project <repo> --all
 ```
 
-项目级安装把 Skill 放入项目的 Agent Skill 目录，并把短入口规则写入项目根目录的规则文件。用户级和项目级同时存在时，Agent 只执行一次检索或沉淀流程。
+项目级安装在项目的 Agent Skill 目录创建指向源码仓库的软连接，并把短入口规则写入项目根目录的规则文件。用户级和项目级同时存在时，Agent 只执行一次检索或沉淀流程。
 
 Skill 已经通过软链接或其他方式安装，只需启用入口时：
 

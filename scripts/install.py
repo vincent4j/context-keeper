@@ -42,23 +42,26 @@ def _detect_claude() -> bool:
     return _command_exists("claude") or (home / ".claude").exists()
 
 
-def _copy_skill(target_root: Path) -> Path:
+def _require_source_checkout() -> None:
+    if not (SOURCE / ".git").exists():
+        raise RuntimeError(f"安装器必须从 Context Keeper Git 源码仓库运行，拒绝使用复制目录：{SOURCE}")
+
+
+def _link_skill(target_root: Path) -> Path:
     target = target_root.expanduser().resolve() / "context-keeper"
-    if target.exists() and target.resolve() == SOURCE.resolve():
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if target.is_symlink() and target.resolve() == SOURCE.resolve():
         return target
+    if target.is_symlink():
+        target.unlink()
     marker = target / "SKILL.md"
-    if target.exists() and (not marker.is_file() or "name: context-keeper" not in marker.read_text(encoding="utf-8", errors="replace")):
-        raise RuntimeError(f"拒绝覆盖无法确认归属的目录：{target}")
-    target.mkdir(parents=True, exist_ok=True)
-    for name in ("SKILL.md", "README.md"):
-        shutil.copy2(SOURCE / name, target / name)
-    for name in ("references", "scripts"):
-        source_dir = SOURCE / name
-        target_dir = target / name
-        target_dir.mkdir(parents=True, exist_ok=True)
-        for source_file in source_dir.glob("*"):
-            if source_file.is_file() and source_file.suffix in (".md", ".py"):
-                shutil.copy2(source_file, target_dir / source_file.name)
+    if target.exists():
+        if not marker.is_file() or "name: context-keeper" not in marker.read_text(encoding="utf-8", errors="replace"):
+            raise RuntimeError(f"拒绝覆盖无法确认归属的目录：{target}")
+        raise RuntimeError(f"检测到 Context Keeper 复制目录，拒绝自动删除可能存在的本地修改：{target}；请先核对差异，再改为指向源码目录的软连接")
+    target.symlink_to(SOURCE, target_is_directory=True)
+    if not target.is_symlink() or target.resolve() != SOURCE.resolve():
+        raise RuntimeError(f"Skill 软连接读回校验失败：{target}")
     return target
 
 
@@ -168,7 +171,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--claude", action="store_true", help="安装到 Claude Code")
     parser.add_argument("--project", help="项目级安装到指定仓库；省略时为用户级")
     parser.add_argument("--uninstall", action="store_true", help="移除 Skill 和自身入口区块")
-    parser.add_argument("--bridge-only", action="store_true", help="只配置自动入口，不复制 Skill")
+    parser.add_argument("--bridge-only", action="store_true", help="只配置自动入口，不创建 Skill 软连接")
     parser.add_argument("--codex-dir", help="自定义 Codex skills 根目录")
     parser.add_argument("--claude-dir", help="自定义 Claude Code skills 根目录")
     return parser
@@ -176,6 +179,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    _require_source_checkout()
     if args.ensure_bridge:
         return _ensure_bridge(args)
     explicit = args.all or args.codex or args.claude
@@ -196,19 +200,20 @@ def main(argv: list[str] | None = None) -> int:
     bridges: list[dict[str, str]] = []
     if args.codex:
         if args.codex_dir:
-            skill_root = Path(args.codex_dir)
+            skill_roots = [Path(args.codex_dir)]
         elif project:
-            skill_root = project / ".agents" / "skills"
+            skill_roots = [project / ".agents" / "skills", project / ".codex" / "skills"]
         else:
-            skill_root = home / ".agents" / "skills" if (home / ".agents").exists() else home / ".codex" / "skills"
+            skill_roots = [home / ".agents" / "skills", home / ".codex" / "skills"]
         bridge = project / "AGENTS.md" if project else home / ".codex" / "AGENTS.md"
         if args.uninstall:
-            skill, action = _remove_skill(skill_root)
-            removed.append({"path": skill, "action": action})
+            for skill_root in skill_roots:
+                skill, action = _remove_skill(skill_root)
+                removed.append({"path": skill, "action": action})
             bridges.append({"file": str(bridge), "action": _remove_bridge(bridge)})
         else:
             if not args.bridge_only:
-                installed.append(str(_copy_skill(skill_root)))
+                installed.extend(str(_link_skill(skill_root)) for skill_root in skill_roots)
             bridges.append({"file": str(bridge), "action": _upsert_bridge(bridge)})
     if args.claude:
         if args.claude_dir:
@@ -224,7 +229,7 @@ def main(argv: list[str] | None = None) -> int:
             bridges.append({"file": str(bridge), "action": _remove_bridge(bridge)})
         else:
             if not args.bridge_only:
-                installed.append(str(_copy_skill(skill_root)))
+                installed.append(str(_link_skill(skill_root)))
             bridges.append({"file": str(bridge), "action": _upsert_bridge(bridge)})
     print(json.dumps({
         "scope": "project" if project else "user",

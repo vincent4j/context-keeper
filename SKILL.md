@@ -7,6 +7,10 @@ description: 续接项目进度，查找历史事实，自动沉淀经验，让 
 
 用有限上下文保存进度、恢复工作、检索历史事实，并在有证据时积累可复用经验。普通新需求不自动搜索历史。
 
+## 唯一源码与安装入口
+
+Git 源码仓库是唯一真实副本。Codex、Agents、Claude Code 及项目级 Skill 目录只能使用指向该源码目录的软连接，禁止复制 Skill 文件形成第二份可编辑副本。安装器发现真实复制目录时必须保护性停止并提示先核对差异，不能静默覆盖或删除；正确软连接应保持幂等。
+
 ## 首次使用：补齐自动入口
 
 本会话首次调用本 Skill 时，先运行下面的一次性检查，再显示菜单或执行用户指定动作。`<skill-dir>` 使用当前实际加载的 Skill 目录（优先保留安装路径，不主动解析软链接），`<repo>` 为当前项目；按当前宿主选 `--codex` 或 `--claude`，只能选一个，不根据机器上装了哪些程序猜宿主。
@@ -30,26 +34,7 @@ Claude Code 将最后的 `--codex` 换成 `--claude`。这属于首次使用初�
 
 ## 默认结构
 
-第一次保存前，先向用户展示默认记录位置并取得确认，再调用 `init`：
-
-```bash
-# 询问模式（默认）：打印建议路径，不创建任何目录，等待用户回复；rc=5
-python3 <skill-dir>/scripts/context_keeper_probe.py init --root <repo>
-
-# 用户同意默认位置：加 --approved 确认创建
-python3 <skill-dir>/scripts/context_keeper_probe.py init --root <repo> --approved
-
-# 用户想换位置：用 --store-dir 指到自定义路径（同样需 --approved）
-python3 <skill-dir>/scripts/context_keeper_probe.py init --root <repo> --store-dir <自定义路径> --approved
-```
-
-**init 返回值语义**：rc=0 已创建或已就绪；rc=2 拒绝（迁移需 `--migrate`、配置无效、目标冲突）；**rc=5 需要用户确认**——Agent 必须向用户说明建议位置，等用户同意默认位置则重跑加 `--approved`，用户想换位置则改 `--store-dir <path> --approved`。`init --root <repo>` 在项目已有记录库时直接 rc=0 输出"记录库已就绪"，不进入询问。
-
-`init` 任何时候都不能跳过询问直接创建；Agent 也不允许因为"用户已说过想保存"就自动加 `--approved`，除非看到用户明确同意。
-
-**migrate 返回值语义**：rc=0 完成；rc=3 预览完成但未批准——Agent 需把预览结果（含文件级映射、外部链接修改列表）告知用户，等用户明确同意后加 `--approved` 重跑；rc=2 拒绝（目标非法、目标非空、旧结构含软链接）。脚本自动发现记录库：依次检查 `<repo>/docs/context-keeper/` 与 `<repo>/context-keeper/`（按目录内 `memory-keeper.md`、`worklogs/`、`plans/`、`evolution/`、`migration-manifest.json` 等标记识别，同名空目录不算）；两处同时存在会明确报错，此时用 `--store-dir` 指定其一。**所有命令都支持 `--store-dir` 显式指定记录目录，位置不限**。`init`/`migrate` 的目标在两个候选位置内不写任何配置文件，只有指到候选之外才写 `context-keeper.json`（后续命令靠它或 `--store-dir` 找到该位置）。已有记录改位置必须显式使用 `--migrate`，目标冲突时停止。
-
-**migrate 默认目标**：不传 `--store-dir` 时迁到 `docs/context-keeper/`（与新 init 默认一致）；迁回根目录位置用 `--store-dir context-keeper`；其他自定义路径同样支持但不能是 docs/ 下的非 context-keeper 子路径（避免覆盖项目文档）。
+默认记录库是 `<repo>/docs/context-keeper/`。第一次保存、指定自定义位置或迁移时，按操作路由读取对应 reference；不要在普通续接或查找时加载初始化细节。新建位置必须先取得用户确认。任何命令返回“需要迁移”（退出码3）时停止，读取 [迁移说明](references/migrate.md)，展示预览并等待明确批准；不得绕过门禁读取旧目录。
 
 ```text
 docs/context-keeper/
@@ -76,12 +61,16 @@ docs/context-keeper/
 - 自动搜索零命中即停止。只有用户明确追溯原文或关键判断缺少事实证据时，才运行原始会话搜索。
 - 普通新需求、文字修改和常规实现不触发历史搜索。
 - `coverage` 默认只输出一行计数；只有排查缺口时加 `--details`。
+- 同一会话、同一仓库、同一主题的连续更新走快速路径：已经成功完成的 bridge 检查、`status` 和同一路径 `record-guard` 不重复执行，除非仓库、分支、记录位置、会话 ID 或外部文件状态发生变化。
+- 只修改已存在且已索引的同主题记录时，写入后只运行一次 `save-report`；只有新建记录、修改索引/链接/结构或上次 coverage 有本轮新增错误时才运行 `coverage`。
+- 多个独立 `record-guard` 可以在同一次工具调用中并行；需要 coverage 时，可与 `save-report` 同批并行读取。不要为了展示过程把这些检查拆成多轮对话。
+- 本地脚本门禁目标不超过1秒；内容已经整理好的同主题增量保存，额外收尾目标不超过5秒。超出时先报告具体慢项，不用省略历史保护、保存校验或伪造完成来追时限。
 
 ## 操作路由
 
 只读取当前操作需要的 reference：
 
-- 保存（包括用户纠正后的自动沉淀）：先运行 `status`，再读 [references/save.md](references/save.md)。
+- 保存（包括用户纠正后的自动沉淀）：本会话首次保存先运行 `status`，再读 [references/save.md](references/save.md)；同仓库同主题连续保存按快速路径复用已验证状态。
 - 继续：运行 `resume --query '<当前关键词>'`，需要细节时读 [references/resume.md](references/resume.md)。
 - 查找：从当前上下文提取关键词运行 `search`，再读 [references/search.md](references/search.md)。
 - 安装、卸载、用户级或项目级入口：读 [references/install.md](references/install.md)。

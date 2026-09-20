@@ -169,6 +169,12 @@ python3 <skill-dir>/scripts/context_keeper_probe.py promote-evolution \
 
 ## 6. 校验与交付
 
+### 同会话快速路径
+
+同一会话、同一仓库和同一主题中，如果 bridge、`status` 和目标文件的 `record-guard` 已成功，且仓库、分支、记录位置、会话 ID 与外部文件状态没有变化，则连续纠正不重复这些检查。只更新已存在且已索引的记录时，写完直接运行一次 `save-report`；新建记录、改索引/链接/结构时才补 `coverage`。多个独立 guard 可并行，必要的 `coverage` 与 `save-report` 可在同一次工具调用中并行读取。
+
+快速路径只减少重复启动和重复读取，不降低会话边界、历史指纹、迁移门禁或保存校验。内容已准备好后的本地收尾目标不超过5秒；超时须指出慢项。
+
 ```bash
 python3 <skill-dir>/scripts/context_keeper_probe.py coverage --root <repo>
 python3 <skill-dir>/scripts/context_keeper_probe.py save-report \
