@@ -20,11 +20,11 @@
     },
     {
       "path": "README.md",
-      "sha256": "33d102da5eed9a89081063dcc1c8ccd116d5cb6b6eab9079fd7767075693a75a"
+      "sha256": "d5e2dcf170c793bfdc583a4a2b38a60361f080235a09840e92f3f6e1ac89e4be"
     },
     {
       "path": "scripts/install.py",
-      "sha256": "1af47f902f4521df9fb3b7d1e9d5890cf42eb82d053fe34b8ea92fa9f20c2873"
+      "sha256": "049020cbd83c243ceebbbbefad83271c4bafc43444bac78515d5e4c69306f8fb"
     },
     {
       "path": "scripts/context_keeper_probe.py",
@@ -40,7 +40,7 @@
     },
     {
       "path": "references/install.md",
-      "sha256": "cf103b0aecdeb8333e2fb0ddf89b87cd565cb179ac37d9f350d8991f5dbfaf92"
+      "sha256": "f41a182ae58f4793d43ea02e141455e17117fb37c856e6e07aea61223d1b0ed9"
     },
     {
       "path": "references/migrate.md",

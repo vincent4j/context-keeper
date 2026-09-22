@@ -156,6 +156,15 @@ def _check_bridge(path: Path) -> None:
         raise RuntimeError(f"入口标记不完整或重复，停止修改：{path}")
 
 
+def _bridge_is_current(path: Path) -> bool:
+    if not path.exists():
+        return False
+    text = path.read_text(encoding="utf-8")
+    start = text.find(BRIDGE_START)
+    end = text.find(BRIDGE_END)
+    return start >= 0 and end >= start and text[start:end + len(BRIDGE_END)] == BRIDGE.rstrip("\n")
+
+
 def _ensure_bridge(args: argparse.Namespace) -> int:
     agents = ("codex", "claude", "cursor", "workbuddy", "hermes", "opencode", "openclaw")
     selected_agents = [agent for agent in agents if getattr(args, agent)]
@@ -195,6 +204,9 @@ def _ensure_bridge(args: argparse.Namespace) -> int:
     else:
         bridge = base / ("AGENTS.md" if agent == "codex" else "CLAUDE.md")
     _check_bridge(bridge)
+    if _bridge_is_current(bridge):
+        print(json.dumps({"scope": scope, "agent": agent, "bridge": str(bridge), "action": "unchanged"}, ensure_ascii=False))
+        return 0
     if not args.approved:
         print(json.dumps({"approval_required": True, "operation": "配置自动入口", "file": str(bridge),
                           "effect": "新增或更新 Context Keeper 受控规则区块；保留文件中的其他内容"}, ensure_ascii=False))

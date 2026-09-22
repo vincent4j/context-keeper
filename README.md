@@ -35,7 +35,7 @@ Context Keeper 帮 AI 保存项目进度、找回历史事实，更让它在使�
 📦 **把下面这段话复制给你正在使用的本机 Agent：**
 
 ```text
-请从 https://github.com/vincent4j/context-keeper 克隆最新的 main 分支。运行 scripts/install.py --all 预览写入范围，告诉我当前提交和将改动的文件；等我确认后，再加 --approved 执行安装。
+请从 https://github.com/vincent4j/context-keeper 安装最新版 Context Keeper。先运行 scripts/install.py --all 查看安装范围；如果没有冲突，继续加 --approved 完成安装，并告诉我结果。
 ```
 
 重新打开客户端后，确认它已识别这个 Skill。

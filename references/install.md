@@ -7,10 +7,10 @@ Context Keeper 的核心流程不依赖特定 Agent。安装器分别完成两�
 把下面这段话发给有本机文件和命令操作能力的 Agent：
 
 ```text
-请从 https://github.com/vincent4j/context-keeper 克隆最新的 main 分支。运行 scripts/install.py --all 预览写入范围，告诉我当前提交和将改动的文件；等我确认后，再加 --approved 执行安装。
+请从 https://github.com/vincent4j/context-keeper 安装最新版 Context Keeper。先运行 scripts/install.py --all 查看安装范围；如果没有冲突，继续加 --approved 完成安装，并告诉我结果。
 ```
 
-以下命令供 Agent 执行。第一次运行只预览，用户确认后才能加入 `--approved` 再运行：
+以下命令供 Agent 执行。确认预览没有冲突后，按上面的用户授权加 `--approved` 再运行：
 
 ```bash
 git clone --branch main https://github.com/vincent4j/context-keeper.git <source-dir>
@@ -18,7 +18,7 @@ git -C <source-dir> rev-parse HEAD
 python3 <source-dir>/scripts/install.py --all
 ```
 
-安装器也接受声明文件哈希全部匹配的市场安装包；不会接受未经验证的复制目录。用户首次选择 `/context-keeper` 后，Agent 按 SKILL.md 预览自动入口配置：
+安装器从 Git 源码目录运行。用户首次选择 `/context-keeper` 后，Agent 按 SKILL.md 检查自动入口配置：
 
 ```bash
 python3 <skill-dir>/scripts/install.py --ensure-bridge --skill-dir <skill-dir> --root <repo> --codex

@@ -90,7 +90,7 @@ class InstallTests(unittest.TestCase):
                     self.assertEqual(json.loads(result.stdout)['scope'],scope)
                     self.assertTrue(bridge.read_text().startswith('# 用户内容\n\n不要修改。\n'))
                     before = bridge.stat().st_mtime_ns
-                    result = subprocess.run(cmd,env=env,text=True,capture_output=True)
+                    result = subprocess.run([part for part in cmd if part != '--approved'],env=env,text=True,capture_output=True)
                     self.assertEqual(result.returncode,0,result.stdout+result.stderr)
                     self.assertEqual(json.loads(result.stdout)['action'],'unchanged')
                     self.assertEqual(bridge.stat().st_mtime_ns,before)
