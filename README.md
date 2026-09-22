@@ -1,7 +1,7 @@
-<h1 align="center">🧠 Context Keeper</h1>
+<h1 align="center">🧠 Context Keeper 上下文守望者</h1>
 
 <p align="center">
-  <strong>给你的 AI 编程助手装上项目记忆：续接进度、查找历史、自我进化。</strong>
+  <strong>给你的 AI 编程 Agent 装上项目记忆：续接进度、查找历史、自我进化。</strong>
 </p>
 
 <p align="center">
@@ -32,14 +32,13 @@
 
 Context Keeper 帮 AI 保存项目进度、找回历史事实，更让它在使用中**持续自我进化**：自动沉淀新的纠正和验证结果，修正过时经验，让这次学到的东西改变下一次的做法。
 
-📦 **保留一个 Git 源码目录，其他 Agent 入口使用软连接：**
+📦 **把下面这段话复制给你正在使用的本机 Agent：**
 
-```bash
-git clone https://github.com/vincent4j/context-keeper.git <source-dir>
-python3 <source-dir>/scripts/install.py --all
+```text
+请克隆 https://github.com/vincent4j/context-keeper，运行仓库中的 scripts/install.py --all 安装 Context Keeper。完成后告诉我结果。
 ```
 
-已有源码仓库时跳过 `git clone`。安装器必须从这个带 `.git` 的源码仓库运行；它不会复制 Skill，而是在 Codex、Agents 和 Claude Code 的 Skill 目录创建指向 `<source-dir>` 的软连接。从复制目录执行会被拒绝。安装后首次打开 `/context-keeper`，AI 会按安装位置补齐自动入口配置。
+重新打开客户端后，确认它已识别这个 Skill。
 
 ### ✅ 在你用之前，你可能想知道
 
@@ -48,7 +47,7 @@ python3 <source-dir>/scripts/install.py --all
 | ⚡ **会多花 Token 吗？** | 普通新需求不查历史；需要时只读少量相关记录，同一问题不反复查。不全量加载聊天，也不承诺零 Token 成本。 |
 | 📝 **需要自己维护吗？** | 保存记录、整理经验由 AI 执行。你不需要手写日志、整理文件或维护一套知识库。 |
 | 🔎 **会不会编造“以前的经验”？** | 历史结论必须有记录支撑。与你记得的不一致时展示原文，没找到就说明没找到；推断不能冒充事实。 |
-| 🤖 **我的 Agent 能用吗？** | 提供 Codex 和 Claude Code 安装入口。自动执行的可靠性取决于所用模型对 Skill 规则的遵循能力。 |
+| 🤖 **我的 Agent 能用吗？** | 提供 Codex、Claude Code、Cursor、WorkBuddy、Hermes、OpenCode 和 OpenClaw 的原生 Skill 目录安装。只有 Codex 和 Claude Code 目前写入自动入口；其余五个等待真实运行时验收后再启用自动规则。 |
 
 ---
 
@@ -103,6 +102,20 @@ python3 <source-dir>/scripts/install.py --all
 ```
 
 历史检索也有自动入口：提到“以前、上次”，或当前处理失败、准备重试而又缺少依据时，Agent 按需检查相关记录。普通任务不额外跑一遍历史搜索。
+
+### Agent 支持范围
+
+| Agent | 安装目录 | 自动入口 | 当前验证 |
+|---|---|---|---|
+| Codex | `.agents/skills`、`.codex/skills` | 支持 | 已做运行时验收 |
+| Claude Code | `.claude/skills` | 支持 | 已做部分运行时验收 |
+| Cursor | `.cursor/skills` | 未写入 | 安装器已覆盖，待客户端验收 |
+| WorkBuddy | `.workbuddy/skills` | 未写入 | 安装器已覆盖，待客户端验收 |
+| Hermes | `.hermes/skills`（用户级）或 `.agents/skills`（项目级） | 未写入 | 安装器已覆盖，待客户端验收 |
+| OpenCode | `.config/opencode/skills`（用户级）或 `.opencode/skills`（项目级） | 未写入 | 安装器已覆盖，待客户端验收 |
+| OpenClaw | `.agents/skills` | 未写入 | 安装器已覆盖，待客户端验收 |
+
+`--all` 让上述全部目录复用同一份源码。共享目录只处理一次；发现同名配置已指向其他位置时，安装器会停止，不会替换它。
 
 ---
 

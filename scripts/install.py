@@ -4,7 +4,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import shutil
 from pathlib import Path
 
 
@@ -28,18 +27,29 @@ def _home() -> Path:
     return Path(os.environ.get("HOME") or str(Path.home())).expanduser().resolve()
 
 
-def _command_exists(command: str) -> bool:
-    return shutil.which(command) is not None
-
-
-def _detect_codex() -> bool:
-    home = _home()
-    return _command_exists("codex") or (home / ".codex").exists() or (home / ".agents").exists()
-
-
-def _detect_claude() -> bool:
-    home = _home()
-    return _command_exists("claude") or (home / ".claude").exists()
+def _skill_roots(agent: str, home: Path, project: Path | None) -> list[Path]:
+    """Return documented Skill roots without creating a second source copy."""
+    if project:
+        roots = {
+            "codex": [project / ".agents/skills", project / ".codex/skills"],
+            "claude": [project / ".claude/skills"],
+            "cursor": [project / ".cursor/skills"],
+            "workbuddy": [project / ".workbuddy/skills"],
+            "hermes": [project / ".agents/skills"],
+            "opencode": [project / ".opencode/skills"],
+            "openclaw": [project / ".agents/skills"],
+        }
+    else:
+        roots = {
+            "codex": [home / ".agents/skills", home / ".codex/skills"],
+            "claude": [home / ".claude/skills"],
+            "cursor": [home / ".cursor/skills"],
+            "workbuddy": [home / ".workbuddy/skills"],
+            "hermes": [home / ".hermes/skills"],
+            "opencode": [home / ".config/opencode/skills"],
+            "openclaw": [home / ".agents/skills"],
+        }
+    return roots[agent]
 
 
 def _require_source_checkout() -> None:
@@ -47,38 +57,50 @@ def _require_source_checkout() -> None:
         raise RuntimeError(f"安装器必须从 Context Keeper Git 源码仓库运行，拒绝使用复制目录：{SOURCE}")
 
 
-def _link_skill(target_root: Path) -> Path:
+def _check_install_target(target_root: Path) -> Path:
     target = target_root.expanduser().resolve() / "context-keeper"
-    target.parent.mkdir(parents=True, exist_ok=True)
     if target.is_symlink() and target.resolve() == SOURCE.resolve():
         return target
     if target.is_symlink():
-        target.unlink()
+        raise RuntimeError(f"检测到其他来源的 Context Keeper 配置，拒绝静默替换：{target} → {target.resolve()}；请先核对后手动替换")
     marker = target / "SKILL.md"
     if target.exists():
         if not marker.is_file() or "name: context-keeper" not in marker.read_text(encoding="utf-8", errors="replace"):
             raise RuntimeError(f"拒绝覆盖无法确认归属的目录：{target}")
-        raise RuntimeError(f"检测到 Context Keeper 复制目录，拒绝自动删除可能存在的本地修改：{target}；请先核对差异，再改为指向源码目录的软连接")
+        raise RuntimeError(f"检测到 Context Keeper 复制目录，拒绝自动删除可能存在的本地修改：{target}；请先核对差异，再恢复为从源码目录加载")
+    return target
+
+
+def _link_skill(target_root: Path) -> Path:
+    target = _check_install_target(target_root)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if target.is_symlink():
+        return target
     target.symlink_to(SOURCE, target_is_directory=True)
     if not target.is_symlink() or target.resolve() != SOURCE.resolve():
-        raise RuntimeError(f"Skill 软连接读回校验失败：{target}")
+        raise RuntimeError(f"Skill 安装读回校验失败：{target}")
     return target
 
 
 def _remove_skill(target_root: Path) -> tuple[str, str]:
-    target = target_root.expanduser() / "context-keeper"
+    target = _check_remove_target(target_root)
     if not target.exists() and not target.is_symlink():
         return str(target), "absent"
+    target.unlink()
+    return str(target), "removed_symlink"
+
+
+def _check_remove_target(target_root: Path) -> Path:
+    target = target_root.expanduser() / "context-keeper"
+    if not target.exists() and not target.is_symlink():
+        return target
     if target.is_symlink():
-        target.unlink()
-        return str(target), "removed_symlink"
+        if target.resolve() != SOURCE.resolve():
+            raise RuntimeError(f"拒绝删除其他来源的 Context Keeper 配置：{target} → {target.resolve()}")
+        return target
     if target.resolve() == SOURCE.resolve():
         raise RuntimeError(f"拒绝删除正在使用的源码目录：{target}")
-    marker = target / "SKILL.md"
-    if not marker.is_file() or "name: context-keeper" not in marker.read_text(encoding="utf-8", errors="replace"):
-        raise RuntimeError(f"拒绝删除无法确认归属的目录：{target}")
-    shutil.rmtree(target)
-    return str(target), "removed"
+    raise RuntimeError(f"拒绝删除无法确认由安装器创建的目录：{target}；请先核对其中的本地修改")
 
 
 def _upsert_bridge(path: Path) -> str:
@@ -102,10 +124,24 @@ def _upsert_bridge(path: Path) -> str:
     return "appended"
 
 
+def _check_bridge(path: Path) -> None:
+    if not path.exists():
+        return
+    text = path.read_text(encoding="utf-8")
+    start = text.find(BRIDGE_START)
+    end = text.find(BRIDGE_END)
+    if text.count(BRIDGE_START) != text.count(BRIDGE_END) or text.count(BRIDGE_START) > 1 or (end >= 0 and end < start):
+        raise RuntimeError(f"入口标记不完整或重复，停止修改：{path}")
+
+
 def _ensure_bridge(args: argparse.Namespace) -> int:
-    if args.all or args.codex == args.claude or args.uninstall or args.project or args.codex_dir or args.claude_dir:
-        raise RuntimeError("首次入口配置只接受一个当前 Agent（--codex 或 --claude），不混用安装/卸载选项。")
-    agent = "codex" if args.codex else "claude"
+    agents = ("codex", "claude", "cursor", "workbuddy", "hermes", "opencode", "openclaw")
+    selected_agents = [agent for agent in agents if getattr(args, agent)]
+    if args.all or len(selected_agents) != 1 or args.uninstall or args.project or args.codex_dir or args.claude_dir:
+        raise RuntimeError("首次入口配置只接受一个当前 Agent，不混用安装、卸载或项目级选项。")
+    agent = selected_agents[0]
+    if agent not in ("codex", "claude"):
+        raise RuntimeError(f"{agent} 当前只安装原生 Skill 目录；自动入口尚未完成运行时验证，停止写入规则文件。")
     home = _home()
     roots = (".agents", ".codex") if agent == "codex" else (".claude", ".agents")
     loaded = Path(os.path.abspath(Path(args.skill_dir).expanduser()))
@@ -166,12 +202,17 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--ensure-bridge", action="store_true", help="首次使用时按安装位置补齐当前 Agent 入口")
     parser.add_argument("--skill-dir", default=str(Path(__file__).absolute().parents[1]), help="当前加载 Skill 的目录，优先保留安装别名")
     parser.add_argument("--root", default=".", help="当前项目位置，仅用于查找已安装别名")
-    parser.add_argument("--all", action="store_true", help="安装到 Codex 和 Claude Code")
+    parser.add_argument("--all", action="store_true", help="安装到所有已支持的 Agent")
     parser.add_argument("--codex", action="store_true", help="安装到 Codex")
     parser.add_argument("--claude", action="store_true", help="安装到 Claude Code")
+    parser.add_argument("--cursor", action="store_true", help="安装到 Cursor")
+    parser.add_argument("--workbuddy", action="store_true", help="安装到 WorkBuddy")
+    parser.add_argument("--hermes", action="store_true", help="安装到 Hermes")
+    parser.add_argument("--opencode", action="store_true", help="安装到 OpenCode")
+    parser.add_argument("--openclaw", action="store_true", help="安装到 OpenClaw")
     parser.add_argument("--project", help="项目级安装到指定仓库；省略时为用户级")
     parser.add_argument("--uninstall", action="store_true", help="移除 Skill 和自身入口区块")
-    parser.add_argument("--bridge-only", action="store_true", help="只配置自动入口，不创建 Skill 软连接")
+    parser.add_argument("--bridge-only", action="store_true", help="只配置自动入口，不安装 Skill")
     parser.add_argument("--codex-dir", help="自定义 Codex skills 根目录")
     parser.add_argument("--claude-dir", help="自定义 Claude Code skills 根目录")
     return parser
@@ -182,62 +223,101 @@ def main(argv: list[str] | None = None) -> int:
     _require_source_checkout()
     if args.ensure_bridge:
         return _ensure_bridge(args)
-    explicit = args.all or args.codex or args.claude
+    agents = ("codex", "claude", "cursor", "workbuddy", "hermes", "opencode", "openclaw")
+    explicit = args.all or any(getattr(args, agent) for agent in agents)
     if args.all:
-        args.codex = True
-        args.claude = True
+        for agent in agents:
+            setattr(args, agent, True)
     elif not explicit:
-        args.codex = _detect_codex()
-        args.claude = _detect_claude()
-        if not args.codex and not args.claude:
-            args.codex = True
-            args.claude = True
+        raise RuntimeError("请显式选择目标 Agent（例如 --codex），或使用 --all；安装器不会根据目录或命令猜测宿主。")
+
+    selected_agents = [agent for agent in agents if getattr(args, agent)]
+    unsupported_bridges = [agent for agent in selected_agents if agent not in ("codex", "claude")]
+    if args.bridge_only and unsupported_bridges:
+        raise RuntimeError("Cursor、WorkBuddy、Hermes、OpenCode 和 OpenClaw 当前只安装 Skill 目录；自动入口尚未完成运行时验证。")
 
     project = Path(args.project).expanduser().resolve() if args.project else None
     home = _home()
     installed: list[str] = []
     removed: list[dict[str, str]] = []
     bridges: list[dict[str, str]] = []
-    if args.codex:
-        if args.codex_dir:
-            skill_roots = [Path(args.codex_dir)]
-        elif project:
-            skill_roots = [project / ".agents" / "skills", project / ".codex" / "skills"]
-        else:
-            skill_roots = [home / ".agents" / "skills", home / ".codex" / "skills"]
-        bridge = project / "AGENTS.md" if project else home / ".codex" / "AGENTS.md"
-        if args.uninstall:
-            for skill_root in skill_roots:
-                skill, action = _remove_skill(skill_root)
-                removed.append({"path": skill, "action": action})
-            bridges.append({"file": str(bridge), "action": _remove_bridge(bridge)})
-        else:
-            if not args.bridge_only:
-                installed.extend(str(_link_skill(skill_root)) for skill_root in skill_roots)
-            bridges.append({"file": str(bridge), "action": _upsert_bridge(bridge)})
-    if args.claude:
-        if args.claude_dir:
-            skill_root = Path(args.claude_dir)
-        elif project:
-            skill_root = project / ".claude" / "skills"
-        else:
-            skill_root = home / ".claude" / "skills"
-        bridge = project / "CLAUDE.md" if project else home / ".claude" / "CLAUDE.md"
-        if args.uninstall:
+    bridge_paths = {
+        "codex": project / "AGENTS.md" if project else home / ".codex" / "AGENTS.md",
+        "claude": project / "CLAUDE.md" if project else home / ".claude" / "CLAUDE.md",
+    }
+    roots_by_agent = {
+        agent: ([Path(args.codex_dir)] if agent == "codex" and args.codex_dir else
+                [Path(args.claude_dir)] if agent == "claude" and args.claude_dir else
+                _skill_roots(agent, home, project))
+        for agent in agents
+    }
+    selected_roots: list[Path] = []
+    seen_roots: set[Path] = set()
+    for agent in selected_agents:
+        for skill_root in roots_by_agent[agent]:
+            resolved = skill_root.expanduser().resolve()
+            if resolved not in seen_roots:
+                selected_roots.append(skill_root)
+                seen_roots.add(resolved)
+
+    if args.uninstall:
+        for skill_root in selected_roots:
+            consumers = {agent for agent, roots in roots_by_agent.items()
+                         if any(root.expanduser().resolve() == skill_root.expanduser().resolve() for root in roots)}
+            target = skill_root.expanduser() / "context-keeper"
+            if consumers - set(selected_agents) and (target.exists() or target.is_symlink()):
+                raise RuntimeError(f"安装位置由多个 Agent 共用，拒绝单独卸载：{skill_root}；请使用 --all --uninstall")
+            _check_remove_target(skill_root)
+    elif not args.bridge_only:
+        for skill_root in selected_roots:
+            _check_install_target(skill_root)
+    for agent in selected_agents:
+        if agent in bridge_paths:
+            _check_bridge(bridge_paths[agent])
+
+    if args.uninstall:
+        for skill_root in selected_roots:
             skill, action = _remove_skill(skill_root)
             removed.append({"path": skill, "action": action})
-            bridges.append({"file": str(bridge), "action": _remove_bridge(bridge)})
-        else:
+        for agent in selected_agents:
+            if agent in bridge_paths:
+                bridge = bridge_paths[agent]
+                bridges.append({"file": str(bridge), "action": _remove_bridge(bridge)})
+    else:
+        created: list[Path] = []
+        saved_bridges: list[tuple[Path, bytes | None]] = []
+        try:
             if not args.bridge_only:
-                installed.append(str(_link_skill(skill_root)))
-            bridges.append({"file": str(bridge), "action": _upsert_bridge(bridge)})
+                for skill_root in selected_roots:
+                    target = _check_install_target(skill_root)
+                    existed = target.is_symlink()
+                    if not existed:
+                        created.append(target)
+                    installed.append(str(_link_skill(skill_root)))
+            for agent in selected_agents:
+                if agent in bridge_paths:
+                    bridge = bridge_paths[agent]
+                    saved_bridges.append((bridge, bridge.read_bytes() if bridge.exists() else None))
+                    bridges.append({"file": str(bridge), "action": _upsert_bridge(bridge)})
+        except (RuntimeError, OSError):
+            try:
+                for bridge, original in reversed(saved_bridges):
+                    if original is None:
+                        bridge.unlink(missing_ok=True)
+                    elif bridge.read_bytes() != original:
+                        bridge.write_bytes(original)
+            finally:
+                for target in reversed(created):
+                    if target.is_symlink() and target.resolve() == SOURCE.resolve():
+                        target.unlink()
+            raise
     print(json.dumps({
         "scope": "project" if project else "user",
         "project": str(project) if project else None,
         "installed": installed,
         "removed": removed,
         "bridges": bridges,
-        "configured_agents": [name for name, enabled in (("Codex", args.codex), ("Claude Code", args.claude)) if enabled],
+        "configured_agents": [name for name, enabled in (("Codex", args.codex), ("Claude Code", args.claude), ("Cursor", args.cursor), ("WorkBuddy", args.workbuddy), ("Hermes", args.hermes), ("OpenCode", args.opencode), ("OpenClaw", args.openclaw)) if enabled],
     }, ensure_ascii=False, indent=2))
     return 0
 

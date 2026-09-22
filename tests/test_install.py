@@ -170,11 +170,15 @@ class InstallTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             payload = json.loads(result.stdout)
             self.assertEqual(payload["scope"], "user")
-            self.assertEqual(len(payload["installed"]), 3)
+            self.assertEqual(len(payload["installed"]), 7)
             self.assertEqual(len(payload["bridges"]), 2)
             self.assertTrue((home / ".agents" / "skills" / "context-keeper").is_symlink())
             self.assertTrue((home / ".codex" / "skills" / "context-keeper").is_symlink())
             self.assertTrue((home / ".claude" / "skills" / "context-keeper").is_symlink())
+            self.assertTrue((home / ".cursor" / "skills" / "context-keeper").is_symlink())
+            self.assertTrue((home / ".workbuddy" / "skills" / "context-keeper").is_symlink())
+            self.assertTrue((home / ".hermes" / "skills" / "context-keeper").is_symlink())
+            self.assertTrue((home / ".config" / "opencode" / "skills" / "context-keeper").is_symlink())
             self.assertTrue((home / ".codex" / "AGENTS.md").is_file())
             self.assertTrue((home / ".claude" / "CLAUDE.md").is_file())
 
@@ -204,7 +208,7 @@ class InstallTests(unittest.TestCase):
             project = Path(temp_dir) / "project"
             project.mkdir()
             result = subprocess.run(
-                ["python3", str(INSTALLER), "--project", str(project), "--all", "--bridge-only"],
+                ["python3", str(INSTALLER), "--project", str(project), "--codex", "--claude", "--bridge-only"],
                 text=True,
                 capture_output=True,
                 check=False,
@@ -229,6 +233,137 @@ class InstallTests(unittest.TestCase):
             )
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertTrue((skill_root / "context-keeper").is_symlink())
+
+    def test_install_refuses_foreign_symlink(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = Path(temp_dir) / "project"; project.mkdir()
+            foreign = Path(temp_dir) / "foreign"; foreign.mkdir()
+            (foreign / "SKILL.md").write_text("---\nname: context-keeper\n---\n")
+            target = project / ".agents/skills/context-keeper"; target.parent.mkdir(parents=True)
+            target.symlink_to(foreign, target_is_directory=True)
+            result = subprocess.run(["python3", str(INSTALLER), "--project", str(project), "--codex"], text=True, capture_output=True)
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("拒绝静默替换", result.stdout)
+            self.assertEqual(target.resolve(), foreign.resolve())
+
+    def test_all_install_checks_late_conflict_before_writing_anything(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            home = Path(temp_dir) / "home"
+            foreign = home / ".config/opencode/skills/context-keeper"
+            foreign.parent.mkdir(parents=True)
+            foreign.symlink_to(home / "other-source")
+            result = subprocess.run(
+                ["python3", str(INSTALLER), "--all"],
+                env=dict(os.environ, HOME=str(home)), text=True, capture_output=True,
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertTrue(foreign.is_symlink())
+            self.assertFalse((home / ".codex/skills/context-keeper").exists())
+            self.assertFalse((home / ".codex/AGENTS.md").exists())
+
+    def test_uninstall_preserves_other_source_and_copied_directory(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            home = Path(temp_dir) / "home"
+            root = home / ".cursor/skills"
+            root.mkdir(parents=True)
+            target = root / "context-keeper"
+            target.symlink_to(home / "other-source")
+            command = ["python3", str(INSTALLER), "--cursor", "--uninstall"]
+            env = dict(os.environ, HOME=str(home))
+            result = subprocess.run(command, env=env, text=True, capture_output=True)
+            self.assertEqual(result.returncode, 2)
+            self.assertTrue(target.is_symlink())
+            target.unlink()
+            target.mkdir()
+            (target / "SKILL.md").write_text("name: context-keeper")
+            (target / "local-note.md").write_text("Keep this change")
+            result = subprocess.run(command, env=env, text=True, capture_output=True)
+            self.assertEqual(result.returncode, 2)
+            self.assertEqual((target / "local-note.md").read_text(), "Keep this change")
+
+    def test_all_uninstall_checks_late_foreign_entry_before_removing_anything(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            home = Path(temp_dir) / "home"
+            env = dict(os.environ, HOME=str(home))
+            subprocess.run(["python3", str(INSTALLER), "--codex"], env=env, check=True, capture_output=True)
+            owned = home / ".codex/skills/context-keeper"
+            foreign = home / ".config/opencode/skills/context-keeper"
+            foreign.parent.mkdir(parents=True)
+            foreign.symlink_to(home / "other-source")
+            result = subprocess.run(["python3", str(INSTALLER), "--all", "--uninstall"], env=env, text=True, capture_output=True)
+            self.assertEqual(result.returncode, 2)
+            self.assertTrue(owned.is_symlink())
+            self.assertTrue(foreign.is_symlink())
+            self.assertTrue((home / ".codex/AGENTS.md").exists())
+
+    def test_install_restores_new_entries_and_existing_rules_after_late_write_error(self):
+        spec = importlib.util.spec_from_file_location("installer_transaction", INSTALLER)
+        installer = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(installer)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = Path(temp_dir) / "project"
+            project.mkdir()
+            agents_file = project / "AGENTS.md"
+            agents_file.write_text("# Existing rules\n", encoding="utf-8")
+            original_upsert = installer._upsert_bridge
+
+            def fail_on_claude(path):
+                if path.name == "CLAUDE.md":
+                    raise OSError("simulated write failure")
+                return original_upsert(path)
+
+            with patch.object(installer, "_upsert_bridge", side_effect=fail_on_claude):
+                with self.assertRaises(OSError):
+                    installer.main(["--project", str(project), "--codex", "--claude"])
+            self.assertEqual(agents_file.read_text(encoding="utf-8"), "# Existing rules\n")
+            self.assertFalse((project / "CLAUDE.md").exists())
+            self.assertFalse((project / ".agents/skills/context-keeper").exists())
+            self.assertFalse((project / ".codex/skills/context-keeper").exists())
+            self.assertFalse((project / ".claude/skills/context-keeper").exists())
+
+    def test_shared_project_entry_cannot_be_uninstalled_for_one_agent(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = Path(temp_dir) / "project"
+            project.mkdir()
+            shared = project / ".agents/skills/context-keeper"
+            subprocess.run(["python3", str(INSTALLER), "--project", str(project), "--hermes"], check=True, capture_output=True)
+            result = subprocess.run(
+                ["python3", str(INSTALLER), "--project", str(project), "--openclaw", "--uninstall"],
+                text=True, capture_output=True,
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("多个 Agent 共用", result.stdout)
+            self.assertTrue(shared.is_symlink())
+
+    def test_uninstall_succeeds_when_shared_entry_is_absent(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = Path(temp_dir) / "project"
+            project.mkdir()
+            result = subprocess.run(
+                ["python3", str(INSTALLER), "--project", str(project), "--openclaw", "--uninstall"],
+                text=True, capture_output=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertEqual(json.loads(result.stdout)["removed"][0]["action"], "absent")
+
+    def test_install_requires_explicit_agent_selection(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            home = Path(temp_dir) / "home"
+            result = subprocess.run(["python3", str(INSTALLER)], text=True, capture_output=True, env=dict(os.environ, HOME=str(home)))
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("显式选择目标 Agent", result.stdout)
+            self.assertFalse((home / ".agents").exists())
+
+    def test_bridge_only_rejects_unverified_agent_automation(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            result = subprocess.run(
+                ["python3", str(INSTALLER), "--project", temp_dir, "--cursor", "--bridge-only"],
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("自动入口尚未完成运行时验证", result.stdout)
+            self.assertFalse((Path(temp_dir) / "AGENTS.md").exists())
 
     def test_install_refuses_to_delete_managed_copy_with_possible_local_changes(self):
         with tempfile.TemporaryDirectory() as temp_dir:
