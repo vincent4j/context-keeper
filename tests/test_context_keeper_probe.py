@@ -4,9 +4,11 @@ import contextlib
 import importlib.util
 import io
 import json
+import re
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 SCRIPT = Path(__file__).parents[1] / "scripts" / "context_keeper_probe.py"
@@ -17,10 +19,66 @@ SPEC.loader.exec_module(PROBE)
 
 
 def _call(*args: str) -> tuple[int, str]:
+    command = args[0]
+    if command in ("resume", "search") and "--store-dir" not in args:
+        root = args[args.index("--root") + 1] if "--root" in args else "."
+        try:
+            args = (*args, "--store-dir", str(PROBE._layout(Path(root)).store))
+        except ValueError as exc:
+            return 2, str(exc)
+    if command in ("resume", "search") or (command == "history-search" and "--approved" in args):
+        preview_args = tuple(arg for arg in args if arg != "--approved")
+        preview = io.StringIO()
+        with contextlib.redirect_stdout(preview):
+            preview_rc = PROBE.main(list(preview_args))
+        if preview_rc != 5:
+            return preview_rc, preview.getvalue()
+        ticket = re.search(r"--approval-ticket ([0-9a-f]{32})", preview.getvalue())
+        assert ticket is not None, preview.getvalue()
+        args = (*args, "--approved", "--approval-ticket", ticket.group(1))
     stream = io.StringIO()
     with contextlib.redirect_stdout(stream):
         result = PROBE.main(list(args))
     return result, stream.getvalue()
+
+
+def _direct_call(*args: str) -> tuple[int, str]:
+    stream = io.StringIO()
+    with contextlib.redirect_stdout(stream):
+        result = PROBE.main(list(args))
+    return result, stream.getvalue()
+
+
+class MarketReadConsentTests(unittest.TestCase):
+    def test_preview_is_content_free_and_ticket_is_scoped_and_single_use(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            store = root / "records"
+            store.mkdir()
+            (store / "worklogs").mkdir()
+            (store / "worklogs" / "2026-09-22-test.md").write_text("# 测试词\n证据\n", encoding="utf-8")
+            base = ("search", "--root", d, "--store-dir", str(store), "--query", "测试词")
+            with patch.object(PROBE, "_read_text", side_effect=AssertionError("预览不应读取内容")):
+                rc, preview = _direct_call(*base)
+            self.assertEqual(rc, 5, preview)
+            ticket = re.search(r"--approval-ticket ([0-9a-f]{32})", preview).group(1)
+            self.assertEqual(_direct_call(*base, "--approved")[0], 2)
+            self.assertEqual(_direct_call(*base, "--query", "另一词", "--approved", "--approval-ticket", ticket)[0], 2)
+            ticket = re.search(r"--approval-ticket ([0-9a-f]{32})", _direct_call(*base)[1]).group(1)
+            approved = (*base, "--approved", "--approval-ticket", ticket)
+            rc, output = _direct_call(*approved)
+            self.assertEqual(rc, 0, output)
+            self.assertIn("测试词", output)
+            self.assertEqual(_direct_call(*approved)[0], 2)
+
+    def test_history_rejects_negative_file_limit_without_reading(self):
+        with tempfile.TemporaryDirectory() as d:
+            base = ("history-search", "--root", d, "--agent", "codex",
+                    "--history-dir", d, "--query", "词", "--scan-files", "-1")
+            with patch.object(PROBE, "_read_text", side_effect=AssertionError("不得读取")):
+                rc, output = _direct_call(*base)
+            self.assertEqual(rc, 2)
+            self.assertIn("--scan-files", output)
 
 
 def _experience(title: str = "耗时分析", identifier: str = "CK-001", status: str = "已验证") -> str:

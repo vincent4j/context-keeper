@@ -12,16 +12,16 @@
 
 ## 分层搜索
 
-先运行限量搜索：
+先指定唯一项目记录目录并运行只显示范围的预览：
 
 ```bash
 python3 <skill-dir>/scripts/context_keeper_probe.py search \
-  --root <repo> --query '<关键词1|关键词2|关键词3>'
+  --root <repo> --store-dir <项目记录目录> --query '<关键词1|关键词2|关键词3>'
 ```
 
-脚本依次查：
+将目录、检索词和上限告知用户，取得明确确认后，在同一命令加 `--approved --approval-ticket <预览凭据>`。预览凭据由 Agent 处理，用户无需复制；变更任一范围需重新确认。脚本随后依次查：
 
-1. 项目和已批准用户级的 evolution 主题经验；默认排除已替代经验，最多返回 3 条。
+1. 当前项目目录的 evolution 主题经验；默认排除已替代经验，最多返回 3 条。默认不读取用户级经验；如用户需要，另加 `--user-evolution-dir <具体目录>`，在预览中同时展示两个目录并逐目录取得明确确认。
 2. `memory-keeper.md` 时间线。
 3. 索引不足时，有限回退到 plans 和工作日志。
 
@@ -32,10 +32,10 @@ python3 <skill-dir>/scripts/context_keeper_probe.py search \
 ```bash
 python3 <skill-dir>/scripts/context_keeper_probe.py history-search \
   --root <repo> --query '<关键词>' --agent <codex|claude> \
-  --history-dir <用户确认的目录> --approved
+  --history-dir <拟读取的目录>
 ```
 
-该命令只检查本次确认的一个目录，不自动发现其他目录或查询会话数据库。换目录必须重新确认；找不到时如实说明。
+先展示预览，取得用户对该来源、目录、检索词和上限的明确确认后，在同一命令加 `--approved --approval-ticket <预览凭据>`。只检查本次确认的一个目录，不自动发现其他目录或查询会话数据库。换范围必须重新确认；找不到时如实说明。
 
 ## 输出规则
 

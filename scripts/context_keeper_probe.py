@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import re
+import secrets
 import shutil
 import subprocess
 import tempfile
@@ -23,6 +24,80 @@ CONFIG_FILE = "context-keeper.json"
 EVOLUTION_FIELDS = ("编号", "状态", "触发条件", "已知事实", "证据位置", "建议动作", "适用范围")
 EVOLUTION_STATUSES = {"待验证", "已验证", "已替代"}
 RC_NEEDS_CONFIRMATION = 5
+READ_COMMANDS = {"resume", "search", "history-search"}
+READ_TICKET_DIR = Path(tempfile.gettempdir()) / f"context-keeper-read-{getattr(os, 'getuid', lambda: os.getpid())()}"
+
+
+def _read_scope(args: argparse.Namespace) -> dict:
+    root = Path(args.root).expanduser().resolve()
+    if args.command == "history-search":
+        if not args.history_dir:
+            raise ValueError("请先指定一个具体的历史目录；默认不读取原始会话。")
+        directory = Path(args.history_dir).expanduser().resolve()
+        fields = ("agent", "query", "entries", "scan_files")
+    else:
+        if not args.store_dir:
+            raise ValueError("请用 --store-dir 指定本次拟读取的唯一项目记录目录。")
+        directory = Path(args.store_dir).expanduser()
+        if not directory.is_absolute():
+            directory = root / directory
+        directory = directory.resolve()
+        fields = (("query", "entries", "evolution_entries", "hit_lines", "scan_worklogs")
+                  if args.command == "search" else
+                  ("query", "worklogs", "entries", "pending", "kind", "details", "full"))
+    bounds = {"entries": 5, "worklogs": 10, "pending": 10, "evolution_entries": 5,
+              "hit_lines": 5, "scan_worklogs": 200, "scan_files": 500}
+    for name in fields:
+        value = getattr(args, name)
+        if name in bounds and not 1 <= value <= bounds[name]:
+            raise ValueError(f"--{name.replace('_', '-')} 必须在 1 到 {bounds[name]} 之间。")
+    sources = ({"history-search": ["原始会话 JSONL"],
+                "search": ["项目经验", "记忆索引", "计划", "工作日志"],
+                "resume": ["工作日志", "记忆索引", "项目经验"]})[args.command]
+    scope = {"operation": args.command, "root": str(root), "directory": str(directory),
+             "items": sources, **{name: getattr(args, name) for name in fields}}
+    if args.command == "search" and args.user_evolution_dir:
+        scope["user_evolution_directory"] = str(Path(args.user_evolution_dir).expanduser().resolve())
+    return scope
+
+
+def _read_approval(args: argparse.Namespace) -> int | None:
+    scope = _read_scope(args)
+    if not args.approved:
+        READ_TICKET_DIR.mkdir(mode=0o700, exist_ok=True)
+        os.chmod(READ_TICKET_DIR, 0o700)
+        ticket = secrets.token_hex(16)
+        path = READ_TICKET_DIR / ticket
+        with path.open("x", encoding="utf-8") as handle:
+            json.dump({"scope": scope, "expires": dt.datetime.now().timestamp() + 600}, handle, ensure_ascii=False)
+        os.chmod(path, 0o600)
+        print("仅读取预览；尚未读取记录。请向用户展示并等待明确确认：")
+        print(json.dumps(scope, ensure_ascii=False, sort_keys=True))
+        print(f"确认后由 Agent 在原命令附加 --approved --approval-ticket {ticket}；10 分钟内一次有效。")
+        return RC_NEEDS_CONFIRMATION
+    ticket = args.approval_ticket
+    if not ticket or not re.fullmatch(r"[0-9a-f]{32}", ticket):
+        raise ValueError("缺少有效的预览凭据；请先预览并取得用户确认。")
+    path = READ_TICKET_DIR / ticket
+    try:
+        consumed = path.with_suffix(".used")
+        path.rename(consumed)
+        try:
+            payload = json.loads(consumed.read_text(encoding="utf-8"))
+        finally:
+            consumed.unlink(missing_ok=True)
+    except (OSError, ValueError):
+        raise ValueError("预览凭据不存在或已用过；请重新预览。") from None
+    if payload.get("scope") != scope or payload.get("expires", 0) < dt.datetime.now().timestamp():
+        raise ValueError("读取范围与预览不同或预览已过期；请重新预览并取得确认。")
+    if args.command != "history-search":
+        for directory in (scope["directory"], scope.get("user_evolution_directory")):
+            if directory is None:
+                continue
+            for base, directories, files in os.walk(directory, followlinks=False):
+                if any((Path(base) / name).is_symlink() for name in (*directories, *files)):
+                    raise ValueError("获准目录包含符号链接；请移除或单独确认目标目录后再读取。")
+    return None
 
 
 class Layout(NamedTuple):
@@ -552,9 +627,10 @@ def _evolution_files(root: Path, user_dir: str | None = None, store_dir: str | N
     result: list[tuple[str, Path]] = []
     if layout.evolution.is_dir():
         result.extend(("project", path.resolve()) for path in layout.evolution.glob("*.md") if path.name != "index.md")
-    user_evolution = _user_evolution_dir(user_dir)
-    if user_evolution.is_dir():
-        result.extend(("user", path.resolve()) for path in user_evolution.glob("*.md") if path.name != "index.md")
+    if user_dir:
+        user_evolution = _user_evolution_dir(user_dir)
+        if user_evolution.is_dir():
+            result.extend(("user", path.resolve()) for path in user_evolution.glob("*.md") if path.name != "index.md")
     # A promoted copy is the same experience, not another candidate.
     unique = {}
     for scope, path in sorted(result, key=lambda item: (item[0] != "project", item[1].name)):
@@ -1057,9 +1133,6 @@ def cmd_history_search(args: argparse.Namespace) -> int:
         print("默认不读取本地会话。请先指定一个具体的历史目录，并向用户说明读取范围。")
         return 5
     history_root = Path(args.history_dir).expanduser().resolve()
-    if not args.approved:
-        print(f"需要用户确认读取目录：{history_root}；来源：{args.agent}；最多检查 {args.scan_files} 个会话文件。确认后才可加 --approved。")
-        return 5
     if not history_root.is_dir():
         print(f"历史目录不存在：{history_root}")
         return 2
@@ -1393,6 +1466,8 @@ def build_parser() -> argparse.ArgumentParser:
     resume = sub.add_parser("resume", help="输出轻量续接摘要")
     resume.add_argument("--root", default=".")
     resume.add_argument("--store-dir", help="显式指定记录目录；默认自动发现")
+    resume.add_argument("--approved", action="store_true")
+    resume.add_argument("--approval-ticket")
     resume.add_argument("--query", help="当前任务关键词，用于筛选相关未完成事项和经验")
     resume.add_argument("--worklogs", type=int, default=3)
     resume.add_argument("--entries", type=int, default=5)
@@ -1404,6 +1479,8 @@ def build_parser() -> argparse.ArgumentParser:
     search = sub.add_parser("search", help="分层查找历史证据和进化经验")
     search.add_argument("--root", default=".")
     search.add_argument("--store-dir", help="显式指定记录目录；默认自动发现")
+    search.add_argument("--approved", action="store_true")
+    search.add_argument("--approval-ticket")
     search.add_argument("--query", required=True)
     search.add_argument("--entries", type=int, default=5)
     search.add_argument("--evolution-entries", type=int, default=3)
@@ -1417,6 +1494,7 @@ def build_parser() -> argparse.ArgumentParser:
     history.add_argument("--agent", choices=["codex", "claude"], required=True)
     history.add_argument("--history-dir", help="本次获准读取的唯一历史目录")
     history.add_argument("--approved", action="store_true", help="用户已明确同意读取该目录")
+    history.add_argument("--approval-ticket")
     history.add_argument("--entries", type=int, default=5)
     history.add_argument("--scan-files", type=int, default=500)
     history.set_defaults(func=cmd_history_search)
@@ -1450,8 +1528,10 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
-        if args.command == "history-search" and not args.approved:
-            return int(args.func(args))
+        if args.command in READ_COMMANDS:
+            preview = _read_approval(args)
+            if preview is not None:
+                return preview
         root = Path(args.root).resolve()
         if args.command != "migrate" and _legacy_sources(root):
             return _migration_warning(root)

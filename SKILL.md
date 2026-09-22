@@ -71,8 +71,8 @@ docs/context-keeper/
 只读取当前操作需要的 reference：
 
 - 保存（包括用户纠正后的自动沉淀）：本会话首次保存先运行 `status`，再读 [references/save.md](references/save.md)；同仓库同主题连续保存按快速路径复用已验证状态。
-- 继续：运行 `resume --query '<当前关键词>'`，需要细节时读 [references/resume.md](references/resume.md)。
-- 查找：从当前上下文提取关键词运行 `search`，再读 [references/search.md](references/search.md)。
+- 继续：先用 `resume --store-dir <唯一目录> --query '<当前关键词>'` 预览，向用户说明目录与范围并等待明确确认；确认后加 `--approved --approval-ticket <预览凭据>`，细节见 [references/resume.md](references/resume.md)。
+- 查找：先用 `search --store-dir <唯一目录> --query '<关键词>'` 预览，向用户说明目录与范围并等待明确确认；确认后加 `--approved --approval-ticket <预览凭据>`，细节见 [references/search.md](references/search.md)。
 - 安装、卸载、用户级或项目级入口：读 [references/install.md](references/install.md)。
 
 用户通过 `/context-keeper` 或其他方式只调用 Skill、没有说明动作时，展示以下菜单，并将用户下一条回复的 1、2、3 分别路由到保存、继续、查找：
@@ -102,15 +102,15 @@ docs/context-keeper/
 
 ## 历史原文
 
-项目 Markdown 不能支撑关键判断时，先告知用户拟读取的 Agent、具体目录和检索词，等待本次明确确认。未确认时不读取原始会话或会话数据库；确认后只读取获准的一个目录：
+经确认读取的项目 Markdown 不能支撑关键判断时，先告知用户拟读取的 Agent、具体目录和检索词，等待本次明确确认。未确认时不读取原始会话或会话数据库；确认后只读取获准的一个目录：
 
 ```bash
 python3 <skill-dir>/scripts/context_keeper_probe.py history-search \
   --root <repo> --query '<关键词>' --agent <codex|claude> \
-  --history-dir <用户确认的目录> --approved
+  --history-dir <拟读取的目录>
 ```
 
-该命令不自动发现历史目录，也不读取会话数据库；只在本次确认的目录中检索并输出有限片段。换目录或扩大范围必须重新确认。找不到仍不能推断历史上未发生。
+预览只显示来源、目录、检索词和读取上限，不读取内容。用户明确确认后，在相同命令加 `--approved --approval-ticket <预览凭据>`。凭据由 Agent 处理，用户无需复制；10 分钟内只可使用一次。换目录、关键词、来源或上限必须重新预览并确认。默认不读取用户级经验或会话数据库；找不到仍不能推断历史上未发生。
 
 ## 自我进化
 

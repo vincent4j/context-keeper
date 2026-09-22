@@ -159,7 +159,7 @@ class AcceptanceTests(unittest.TestCase):
             with patch.object(PROBE, '_history_candidates', side_effect=AssertionError('must not read')), \
                  patch.object(PROBE, '_legacy_sources', side_effect=AssertionError('must not inspect records')):
                 rc,out=_call('history-search','--root',str(root),'--agent','codex','--query','目录内证据')
-                self.assertEqual(rc,5)
+                self.assertEqual(rc,2)
                 rc,out=_call('history-search','--root',str(root),'--agent','codex','--query','目录内证据','--history-dir',str(allowed))
                 self.assertEqual(rc,5)
             rc,out=_call('history-search','--root',str(root),'--agent','codex','--query','目录内证据','--history-dir',str(allowed),'--approved')

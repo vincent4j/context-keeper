@@ -16,11 +16,11 @@
   "files": [
     {
       "path": "SKILL.md",
-      "sha256": "afcbe3de9e4a7b877bc2c8f5e76dd67a27aa0428afb156eb039ed0a3258ddb61"
+      "sha256": "0a6140d076e05a95a55464fbbf2567a70f836206dab1641c0740326f31a6d165"
     },
     {
       "path": "README.md",
-      "sha256": "ebbfb0f727be6f3420a864fe8f8cce83d7556c3cd57358740920f70f110ef313"
+      "sha256": "b0565bec216d9fd98ea7f348e4dc19d22099b9ae985852263002a6e0b0bed920"
     },
     {
       "path": "scripts/install.py",
@@ -28,15 +28,15 @@
     },
     {
       "path": "scripts/context_keeper_probe.py",
-      "sha256": "e11be1168fc64e39e3fee2ddd28ee1b01d15da9827576c98c7100b127b8f32ca"
+      "sha256": "f308d275ae4714dbd5f76d57602a7fe064a1d270f07eceb5be59ac149f2ff972"
     },
     {
       "path": "references/save.md",
-      "sha256": "83ed086943b483e7243cf11ea9034836c201da09442743ee2bd471a0cde3a529"
+      "sha256": "a0b3b17e130dc88b4a12db18061b5084b8572b2fc63a62e983e59f93d663e127"
     },
     {
       "path": "references/resume.md",
-      "sha256": "7d441a12d58772e1151f8f542cdd387ddcd8f8d5c4b4e9108be85207782f6a81"
+      "sha256": "9aae4289f31ab6421a8c81b7ccb24885abafb4d7230aa3564a7f443a9e3f5d76"
     },
     {
       "path": "references/install.md",
@@ -48,7 +48,7 @@
     },
     {
       "path": "references/search.md",
-      "sha256": "c3f064280b90319a10e47eeb2bcceca83cdaa097508de4163a16514515e6a18e"
+      "sha256": "e5215ef373d27805fa30b51952b8b319d02cc5b00cc96b25dc18066d04fc11a3"
     }
   ]
 }

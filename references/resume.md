@@ -1,13 +1,13 @@
 # 继续上次进度
 
-先运行：
+先指定唯一项目记录目录并预览：
 
 ```bash
 python3 <skill-dir>/scripts/context_keeper_probe.py resume \
-  --root <repo> --query '<当前任务关键词>'
+  --root <repo> --store-dir <项目记录目录> --query '<当前任务关键词>'
 ```
 
-默认输出：
+向用户展示目录、检索词和读取上限，取得明确确认后，在同一命令加 `--approved --approval-ticket <预览凭据>`。预览凭据由 Agent 处理，用户无需复制；变更范围要重新预览确认。确认后默认输出：
 
 - 最近 3 份工作日志的短摘要。
 - `memory-keeper.md` 中最多 5 条与当前任务相关的未完成事项。
