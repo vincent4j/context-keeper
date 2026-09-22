@@ -7,23 +7,25 @@ Context Keeper 的核心流程不依赖特定 Agent。安装器分别完成两�
 把下面这段话发给有本机文件和命令操作能力的 Agent：
 
 ```text
-请克隆 https://github.com/vincent4j/context-keeper，运行仓库中的 scripts/install.py --all 安装 Context Keeper。完成后告诉我结果。
+请从 https://github.com/vincent4j/context-keeper 克隆 Context Keeper，并切换到提交 d489bffbee3b75abe70b6278dd98154f31524047。核对提交后运行 scripts/install.py --all 预览写入范围，告诉我会改动哪些文件并等待我确认；确认后再加 --approved 执行安装。
 ```
 
-Agent 完成克隆后，使用实际路径执行安装器。下列命令仅供 Agent 参考，用户无需填写路径：
+以下命令供 Agent 执行。第一次运行只预览，用户确认后才能加入 `--approved` 再运行：
 
 ```bash
 git clone https://github.com/vincent4j/context-keeper.git <source-dir>
+git -C <source-dir> checkout d489bffbee3b75abe70b6278dd98154f31524047
+git -C <source-dir> rev-parse HEAD
 python3 <source-dir>/scripts/install.py --all
 ```
 
-安装器必须从带 `.git` 的 Context Keeper 源码仓库运行，并让各 Agent 从该源码目录加载；从复制目录运行会被拒绝。安装完成后，Agent 应读回安装器输出并逐项核对安装位置；重启后再验证宿主是否实际识别 Skill。用户首次选择 `/context-keeper` 后，Agent 按 SKILL.md 执行以下检查（用户不需要手动执行）：
+安装器也接受声明文件哈希全部匹配的市场安装包；不会接受未经验证的复制目录。用户首次选择 `/context-keeper` 后，Agent 按 SKILL.md 预览自动入口配置：
 
 ```bash
 python3 <skill-dir>/scripts/install.py --ensure-bridge --skill-dir <skill-dir> --root <repo> --codex
 ```
 
-当前宿主是 Claude Code 时使用 `--claude`。只配置当前宿主，不使用 `--all`。Cursor、WorkBuddy、Hermes、OpenCode 和 OpenClaw 当前只安装原生 Skill 目录，不写自动入口规则。
+当前宿主是 Claude Code 时使用 `--claude`。得到用户确认后再加 `--approved` 写入。Cursor、WorkBuddy、Hermes、OpenCode 和 OpenClaw 当前只安装原生 Skill 目录，不写自动入口规则。
 
 - 用户级安装对应用户级规则；项目级安装对应安装项目的规则，不以当前工作目录猜安装范围。
 - 目标 Agent 必须显式选择，安装器不会根据 PATH、用户目录或项目文件猜测宿主。
@@ -35,7 +37,7 @@ python3 <skill-dir>/scripts/install.py --ensure-bridge --skill-dir <skill-dir> -
 - `--ensure-bridge` 不复制 Skill、不初始化记录、不迁移项目、不触发 hooks。显示菜单及后续动作由调用它的 Agent 继续执行。
 - 首次运行依赖 Agent 遵循 Skill 指令；配置成功不证明宿主已重新加载规则。后续新会话才有机会按宿主机制加载入口，不承诺所有模型可靠自动触发。
 
-以下命令用于手动管理或排查，不需要放在面向用户的快速安装步骤中。
+以下命令默认只预览影响；用户确认后加 `--approved` 执行。
 
 ## 用户级
 

@@ -1,0 +1,54 @@
+{
+  "type": "skill",
+  "code": "context-keeper",
+  "version": "1.0.0",
+  "name": "Context Keeper",
+  "description": "续接项目进度、查找历史事实，并在有证据时沉淀可复用经验。",
+  "runtimeTargets": [
+    "codex",
+    "claude-code"
+  ],
+  "examplePrompts": [
+    "继续上次关于部署故障的排查，并找回未完成事项。",
+    "查找此前关于 MCP OAuth 配置的记录和结论。",
+    "保存本次调试结果，方便下次从这里继续。"
+  ],
+  "files": [
+    {
+      "path": "SKILL.md",
+      "sha256": "f8a8f564ab48801b3756dbada42c0f9c980b7f0fd9c5bdffcd9383e92016bd84"
+    },
+    {
+      "path": "README.md",
+      "sha256": "ebc286d594462a13a5e26552a54dc0b857849eee47a7432e27793080221aa618"
+    },
+    {
+      "path": "scripts/install.py",
+      "sha256": "1af47f902f4521df9fb3b7d1e9d5890cf42eb82d053fe34b8ea92fa9f20c2873"
+    },
+    {
+      "path": "scripts/context_keeper_probe.py",
+      "sha256": "916c04e889393a7238caa67f29442667a07ada7ccfce34151092e96fee20e0f1"
+    },
+    {
+      "path": "references/save.md",
+      "sha256": "83ed086943b483e7243cf11ea9034836c201da09442743ee2bd471a0cde3a529"
+    },
+    {
+      "path": "references/resume.md",
+      "sha256": "7d441a12d58772e1151f8f542cdd387ddcd8f8d5c4b4e9108be85207782f6a81"
+    },
+    {
+      "path": "references/install.md",
+      "sha256": "9e09badce07c1a36421b60b54d71dcc5a0bc74bb5749fd5a7f109aba4850ab19"
+    },
+    {
+      "path": "references/migrate.md",
+      "sha256": "42b63cbec97d20d4ccfccef3455ac871b2504052ce71298b445e03888d47a4c2"
+    },
+    {
+      "path": "references/search.md",
+      "sha256": "97525521422ad0f73557f3ba6f2a32dfded144c5ad63050b18a66d258c162263"
+    }
+  ]
+}

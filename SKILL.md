@@ -13,13 +13,13 @@ Git 源码仓库是唯一真实副本。Codex、Claude Code、Cursor、WorkBuddy
 
 ## 首次使用：补齐自动入口
 
-当当前宿主是 Codex 或 Claude Code 时，本会话首次调用本 Skill 先运行下面的一次性检查，再显示菜单或执行用户指定动作。`<skill-dir>` 使用当前实际加载的 Skill 目录，`<repo>` 为当前项目；按当前宿主选 `--codex` 或 `--claude`，只能选一个，不根据机器上装了哪些程序猜宿主。Cursor、WorkBuddy、Hermes、OpenCode 和 OpenClaw 目前只依赖各自的原生 Skill 发现机制，不写未验证的自动入口。
+当当前宿主是 Codex 或 Claude Code 时，本会话首次调用本 Skill 先运行下面的只读预览，向用户说明将写入的文件和内容范围，并等待明确确认。只有确认后才在同一命令中加入 `--approved` 执行写入；未确认时继续当前操作，不写入规则。`<skill-dir>` 使用当前实际加载的 Skill 目录，`<repo>` 为当前项目；按当前宿主选 `--codex` 或 `--claude`，只能选一个。Cursor、WorkBuddy、Hermes、OpenCode 和 OpenClaw 目前只依赖各自的原生 Skill 发现机制，不写未验证的自动入口。
 
 ```bash
 python3 <skill-dir>/scripts/install.py --ensure-bridge --skill-dir <skill-dir> --root <repo> --codex
 ```
 
-Claude Code 将最后的 `--codex` 换成 `--claude`。这属于首次使用初始化：按安装位置自动判断用户级或项目级，补齐当前宿主的短入口，不复制 Skill、不创建项目记录、不迁移数据。无需额外要求用户输入安装命令。
+Claude Code 将最后的 `--codex` 换成 `--claude`。预览按安装位置判断用户级或项目级；确认后只补齐当前宿主的短入口，不复制 Skill、不创建项目记录、不迁移数据。用户无需输入命令。
 
 返回 `created/appended/updated` 时简短告知“已配置自动入口”，然后继续原操作；`unchanged` 时静默继续。同一会话已检查成功就复用结果，不在每条消息里重复检查。未知宿主、范围不明或写入失败时如实说明未启用自动入口，按需读 [安装说明](references/install.md)，不擅自扩大为全局安装。不要将配置成功说成模型行为已验证，也不要声称新规则已经被宿主重新加载。
 
