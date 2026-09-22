@@ -54,8 +54,6 @@ def _skill_roots(agent: str, home: Path, project: Path | None) -> list[Path]:
 
 
 def _require_source_checkout() -> None:
-    if (SOURCE / ".git").exists():
-        return
     manifest_path = SOURCE / "manifest.json"
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -76,7 +74,7 @@ def _require_source_checkout() -> None:
         if not {"SKILL.md", "scripts/install.py"} <= declared:
             raise ValueError("缺少必要文件")
     except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
-        raise RuntimeError(f"安装器需要 Git 源码仓库或校验通过的 Skill 安装包：{SOURCE}（{exc}）") from exc
+        raise RuntimeError(f"安装器只能从哈希校验通过的 SkillHub 包运行：{SOURCE}（{exc}）") from exc
 
 
 def _check_install_target(target_root: Path) -> Path:

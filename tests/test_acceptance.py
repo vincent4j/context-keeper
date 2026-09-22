@@ -1,7 +1,5 @@
 """Regression cases derived from the agreed behavior and the second audit."""
-from contextlib import closing
 import json
-import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
@@ -146,33 +144,28 @@ class AcceptanceTests(unittest.TestCase):
     def test_claude_unknown_project_is_excluded(self):
         with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as h:
             (Path(h)/'other.jsonl').write_text(json.dumps({'type':'user','message':{'content':'隔离关键词'}}))
-            _,out=_call('history-search','--root',d,'--agent','claude','--claude-history',h,'--query','隔离关键词')
+            _,out=_call('history-search','--root',d,'--agent','claude','--history-dir',h,'--query','隔离关键词','--approved')
             self.assertIn('未找到证据',out)
 
-    def test_database_lag_and_include_current(self):
-        with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as h:
-            root=Path(d).resolve(); home=Path(h); codex=home/'.codex'; sessions=codex/'sessions'; sessions.mkdir(parents=True)
-            raw=sessions/'active.jsonl'
-            raw.write_text('\n'.join(json.dumps(x,ensure_ascii=False) for x in [
-                {'type':'session_meta','payload':{'cwd':str(root)}},
-                {'type':'response_item','payload':{'type':'message','role':'user','content':[{'text':'真实原文关键词'}]}}
-            ]))
-            with closing(sqlite3.connect(codex/'state_5.sqlite')) as conn:
-                conn.execute('create table threads (id text, rollout_path text, cwd text)')
-                conn.execute('insert into threads values (?,?,?)',('active',str(raw),str(root)))
-                conn.commit()
-            with closing(sqlite3.connect(codex/'thread_history_1.sqlite')) as conn:
-                conn.execute('create table thread_items (thread_id text, rollout_ordinal integer, item_json text, created_at_ms integer)')
-            with patch.object(Path,'home',return_value=home), patch.dict(PROBE.os.environ,{'CODEX_THREAD_ID':'active','CODEX_SESSION_ID':'active'}):
-                _,out=_call('history-search','--root',str(root),'--agent','codex','--query','真实原文关键词')
-                self.assertIn('未找到证据',out)
-                _,out=_call('history-search','--root',str(root),'--agent','codex','--query','真实原文关键词','--include-current')
-                self.assertIn('真实原文关键词',out)
-                with closing(sqlite3.connect(codex/'thread_history_1.sqlite')) as conn:
-                    conn.execute('insert into thread_items values (?,?,?,?)',('active',2,json.dumps({'type':'userMessage','content':[{'text':'数据库原文关键词'}]},ensure_ascii=False),1))
-                    conn.commit()
-                _,out=_call('history-search','--root',str(root),'--agent','codex','--query','数据库原文关键词','--include-current')
-                self.assertIn('数据库原文关键词',out)
+    def test_history_requires_one_explicit_directory_and_approval(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d)/'project'; root.mkdir()
+            allowed=Path(d)/'allowed'; allowed.mkdir()
+            other=Path(d)/'other'; other.mkdir()
+            rows=[{'type':'session_meta','payload':{'cwd':str(root)}},
+                  {'type':'response_item','payload':{'type':'message','role':'user','content':[{'text':'目录内证据'}]}}]
+            (allowed/'session.jsonl').write_text('\n'.join(json.dumps(x,ensure_ascii=False) for x in rows))
+            (other/'session.jsonl').write_text('\n'.join(json.dumps(x,ensure_ascii=False) for x in rows))
+            with patch.object(PROBE, '_history_candidates', side_effect=AssertionError('must not read')), \
+                 patch.object(PROBE, '_legacy_sources', side_effect=AssertionError('must not inspect records')):
+                rc,out=_call('history-search','--root',str(root),'--agent','codex','--query','目录内证据')
+                self.assertEqual(rc,5)
+                rc,out=_call('history-search','--root',str(root),'--agent','codex','--query','目录内证据','--history-dir',str(allowed))
+                self.assertEqual(rc,5)
+            rc,out=_call('history-search','--root',str(root),'--agent','codex','--query','目录内证据','--history-dir',str(allowed),'--approved')
+            self.assertEqual(rc,0)
+            self.assertIn(str(allowed/'session.jsonl'),out)
+            self.assertNotIn(str(other/'session.jsonl'),out)
 
     def test_same_theme_duplicates_reported(self):
         with tempfile.TemporaryDirectory() as d:

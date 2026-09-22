@@ -307,7 +307,7 @@ class RawHistoryTests(unittest.TestCase):
                 {"type": "response_item", "payload": {"type": "message", "role": "user", "content": [{"type": "input_text", "text": "整体审核耗时 9 分 16 秒"}]}},
             ]
             (history / "session.jsonl").write_text("\n".join(json.dumps(row, ensure_ascii=False) for row in rows))
-            result, output = _call("history-search", "--root", str(project), "--query", "9 分 16 秒", "--agent", "codex", "--codex-history", str(history))
+            result, output = _call("history-search", "--root", str(project), "--query", "9 分 16 秒", "--agent", "codex", "--history-dir", str(history), "--approved")
             self.assertEqual(result, 0)
             self.assertIn("[Codex 原文]", output)
             self.assertIn("9 分 16 秒", output)
@@ -325,7 +325,7 @@ class RawHistoryTests(unittest.TestCase):
                 "message": {"role": "assistant", "content": [{"type": "text", "text": "历史事实来自原始记录"}]},
             }
             (history / "session.jsonl").write_text(json.dumps(row, ensure_ascii=False))
-            result, output = _call("history-search", "--root", str(project), "--query", "原始记录", "--agent", "claude", "--claude-history", str(history))
+            result, output = _call("history-search", "--root", str(project), "--query", "原始记录", "--agent", "claude", "--history-dir", str(history), "--approved")
             self.assertEqual(result, 0)
             self.assertIn("[Claude Code 原文]", output)
 
@@ -334,7 +334,7 @@ class RawHistoryTests(unittest.TestCase):
             root = Path(temp_dir)
             history = root / "empty"
             history.mkdir()
-            _, output = _call("history-search", "--root", str(root), "--query", "missing", "--codex-history", str(history), "--claude-history", str(history))
+            _, output = _call("history-search", "--root", str(root), "--query", "missing", "--agent", "codex", "--history-dir", str(history), "--approved")
             self.assertIn("不代表历史上从未发生", output)
 
 

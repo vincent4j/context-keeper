@@ -12,7 +12,7 @@ class MigrationTests(unittest.TestCase):
             root = Path(d)
             _write_valid_context(root, legacy=True)
             before = {str(p): p.read_bytes() for p in root.rglob('*') if p.is_file()}
-            for argv in [('init',), ('status',), ('resume',), ('search','--query','事实'), ('history-search','--query','事实'), ('coverage',), ('record-path','--kind','plan','--title','需求','--session-id','new')]:
+            for argv in [('init',), ('status',), ('resume',), ('search','--query','事实'), ('history-search','--query','事实','--agent','codex','--history-dir',d,'--approved'), ('coverage',), ('record-path','--kind','plan','--title','需求','--session-id','new')]:
                 rc, out = _call(*argv, '--root', d)
                 self.assertEqual(rc, 3, out)
                 self.assertIn('需要迁移', out)

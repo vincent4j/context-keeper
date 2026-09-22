@@ -8,7 +8,6 @@ import json
 import os
 import re
 import shutil
-import sqlite3
 import subprocess
 import tempfile
 from pathlib import Path
@@ -1047,82 +1046,23 @@ def _match_excerpt(text: str, pattern: re.Pattern[str], limit: int = 320) -> str
     return _clip(re.sub(r"\s+", " ", text[start:end]), limit)
 
 
-def _history_candidates(directory: Path, query: str) -> list[Path]:
-    if shutil.which("rg"):
-        completed = subprocess.run(
-            ["rg", "-l", "-i", "--glob", "*.jsonl", "-e", query, str(directory)],
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            check=False,
-        )
-        if completed.returncode in (0, 1):
-            return [Path(line) for line in completed.stdout.splitlines() if line.strip()]
+def _history_candidates(directory: Path) -> list[Path]:
     return list(directory.rglob("*.jsonl"))
-
-
-def _codex_database_matches(
-    root: Path,
-    query: str,
-    pattern: re.Pattern[str],
-    entries: int,
-    active_ids: set[str],
-) -> list[tuple[str, Path, str, str, str]] | None:
-    state_path = next((path for path in (Path.home() / ".codex" / "state_5.sqlite", Path.home() / ".codex" / "sqlite" / "state_5.sqlite") if path.is_file()), None)
-    history_path = Path.home() / ".codex" / "thread_history_1.sqlite"
-    if not state_path or not history_path.is_file():
-        return None
-    try:
-        state = sqlite3.connect(f"file:{state_path}?mode=ro", uri=True)
-        rows = state.execute("select id, rollout_path from threads where cwd = ?", (str(root),)).fetchall()
-        state.close()
-        rollout_paths = {thread_id: Path(path) for thread_id, path in rows if thread_id not in active_ids}
-        if not rollout_paths:
-            return []
-        terms = [term.strip() for term in query.split("|") if term.strip()]
-        if not terms:
-            terms = [query]
-        placeholders = ",".join("?" for _ in rollout_paths)
-        likes = " or ".join("item_json like ?" for _ in terms)
-        sql = (
-            f"select thread_id, rollout_ordinal, item_json from thread_items "
-            f"where thread_id in ({placeholders}) and ({likes}) order by created_at_ms desc limit ?"
-        )
-        params = [*rollout_paths, *(f"%{term}%" for term in terms), max(entries * 20, 40)]
-        history = sqlite3.connect(f"file:{history_path}?mode=ro", uri=True)
-        items = history.execute(sql, params).fetchall()
-        history.close()
-    except (sqlite3.Error, OSError):
-        return None
-    matches: list[tuple[str, Path, str, str, str]] = []
-    for thread_id, ordinal, raw in items:
-        try:
-            item = json.loads(raw)
-        except json.JSONDecodeError:
-            continue
-        item_type = item.get("type")
-        if item_type == "userMessage":
-            role = "user"
-            text = _message_text(item.get("content"))
-        elif item_type == "agentMessage":
-            role = "assistant"
-            text = item.get("text", "")
-        else:
-            continue
-        excerpt = _match_excerpt(text, pattern)
-        if excerpt:
-            matches.append(("Codex", rollout_paths[thread_id], f"ordinal {ordinal}", role, excerpt))
-        if len(matches) >= entries:
-            break
-    return matches
 
 
 def cmd_history_search(args: argparse.Namespace) -> int:
     root = Path(args.root).resolve()
     pattern = _compile_pattern(args.query)
-    codex_root = Path(args.codex_history).expanduser().resolve() if args.codex_history else Path.home() / ".codex" / "sessions"
-    claude_root = Path(args.claude_history).expanduser().resolve() if args.claude_history else Path.home() / ".claude" / "projects"
-    sources: list[tuple[str, Path, object]] = []
+    if not args.history_dir:
+        print("默认不读取本地会话。请先指定一个具体的历史目录，并向用户说明读取范围。")
+        return 5
+    history_root = Path(args.history_dir).expanduser().resolve()
+    if not args.approved:
+        print(f"需要用户确认读取目录：{history_root}；来源：{args.agent}；最多检查 {args.scan_files} 个会话文件。确认后才可加 --approved。")
+        return 5
+    if not history_root.is_dir():
+        print(f"历史目录不存在：{history_root}")
+        return 2
     active_ids = {
         value
         for value in (
@@ -1132,24 +1072,14 @@ def cmd_history_search(args: argparse.Namespace) -> int:
         )
         if value
     }
+    label, reader = ("Codex", _codex_messages) if args.agent == "codex" else ("Claude Code", _claude_messages)
+    sources = [
+        (label, path, reader)
+        for path in _history_candidates(history_root)
+        if path.is_file() and not path.is_symlink() and path.resolve().is_relative_to(history_root)
+        and not any(identifier in path.name for identifier in active_ids)
+    ]
     matches: list[tuple[str, Path, str, str, str]] = []
-    database_matches = None
-    if args.agent in ("auto", "codex") and not args.codex_history:
-        database_matches = _codex_database_matches(root, args.query, pattern, args.entries, set() if args.include_current else active_ids)
-        if database_matches:
-            matches.extend(database_matches)
-    if args.agent in ("auto", "codex") and codex_root.is_dir() and not database_matches:
-        sources.extend(
-            ("Codex", path, _codex_messages)
-            for path in _history_candidates(codex_root, args.query)
-            if args.include_current or not any(identifier in path.name for identifier in active_ids)
-        )
-    if args.agent in ("auto", "claude") and claude_root.is_dir():
-        sources.extend(
-            ("Claude Code", path, _claude_messages)
-            for path in _history_candidates(claude_root, args.query)
-            if args.include_current or not any(identifier in path.name for identifier in active_ids)
-        )
     sources.sort(key=lambda item: item[1].stat().st_mtime if item[1].exists() else 0, reverse=True)
     for agent, path, reader in sources[: args.scan_files]:
         if len(matches) >= args.entries:
@@ -1169,7 +1099,7 @@ def cmd_history_search(args: argparse.Namespace) -> int:
     for index, (agent, path, location, role, excerpt) in enumerate(matches, 1):
         print(f"\n{index}. [{agent} 原文] {path}#{location}；角色：{role}")
         print(f"- {excerpt}")
-    print("\n以上内容来自会话数据库或原始会话文件；ordinal 为数据库序号，line 为文件行号。引用结论时仍需结合日期、版本和当前适用范围。")
+    print("\n以上内容来自用户本次确认的历史目录；引用结论时仍需结合日期、版本和当前适用范围。")
     return 0
 
 
@@ -1481,15 +1411,14 @@ def build_parser() -> argparse.ArgumentParser:
     search.add_argument("--scan-worklogs", type=int, default=200)
     search.add_argument("--user-evolution-dir", help=argparse.SUPPRESS)
     search.set_defaults(func=cmd_search)
-    history = sub.add_parser("history-search", help="按需查找 Codex 或 Claude Code 原始会话")
+    history = sub.add_parser("history-search", help="经用户逐目录确认后读取原始会话")
     history.add_argument("--root", default=".")
     history.add_argument("--query", required=True)
-    history.add_argument("--agent", choices=["auto", "codex", "claude"], default="auto")
+    history.add_argument("--agent", choices=["codex", "claude"], required=True)
+    history.add_argument("--history-dir", help="本次获准读取的唯一历史目录")
+    history.add_argument("--approved", action="store_true", help="用户已明确同意读取该目录")
     history.add_argument("--entries", type=int, default=5)
     history.add_argument("--scan-files", type=int, default=500)
-    history.add_argument("--include-current", action="store_true", help="包含当前正在进行的会话")
-    history.add_argument("--codex-history", help=argparse.SUPPRESS)
-    history.add_argument("--claude-history", help=argparse.SUPPRESS)
     history.set_defaults(func=cmd_history_search)
     promote = sub.add_parser("promote-evolution", help="经用户确认后晋升跨项目经验")
     promote.add_argument("--root", default=".")
@@ -1521,6 +1450,8 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
+        if args.command == "history-search" and not args.approved:
+            return int(args.func(args))
         root = Path(args.root).resolve()
         if args.command != "migrate" and _legacy_sources(root):
             return _migration_warning(root)

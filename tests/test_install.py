@@ -108,7 +108,7 @@ class InstallTests(unittest.TestCase):
                 ['python3',str(skill/'scripts/install.py'),'--ensure-bridge','--approved','--codex','--skill-dir',str(skill),'--root',str(project)],
                 env=dict(os.environ,HOME=str(home)),capture_output=True,text=True)
             self.assertEqual(result.returncode,2)
-            self.assertIn('Git 源码仓库或校验通过的 Skill 安装包',result.stdout)
+            self.assertIn('哈希校验通过的 SkillHub 包',result.stdout)
             self.assertFalse((home/'.codex/AGENTS.md').exists())
 
     def test_first_use_resolved_source_prefers_project_alias(self):

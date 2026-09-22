@@ -27,14 +27,15 @@ python3 <skill-dir>/scripts/context_keeper_probe.py search \
 
 首轮最多返回 5 个候选。只读取最相关的 1～2 个文件中的命中段落，单次通常不超过 80 行。自动搜索零命中就停止；不要为了碰运气扩大到整个仓库或所有对话。
 
-只有用户明确要求原文，或关键判断无法由项目记录支撑时，才运行：
+默认不读取本地原始会话或会话数据库。只有用户明确要求原文，且已看到本次来源、具体目录与检索词并确认该目录后，才运行：
 
 ```bash
 python3 <skill-dir>/scripts/context_keeper_probe.py history-search \
-  --root <repo> --query '<关键词>'
+  --root <repo> --query '<关键词>' --agent <codex|claude> \
+  --history-dir <用户确认的目录> --approved
 ```
 
-该命令按项目筛选 Codex 和 Claude Code 的原始会话，只输出有限命中片段和定位。找不到时如实说明，不扩大成全盘扫描。
+该命令只检查本次确认的一个目录，不自动发现其他目录或查询会话数据库。换目录必须重新确认；找不到时如实说明。
 
 ## 输出规则
 

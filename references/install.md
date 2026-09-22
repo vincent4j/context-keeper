@@ -1,24 +1,22 @@
 # 安装与自动入口
 
-Context Keeper 的核心流程不依赖特定 Agent。安装器分别完成两件事：让 Agent 从当前 Git 源码目录加载 Skill，以及写入短入口规则。源码仓库是唯一真实副本，不向安装目录复制 Skill 文件。
+Context Keeper 的核心流程不依赖特定 Agent。SkillHub 包内包含安装器与运行代码；安装和检索均不得从包外下载代码执行。
 
-## 推荐入口：复制给 Agent
+## 推荐入口：使用当前审核包
 
 把下面这段话发给有本机文件和命令操作能力的 Agent：
 
 ```text
-请从 https://github.com/vincent4j/context-keeper 安装最新版 Context Keeper。先运行 scripts/install.py --all 查看安装范围；如果没有冲突，继续加 --approved 完成安装，并告诉我结果。
+请安装当前 SkillHub 包内的 Context Keeper。先展示将安装到哪些目录、会修改哪些规则文件；等我确认后再执行。不要从包外下载或运行代码。
 ```
 
-以下命令供 Agent 执行。确认预览没有冲突后，按上面的用户授权加 `--approved` 再运行：
+需要跨 Agent 安装时，只能从当前已校验的包内运行安装器。先展示预览；用户确认具体目录后，才加 `--approved` 再运行：
 
 ```bash
-git clone --branch main https://github.com/vincent4j/context-keeper.git <source-dir>
-git -C <source-dir> rev-parse HEAD
-python3 <source-dir>/scripts/install.py --all
+python3 <skill-dir>/scripts/install.py --all
 ```
 
-安装器从 Git 源码目录运行。用户首次选择 `/context-keeper` 后，Agent 按 SKILL.md 检查自动入口配置：
+安装器只接受 `manifest.json` 中的文件哈希与包内源码一致的目录。用户首次选择 `/context-keeper` 后，Agent 按 SKILL.md 检查自动入口配置：
 
 ```bash
 python3 <skill-dir>/scripts/install.py --ensure-bridge --skill-dir <skill-dir> --root <repo> --codex
@@ -28,7 +26,7 @@ python3 <skill-dir>/scripts/install.py --ensure-bridge --skill-dir <skill-dir> -
 
 - 用户级安装对应用户级规则；项目级安装对应安装项目的规则，不以当前工作目录猜安装范围。
 - 目标 Agent 必须显式选择，安装器不会根据 PATH、用户目录或项目文件猜测宿主。
-- 支持的原生目录见下表；这些位置必须从当前 Git 源码目录加载。
+- 支持的原生目录见下表；这些位置必须从当前审核包加载。
 - 安装位置已正确配置时保持不变；发现真实复制目录时不自动删除，避免丢失局部修改，必须先核对差异。
 - 宿主只提供实际源码路径时，从当前项目及其祖先、用户安装位置找回同一来源的安装位置，项目优先。
 - 同一会话检查一次；规则已是当前版本时不写文件，不重复通知。更新版本时替换自己的区块并读回检查，保留区块外原文。

@@ -32,13 +32,13 @@
 
 Context Keeper 帮 AI 保存项目进度、找回历史事实，更让它在使用中**持续自我进化**：自动沉淀新的纠正和验证结果，修正过时经验，让这次学到的东西改变下一次的做法。
 
-📦 **把下面这段话复制给你正在使用的本机 Agent：**
+📦 **从 SkillHub 安装：**
 
 ```text
-请从 https://github.com/vincent4j/context-keeper 安装最新版 Context Keeper。先运行 scripts/install.py --all 查看安装范围；如果没有冲突，继续加 --approved 完成安装，并告诉我结果。
+请安装当前 SkillHub 包内的 Context Keeper。先展示将安装到哪些目录、会修改哪些规则文件；等我确认后再执行。不要从包外下载或运行代码。
 ```
 
-重新打开客户端后，确认它已识别这个 Skill。
+当前包包含运行所需源码及文件哈希。安装后重新打开客户端，确认它已识别这个 Skill。
 
 ### ✅ 在你用之前，你可能想知道
 
