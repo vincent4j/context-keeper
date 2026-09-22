@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import hashlib
 import json
 import os
 import subprocess
@@ -14,6 +15,58 @@ INSTALLER = Path(__file__).parents[1] / "scripts" / "install.py"
 
 
 class InstallTests(unittest.TestCase):
+    def test_verified_package_is_accepted_and_tampering_is_rejected(self):
+        spec = importlib.util.spec_from_file_location("installer_package", INSTALLER)
+        installer = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(installer)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            package = Path(temp_dir)
+            (package / "scripts").mkdir()
+            paths = ("SKILL.md", "scripts/install.py")
+            files = []
+            for name in paths:
+                data = (INSTALLER.parents[1] / name).read_bytes()
+                (package / name).write_bytes(data)
+                files.append({"path": name, "sha256": hashlib.sha256(data).hexdigest()})
+            (package / "manifest.json").write_text(json.dumps({"type": "skill", "code": "context-keeper", "files": files}))
+            with patch.object(installer, "SOURCE", package):
+                installer._require_source_checkout()
+                (package / "SKILL.md").write_text("tampered")
+                with self.assertRaisesRegex(RuntimeError, "哈希不匹配"):
+                    installer._require_source_checkout()
+
+    def test_install_previews_changes_without_approval(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = Path(temp_dir) / "project"
+            project.mkdir()
+            result = subprocess.run(
+                ["python3", str(INSTALLER), "--project", str(project), "--codex"],
+                text=True, capture_output=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            preview = json.loads(result.stdout)
+            self.assertTrue(preview["approval_required"])
+            self.assertIn(str((project / "AGENTS.md").resolve()), preview["rule_files"])
+            self.assertFalse((project / ".agents/skills/context-keeper").exists())
+            self.assertFalse((project / "AGENTS.md").exists())
+
+    def test_first_use_previews_rule_without_approval(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            home = Path(temp_dir) / "home"
+            project = Path(temp_dir) / "project"
+            project.mkdir()
+            skill = project / ".agents/skills/context-keeper"
+            skill.parent.mkdir(parents=True)
+            skill.symlink_to(INSTALLER.parents[1])
+            result = subprocess.run(
+                ["python3", str(INSTALLER), "--ensure-bridge", "--codex",
+                 "--skill-dir", str(skill), "--root", str(project)],
+                env=dict(os.environ, HOME=str(home)), text=True, capture_output=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertTrue(json.loads(result.stdout)["approval_required"])
+            self.assertFalse((project / "AGENTS.md").exists())
+
     def test_first_use_project_and_user_symlink(self):
         for agent in ('codex', 'claude'):
             for scope in ('user', 'project'):
@@ -30,7 +83,7 @@ class InstallTests(unittest.TestCase):
                               if scope=='user' else project / ('AGENTS.md' if agent=='codex' else 'CLAUDE.md'))
                     bridge.parent.mkdir(parents=True,exist_ok=True)
                     bridge.write_text('# 用户内容\n\n不要修改。\n')
-                    cmd = ['python3',str(skill/'scripts/install.py'),'--ensure-bridge','--'+agent,'--skill-dir',str(skill),'--root',str(project)]
+                    cmd = ['python3',str(skill/'scripts/install.py'),'--ensure-bridge','--approved','--'+agent,'--skill-dir',str(skill),'--root',str(project)]
                     env = dict(os.environ, HOME=str(home))
                     result = subprocess.run(cmd,env=env,text=True,capture_output=True)
                     self.assertEqual(result.returncode,0,result.stdout+result.stderr)
@@ -50,12 +103,12 @@ class InstallTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d);home=root/'home';home.mkdir();project=root/'project';project.mkdir()
             skill=home/'.agents/skills/context-keeper';skill.parent.mkdir(parents=True)
-            shutil.copytree(INSTALLER.parents[1],skill,ignore=shutil.ignore_patterns('.git','__pycache__'))
+            shutil.copytree(INSTALLER.parents[1],skill,ignore=shutil.ignore_patterns('.git','__pycache__','manifest.json','dist'))
             result=subprocess.run(
-                ['python3',str(skill/'scripts/install.py'),'--ensure-bridge','--codex','--skill-dir',str(skill),'--root',str(project)],
+                ['python3',str(skill/'scripts/install.py'),'--ensure-bridge','--approved','--codex','--skill-dir',str(skill),'--root',str(project)],
                 env=dict(os.environ,HOME=str(home)),capture_output=True,text=True)
             self.assertEqual(result.returncode,2)
-            self.assertIn('Git 源码仓库',result.stdout)
+            self.assertIn('Git 源码仓库或校验通过的 Skill 安装包',result.stdout)
             self.assertFalse((home/'.codex/AGENTS.md').exists())
 
     def test_first_use_resolved_source_prefers_project_alias(self):
@@ -64,14 +117,14 @@ class InstallTests(unittest.TestCase):
             for base in (home,project):
                 skill=base/'.agents/skills/context-keeper';skill.parent.mkdir(parents=True)
                 skill.symlink_to(INSTALLER.parents[1])
-            result=subprocess.run(['python3',str(INSTALLER),'--ensure-bridge','--codex','--root',str(project)],env=dict(os.environ,HOME=str(home)),capture_output=True,text=True)
+            result=subprocess.run(['python3',str(INSTALLER),'--ensure-bridge','--approved','--codex','--root',str(project)],env=dict(os.environ,HOME=str(home)),capture_output=True,text=True)
             self.assertEqual(result.returncode,0,result.stdout+result.stderr)
             self.assertEqual(json.loads(result.stdout)['scope'],'project')
             self.assertFalse((home/'.codex/AGENTS.md').exists())
 
     def test_first_use_unknown_scope_does_not_write(self):
         with tempfile.TemporaryDirectory() as d:
-            result=subprocess.run(['python3',str(INSTALLER),'--ensure-bridge','--codex','--root',d],env=dict(os.environ,HOME=d),capture_output=True,text=True)
+            result=subprocess.run(['python3',str(INSTALLER),'--ensure-bridge','--approved','--codex','--root',d],env=dict(os.environ,HOME=d),capture_output=True,text=True)
             self.assertEqual(result.returncode,2,result.stdout+result.stderr)
             self.assertEqual(list(Path(d).iterdir()),[])
 
@@ -117,7 +170,7 @@ class InstallTests(unittest.TestCase):
             target.mkdir(parents=True)
             marker = target / 'SKILL.md'
             marker.write_text('name: another-skill')
-            result = subprocess.run(['python3', str(INSTALLER), '--project', d, '--codex'], capture_output=True, text=True)
+            result = subprocess.run(['python3', str(INSTALLER), '--project', d, '--codex', '--approved'], capture_output=True, text=True)
             self.assertNotEqual(result.returncode, 0)
             self.assertEqual(marker.read_text(), 'name: another-skill')
             self.assertFalse((root / 'AGENTS.md').exists())
@@ -137,7 +190,7 @@ class InstallTests(unittest.TestCase):
             project = Path(temp_dir) / "project"
             project.mkdir()
             (project / "AGENTS.md").write_text("# Existing\n", encoding="utf-8")
-            command = ["python3", str(INSTALLER), "--project", str(project), "--all"]
+            command = ["python3", str(INSTALLER), "--project", str(project), "--all", "--approved"]
             first = subprocess.run(command, text=True, capture_output=True, check=False)
             second = subprocess.run(command, text=True, capture_output=True, check=False)
             self.assertEqual(first.returncode, 0, first.stderr)
@@ -161,7 +214,7 @@ class InstallTests(unittest.TestCase):
             home = Path(temp_dir) / "home"
             env = dict(os.environ, HOME=str(home))
             result = subprocess.run(
-                ["python3", str(INSTALLER), "--all"],
+                ["python3", str(INSTALLER), "--all", "--approved"],
                 text=True,
                 capture_output=True,
                 check=False,
@@ -187,7 +240,7 @@ class InstallTests(unittest.TestCase):
             project = Path(temp_dir) / "project"
             project.mkdir()
             (project / "AGENTS.md").write_text("# Keep me\n", encoding="utf-8")
-            install = ["python3", str(INSTALLER), "--project", str(project), "--all"]
+            install = ["python3", str(INSTALLER), "--project", str(project), "--all", "--approved"]
             subprocess.run(install, text=True, capture_output=True, check=True)
             result = subprocess.run(
                 [*install, "--uninstall"],
@@ -208,7 +261,7 @@ class InstallTests(unittest.TestCase):
             project = Path(temp_dir) / "project"
             project.mkdir()
             result = subprocess.run(
-                ["python3", str(INSTALLER), "--project", str(project), "--codex", "--claude", "--bridge-only"],
+                ["python3", str(INSTALLER), "--project", str(project), "--codex", "--claude", "--bridge-only", "--approved"],
                 text=True,
                 capture_output=True,
                 check=False,
@@ -226,7 +279,7 @@ class InstallTests(unittest.TestCase):
             skill_root.mkdir(parents=True)
             (skill_root / "context-keeper").symlink_to(INSTALLER.parents[1], target_is_directory=True)
             result = subprocess.run(
-                ["python3", str(INSTALLER), "--project", str(project), "--codex"],
+                ["python3", str(INSTALLER), "--project", str(project), "--codex", "--approved"],
                 text=True,
                 capture_output=True,
                 check=False,
@@ -241,7 +294,7 @@ class InstallTests(unittest.TestCase):
             (foreign / "SKILL.md").write_text("---\nname: context-keeper\n---\n")
             target = project / ".agents/skills/context-keeper"; target.parent.mkdir(parents=True)
             target.symlink_to(foreign, target_is_directory=True)
-            result = subprocess.run(["python3", str(INSTALLER), "--project", str(project), "--codex"], text=True, capture_output=True)
+            result = subprocess.run(["python3", str(INSTALLER), "--project", str(project), "--codex", "--approved"], text=True, capture_output=True)
             self.assertEqual(result.returncode, 2)
             self.assertIn("拒绝静默替换", result.stdout)
             self.assertEqual(target.resolve(), foreign.resolve())
@@ -253,7 +306,7 @@ class InstallTests(unittest.TestCase):
             foreign.parent.mkdir(parents=True)
             foreign.symlink_to(home / "other-source")
             result = subprocess.run(
-                ["python3", str(INSTALLER), "--all"],
+                ["python3", str(INSTALLER), "--all", "--approved"],
                 env=dict(os.environ, HOME=str(home)), text=True, capture_output=True,
             )
             self.assertEqual(result.returncode, 2)
@@ -268,7 +321,7 @@ class InstallTests(unittest.TestCase):
             root.mkdir(parents=True)
             target = root / "context-keeper"
             target.symlink_to(home / "other-source")
-            command = ["python3", str(INSTALLER), "--cursor", "--uninstall"]
+            command = ["python3", str(INSTALLER), "--cursor", "--uninstall", "--approved"]
             env = dict(os.environ, HOME=str(home))
             result = subprocess.run(command, env=env, text=True, capture_output=True)
             self.assertEqual(result.returncode, 2)
@@ -285,12 +338,12 @@ class InstallTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             home = Path(temp_dir) / "home"
             env = dict(os.environ, HOME=str(home))
-            subprocess.run(["python3", str(INSTALLER), "--codex"], env=env, check=True, capture_output=True)
+            subprocess.run(["python3", str(INSTALLER), "--codex", "--approved"], env=env, check=True, capture_output=True)
             owned = home / ".codex/skills/context-keeper"
             foreign = home / ".config/opencode/skills/context-keeper"
             foreign.parent.mkdir(parents=True)
             foreign.symlink_to(home / "other-source")
-            result = subprocess.run(["python3", str(INSTALLER), "--all", "--uninstall"], env=env, text=True, capture_output=True)
+            result = subprocess.run(["python3", str(INSTALLER), "--all", "--uninstall", "--approved"], env=env, text=True, capture_output=True)
             self.assertEqual(result.returncode, 2)
             self.assertTrue(owned.is_symlink())
             self.assertTrue(foreign.is_symlink())
@@ -314,7 +367,7 @@ class InstallTests(unittest.TestCase):
 
             with patch.object(installer, "_upsert_bridge", side_effect=fail_on_claude):
                 with self.assertRaises(OSError):
-                    installer.main(["--project", str(project), "--codex", "--claude"])
+                    installer.main(["--project", str(project), "--codex", "--claude", "--approved"])
             self.assertEqual(agents_file.read_text(encoding="utf-8"), "# Existing rules\n")
             self.assertFalse((project / "CLAUDE.md").exists())
             self.assertFalse((project / ".agents/skills/context-keeper").exists())
@@ -326,9 +379,9 @@ class InstallTests(unittest.TestCase):
             project = Path(temp_dir) / "project"
             project.mkdir()
             shared = project / ".agents/skills/context-keeper"
-            subprocess.run(["python3", str(INSTALLER), "--project", str(project), "--hermes"], check=True, capture_output=True)
+            subprocess.run(["python3", str(INSTALLER), "--project", str(project), "--hermes", "--approved"], check=True, capture_output=True)
             result = subprocess.run(
-                ["python3", str(INSTALLER), "--project", str(project), "--openclaw", "--uninstall"],
+                ["python3", str(INSTALLER), "--project", str(project), "--openclaw", "--uninstall", "--approved"],
                 text=True, capture_output=True,
             )
             self.assertEqual(result.returncode, 2)
@@ -340,7 +393,7 @@ class InstallTests(unittest.TestCase):
             project = Path(temp_dir) / "project"
             project.mkdir()
             result = subprocess.run(
-                ["python3", str(INSTALLER), "--project", str(project), "--openclaw", "--uninstall"],
+                ["python3", str(INSTALLER), "--project", str(project), "--openclaw", "--uninstall", "--approved"],
                 text=True, capture_output=True,
             )
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -357,7 +410,7 @@ class InstallTests(unittest.TestCase):
     def test_bridge_only_rejects_unverified_agent_automation(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             result = subprocess.run(
-                ["python3", str(INSTALLER), "--project", temp_dir, "--cursor", "--bridge-only"],
+                ["python3", str(INSTALLER), "--project", temp_dir, "--cursor", "--bridge-only", "--approved"],
                 text=True,
                 capture_output=True,
             )
@@ -372,7 +425,7 @@ class InstallTests(unittest.TestCase):
             target.mkdir(parents=True)
             (target / "SKILL.md").write_text("---\nname: context-keeper\ndescription: local\n---\n")
             result = subprocess.run(
-                ["python3", str(INSTALLER), "--project", str(project), "--codex"],
+                ["python3", str(INSTALLER), "--project", str(project), "--codex", "--approved"],
                 text=True,
                 capture_output=True,
                 check=False,

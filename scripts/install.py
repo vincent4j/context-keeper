@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 
 SOURCE = Path(__file__).resolve().parents[1]
@@ -53,8 +54,29 @@ def _skill_roots(agent: str, home: Path, project: Path | None) -> list[Path]:
 
 
 def _require_source_checkout() -> None:
-    if not (SOURCE / ".git").exists():
-        raise RuntimeError(f"安装器必须从 Context Keeper Git 源码仓库运行，拒绝使用复制目录：{SOURCE}")
+    if (SOURCE / ".git").exists():
+        return
+    manifest_path = SOURCE / "manifest.json"
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        files = manifest["files"]
+        if manifest["type"] != "skill" or manifest["code"] != "context-keeper" or not isinstance(files, list):
+            raise ValueError("manifest 格式错误")
+        declared = set()
+        for entry in files:
+            path = PurePosixPath(entry["path"])
+            if path.is_absolute() or ".." in path.parts or str(path) in declared:
+                raise ValueError("manifest 路径无效或重复")
+            declared.add(str(path))
+            source_file = SOURCE.joinpath(*path.parts)
+            if source_file.is_symlink() or not source_file.is_file():
+                raise ValueError("声明文件缺失或为别名")
+            if hashlib.sha256(source_file.read_bytes()).hexdigest() != entry["sha256"]:
+                raise ValueError("声明文件哈希不匹配")
+        if not {"SKILL.md", "scripts/install.py"} <= declared:
+            raise ValueError("缺少必要文件")
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"安装器需要 Git 源码仓库或校验通过的 Skill 安装包：{SOURCE}（{exc}）") from exc
 
 
 def _check_install_target(target_root: Path) -> Path:
@@ -172,6 +194,11 @@ def _ensure_bridge(args: argparse.Namespace) -> int:
         bridge = home / (".codex/AGENTS.md" if agent == "codex" else ".claude/CLAUDE.md")
     else:
         bridge = base / ("AGENTS.md" if agent == "codex" else "CLAUDE.md")
+    _check_bridge(bridge)
+    if not args.approved:
+        print(json.dumps({"approval_required": True, "operation": "配置自动入口", "file": str(bridge),
+                          "effect": "新增或更新 Context Keeper 受控规则区块；保留文件中的其他内容"}, ensure_ascii=False))
+        return 0
     action = _upsert_bridge(bridge)
     actual = bridge.read_text(encoding="utf-8")
     if actual.count(BRIDGE_START) != 1 or BRIDGE.rstrip("\n") not in actual:
@@ -200,6 +227,7 @@ def _remove_bridge(path: Path) -> str:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="安装 Context Keeper Skill 和自动入口")
     parser.add_argument("--ensure-bridge", action="store_true", help="首次使用时按安装位置补齐当前 Agent 入口")
+    parser.add_argument("--approved", action="store_true", help="已向用户展示本次影响并取得明确确认后执行写入")
     parser.add_argument("--skill-dir", default=str(Path(__file__).absolute().parents[1]), help="当前加载 Skill 的目录，优先保留安装别名")
     parser.add_argument("--root", default=".", help="当前项目位置，仅用于查找已安装别名")
     parser.add_argument("--all", action="store_true", help="安装到所有已支持的 Agent")
@@ -274,6 +302,17 @@ def main(argv: list[str] | None = None) -> int:
     for agent in selected_agents:
         if agent in bridge_paths:
             _check_bridge(bridge_paths[agent])
+
+    if not args.approved:
+        print(json.dumps({
+            "approval_required": True,
+            "operation": "卸载" if args.uninstall else "安装",
+            "skill_entries": [str(root.expanduser() / "context-keeper") for root in selected_roots] if not args.bridge_only else [],
+            "rule_files": [str(bridge_paths[agent]) for agent in selected_agents if agent in bridge_paths],
+            "effect": "仅移除当前源码创建的入口和自身规则区块" if args.uninstall else
+                      "新增或复用 Skill 入口，并在 Codex/Claude Code 规则文件中新增或更新自身区块",
+        }, ensure_ascii=False, indent=2))
+        return 0
 
     if args.uninstall:
         for skill_root in selected_roots:
