@@ -20,7 +20,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "ebc286d594462a13a5e26552a54dc0b857849eee47a7432e27793080221aa618"
+      "sha256": "33d102da5eed9a89081063dcc1c8ccd116d5cb6b6eab9079fd7767075693a75a"
     },
     {
       "path": "scripts/install.py",
@@ -40,7 +40,7 @@
     },
     {
       "path": "references/install.md",
-      "sha256": "9e09badce07c1a36421b60b54d71dcc5a0bc74bb5749fd5a7f109aba4850ab19"
+      "sha256": "cf103b0aecdeb8333e2fb0ddf89b87cd565cb179ac37d9f350d8991f5dbfaf92"
     },
     {
       "path": "references/migrate.md",
