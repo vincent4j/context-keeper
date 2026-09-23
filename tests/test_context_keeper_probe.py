@@ -7,6 +7,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 SCRIPT = Path(__file__).parents[1] / "scripts" / "context_keeper_probe.py"
@@ -14,6 +15,19 @@ SPEC = importlib.util.spec_from_file_location("context_keeper_probe", SCRIPT)
 assert SPEC and SPEC.loader
 PROBE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(PROBE)
+
+
+class IsolatedProbeTestCase(unittest.TestCase):
+    """Keep caches, user experience and session databases outside the real home."""
+
+    def setUp(self):
+        super().setUp()
+        temporary = tempfile.TemporaryDirectory(prefix="context-keeper-test-")
+        self.addCleanup(temporary.cleanup)
+        self.test_home = Path(temporary.name)
+        home_patch = patch.object(Path, "home", return_value=self.test_home)
+        home_patch.start()
+        self.addCleanup(home_patch.stop)
 
 
 def _call(*args: str) -> tuple[int, str]:
@@ -112,7 +126,7 @@ def _save(root: Path, worklog: Path, *, legacy: bool = False) -> tuple[int, str]
     return _call(*args)
 
 
-class InitTests(unittest.TestCase):
+class InitTests(IsolatedProbeTestCase):
     def test_default_init_asks_for_approval_and_does_not_create(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -175,7 +189,7 @@ class InitTests(unittest.TestCase):
             self.assertFalse((root / "project-notes" / "context").exists())
 
 
-class RecordBoundaryTests(unittest.TestCase):
+class RecordBoundaryTests(IsolatedProbeTestCase):
     def test_record_path_creates_session_owned_file_and_other_session_appends(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -202,7 +216,7 @@ class RecordBoundaryTests(unittest.TestCase):
             self.assertIn("跨会话修改已阻止", output)
 
 
-class ResumeAndSearchTests(unittest.TestCase):
+class ResumeAndSearchTests(IsolatedProbeTestCase):
     def test_resume_defaults_to_five_entries_and_three_plus_two(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -294,7 +308,7 @@ class ResumeAndSearchTests(unittest.TestCase):
             self.assertIn("不代表历史上从未发生", output)
 
 
-class RawHistoryTests(unittest.TestCase):
+class RawHistoryTests(IsolatedProbeTestCase):
     def test_finds_codex_original_for_matching_project_only(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             base = Path(temp_dir)
@@ -338,7 +352,7 @@ class RawHistoryTests(unittest.TestCase):
             self.assertIn("不代表历史上从未发生", output)
 
 
-class EvolutionPromotionTests(unittest.TestCase):
+class EvolutionPromotionTests(IsolatedProbeTestCase):
     def test_requires_approval_and_promotes_valid_experience(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir) / "project"
@@ -355,7 +369,7 @@ class EvolutionPromotionTests(unittest.TestCase):
             self.assertIn("已晋升", output)
 
 
-class CoverageTests(unittest.TestCase):
+class CoverageTests(IsolatedProbeTestCase):
     def test_default_output_is_compact_and_details_are_optional(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -386,7 +400,7 @@ class CoverageTests(unittest.TestCase):
             self.assertIn("pending_invalid=1", output)
 
 
-class SaveReportTests(unittest.TestCase):
+class SaveReportTests(IsolatedProbeTestCase):
     def test_validates_new_layout_and_renders_evolution_notice(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

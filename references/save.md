@@ -18,7 +18,7 @@ init 返回值语义：rc=0（已创建或已就绪）/ rc=2（拒绝：迁移�
 
 脚本按 `<repo>/docs/context-keeper/`、`<repo>/context-keeper/` 的顺序自动发现已有记录库（凭目录内标记识别），所有命令统一 `--root <repo>`，无需按位置区分参数；记录库不在候选位置或两处歧义时，任何命令都可加 `--store-dir <path>` 显式指定，位置不限。首次创建前默认建议位置为 `docs/context-keeper/`，但脚本不会自动创建，必须用户明确同意（加 `--approved`）。用户修改已有记录位置时运行 `init --store-dir <path> --migrate --approved`；不能直接创建第二套记录。`--store-dir` 指到候选位置之外时才写 `context-keeper.json`，候选位置内零配置文件。迁移若会改变历史文件中外部证据链接的指向，脚本会停止并保留原目录；不为迁移改写旧会话记录。
 
-为当前会话使用稳定的 `session-id`（优先平台当前会话 ID，不复制旧记录的 ID）。第一次写入前运行 `record-path` 或 `record-guard`，建立旧计划和日志的内容指纹；指纹保存在用户缓存，不写入项目。缺少基线不能宣称历史保护已经验证。脚本会直接创建带会话标识的文件：
+为当前会话使用稳定的 `session-id`（优先平台当前会话 ID，不复制旧记录的 ID）。第一次写入前运行 `record-path` 或 `record-guard`，建立旧计划和日志的内容指纹；指纹保存在用户缓存，不写入项目。基线同时绑定仓库实路径、记录库实路径和会话 ID，因此同一会话切换 `--store-dir` 不会互相复用。升级前仅按仓库和会话保存的旧缓存不会被当作新库基线；首次进入新版本仍会重新建立指纹，这只能保护之后的改写，不能证明升级前历史未被改写。缺少基线不能宣称历史保护已经验证。脚本会直接创建带会话标识的文件：
 
 ```bash
 python3 <skill-dir>/scripts/context_keeper_probe.py record-path \

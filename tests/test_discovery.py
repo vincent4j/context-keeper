@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from test_context_keeper_probe import PROBE, _call, _write_valid_context
+from test_context_keeper_probe import IsolatedProbeTestCase, PROBE, _call, _write_valid_context
 
 
 def _make_store(path: Path, label: str = "发现测试") -> None:
@@ -26,7 +26,48 @@ def _make_store(path: Path, label: str = "发现测试") -> None:
     )
 
 
-class DiscoveryTests(unittest.TestCase):
+class DiscoveryTests(IsolatedProbeTestCase):
+    def test_custom_store_history_is_protected_by_both_entry_points(self):
+        for entry in ("record-path", "record-guard"):
+            for remove in (False, True):
+                with self.subTest(entry=entry, remove=remove), tempfile.TemporaryDirectory() as d:
+                    root = Path(d)
+                    _make_store(root / "docs/context-keeper", "默认库")
+                    store = root / "notes/history"
+                    _make_store(store, "自定义库")
+                    old = store / "worklogs/2026-09-17-测试.md"
+                    current = store / "worklogs/2026-09-22-本轮.md"
+                    current.write_text("<!-- context-keeper: session-id=new -->\n# 本轮\n")
+                    extra = (("--kind", "worklog", "--title", "本轮") if entry == "record-path"
+                             else ("--path", str(current)))
+                    rc, out = _call(entry, "--root", d, "--store-dir", "notes/history",
+                                    "--session-id", "new", *extra)
+                    self.assertEqual(rc, 0, out)
+                    if remove:
+                        old.unlink()
+                    else:
+                        old.write_text("改写旧会话")
+                    rc, out = _call("save-report", "--root", d, "--store-dir", "notes/history",
+                                    "--worklog", str(current), "--session-id", "new")
+                    self.assertEqual(rc, 2, out)
+                    self.assertIn("历史记录被改写或删除", out)
+
+    def test_baselines_are_separate_for_stores_in_the_same_session(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            for location in ("context-keeper", "docs/context-keeper"):
+                _make_store(root / location)
+                rc, out = _call("record-path", "--root", d, "--store-dir", location,
+                                "--kind", "worklog", "--title", "本轮", "--session-id", "new")
+                self.assertEqual(rc, 0, out)
+            first = PROBE._baseline_path(root, "new", "context-keeper")
+            second = PROBE._baseline_path(root, "new", "docs/context-keeper")
+            self.assertNotEqual(first, second)
+            self.assertEqual(first, PROBE._baseline_path(root, "new", str(root / "context-keeper")))
+            (root / "context-keeper/worklogs/2026-09-17-测试.md").unlink()
+            self.assertTrue(PROBE._check_baseline(root, "new", "context-keeper"))
+            self.assertEqual(PROBE._check_baseline(root, "new", "docs/context-keeper"), [])
+
     def test_docs_location_is_discovered_from_repo_root(self):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)

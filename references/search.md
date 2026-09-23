@@ -34,7 +34,18 @@ python3 <skill-dir>/scripts/context_keeper_probe.py history-search \
   --root <repo> --query '<关键词>'
 ```
 
-该命令按项目筛选 Codex 和 Claude Code 的原始会话，只输出有限命中片段和定位。找不到时如实说明，不扩大成全盘扫描。
+该命令按项目筛选 Codex 和 Claude Code 的原始会话，只输出有限命中片段和定位。Codex 优先使用本机状态库中与当前 `cwd` 对应的 rollout 路径；有更新时间字段时按更新时间倒序，否则按状态库行号倒序。消息库未命中时，先读这些已知路径（包括不在 `sessions` 目录的归档文件）；尚有候选额度时再有限回退 JSONL 目录，以覆盖部分或空索引。无索引回退按目录遍历顺序取候选，不能保证最近历史优先。Claude Code 仍逐条核对记录中的 `cwd`，不会只因目录名相近而纳入结果。
+
+默认在 Codex 与 Claude Code 合计最多选取 500 个候选文件、读取 8 MiB 原始消息，并使用 3 秒协作式时限；可按需收紧：
+
+```bash
+python3 <skill-dir>/scripts/context_keeper_probe.py history-search \
+  --root <repo> --query '<关键词>' --scan-files 50 --max-bytes 1048576 --timeout-seconds 1
+```
+
+候选发现只读取有限文件元数据，不会先对整个历史目录全文搜索。`--scan-files` 在内容读取前生效；已索引路径即使由 SQLite 消息库命中，也占用全局候选文件额度。部分索引、目录遍历顺序和候选截断都可能遗漏更早或未索引的记录，不能把未命中当作全召回。`--max-bytes` 只限制返回到 Python 的 JSONL/SQLite 原始消息字节总量，截断行也会计入；state 中的线程 ID 和路径属于候选元数据，只受候选数量限制，不占消息预算。JSONL 使用固定块的无缓冲读取，避免在逻辑上限外预读并在每块之间检查时限；SQLite 每条消息按当时剩余额度单独提取。SQLite 的 `LIKE` 仍可能在 SQLite 引擎内部扫描数据库页，这部分不是可按记录字节计量的返回数据，但查询配置了同一协作式时限和收敛的 busy timeout。本地单条 SQLite 操作和文件系统调用无法被 Python 强制中断；因此超时是检查点式边界，不是杀进程式硬超时。参数必须为有限正数。
+
+任何限制触发时，命令会明确输出“检索不完整：预算耗尽（…）”。此时无论是否有命中，都不能把结果当作完整检索或完整零命中；找不到时如实说明，不扩大成全盘扫描。
 
 ## 输出规则
 

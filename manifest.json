@@ -28,11 +28,11 @@
     },
     {
       "path": "scripts/context_keeper_probe.py",
-      "sha256": "916c04e889393a7238caa67f29442667a07ada7ccfce34151092e96fee20e0f1"
+      "sha256": "76e6bbf0c76d363554d419e41da6ed67e7b205757da1838918d1c241579cb525"
     },
     {
       "path": "references/save.md",
-      "sha256": "83ed086943b483e7243cf11ea9034836c201da09442743ee2bd471a0cde3a529"
+      "sha256": "7d8afec9eb12b477181710b0076ec39fce22727f6c30d796a6f5e079cf004e89"
     },
     {
       "path": "references/resume.md",
@@ -48,7 +48,7 @@
     },
     {
       "path": "references/search.md",
-      "sha256": "97525521422ad0f73557f3ba6f2a32dfded144c5ad63050b18a66d258c162263"
+      "sha256": "ec98ff49869b91ab3134003fb0168e1ca494645a30068dfe8ae44aea6aea221c"
     }
   ]
 }

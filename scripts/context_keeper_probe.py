@@ -5,12 +5,14 @@ import argparse
 import datetime as dt
 import hashlib
 import json
+import math
 import os
 import re
 import shutil
 import sqlite3
 import subprocess
 import tempfile
+import time
 from pathlib import Path
 from typing import NamedTuple
 
@@ -681,6 +683,11 @@ def cmd_init(args: argparse.Namespace) -> int:
         print(f"Context Keeper 记录库已就绪：{_rel(root, existing)}")
         return 0
     current = _layout(root)
+    migrated_from = None
+    removed_empty_target = False
+    created_parents: list[Path] = []
+    config = root / CONFIG_FILE
+    previous_config = None
     if args.store_dir and current.store != target.store and current.store.exists():
         if not args.migrate:
             print(
@@ -707,11 +714,28 @@ def cmd_init(args: argparse.Namespace) -> int:
                 if after != expected:
                     print(f"停止迁移：{_rel(root, document)} 的证据链接 {raw} 会改变指向；历史记录保持不变。")
                     return 2
-        target.store.parent.mkdir(parents=True, exist_ok=True)
-        if target.store.exists():
-            target.store.rmdir()
-        shutil.move(str(current.store), str(target.store))
-        print(f"已迁移记录：{_rel(root, current.store)} → {_rel(root, target.store)}")
+        if not args.approved:
+            print(f"Context Keeper 准备迁移记录：{_rel(root, current.store)} → {_rel(root, target.store)}。")
+            print("确认请加 --approved。")
+            return RC_NEEDS_CONFIRMATION
+        previous_config = config.read_bytes() if config.exists() else None
+        parent = target.store.parent
+        while not parent.exists():
+            created_parents.append(parent)
+            parent = parent.parent
+        try:
+            target.store.parent.mkdir(parents=True, exist_ok=True)
+            if target.store.exists():
+                target.store.rmdir()
+                removed_empty_target = True
+            shutil.move(str(current.store), str(target.store))
+        except Exception:
+            if removed_empty_target:
+                target.store.mkdir()
+            for parent in created_parents:
+                parent.rmdir()
+            raise
+        migrated_from = current.store
     if not args.approved:
         if args.store_dir:
             print(f"Context Keeper 准备在 {_rel(root, target.store)} 创建记录库（来自 --store-dir）。")
@@ -720,21 +744,46 @@ def cmd_init(args: argparse.Namespace) -> int:
         print(f"确认请加 --approved；改用其他位置请加 --store-dir <path>。")
         return RC_NEEDS_CONFIRMATION
     existed = target.store.exists()
-    for directory in (target.store, target.plans, target.worklogs, target.evolution):
-        directory.mkdir(parents=True, exist_ok=True)
-    if target.store in _discovery_candidates(root):
-        (root / CONFIG_FILE).unlink(missing_ok=True)
-    elif args.store_dir:
-        _write_config(root, target.store)
-    if not target.memory.exists():
-        target.memory.write_text(
-            "# 项目记忆索引\n\n## 未完成事项\n\n- 暂无\n\n## 主题摘要（按类型）\n\n---\n\n"
-            "## 进化经验入口\n\n- [进化经验索引](evolution/index.md)\n\n## 时间线（最新在前）\n\n---\n",
-            encoding="utf-8",
-        )
-    evolution_index = target.evolution / "index.md"
-    if not evolution_index.exists():
-        evolution_index.write_text("# 自我进化索引\n\n## 有效经验\n\n- 暂无\n\n## 已替代经验\n\n- 暂无\n", encoding="utf-8")
+    created: list[Path] = []
+    try:
+        for directory in (target.store, target.plans, target.worklogs, target.evolution):
+            if not directory.exists():
+                created.append(directory)
+            directory.mkdir(parents=True, exist_ok=True)
+        if target.store in _discovery_candidates(root):
+            config.unlink(missing_ok=True)
+        elif args.store_dir:
+            _write_config(root, target.store)
+        if not target.memory.exists():
+            created.append(target.memory)
+            target.memory.write_text(
+                "# 项目记忆索引\n\n## 未完成事项\n\n- 暂无\n\n## 主题摘要（按类型）\n\n---\n\n"
+                "## 进化经验入口\n\n- [进化经验索引](evolution/index.md)\n\n## 时间线（最新在前）\n\n---\n",
+                encoding="utf-8",
+            )
+        evolution_index = target.evolution / "index.md"
+        if not evolution_index.exists():
+            created.append(evolution_index)
+            evolution_index.write_text("# 自我进化索引\n\n## 有效经验\n\n- 暂无\n\n## 已替代经验\n\n- 暂无\n", encoding="utf-8")
+    except Exception:
+        if migrated_from:
+            for path in reversed(created):
+                if path.is_file():
+                    path.unlink()
+                elif path.is_dir():
+                    path.rmdir()
+            shutil.move(str(target.store), str(migrated_from))
+            if previous_config is None:
+                config.unlink(missing_ok=True)
+            else:
+                config.write_bytes(previous_config)
+            if removed_empty_target:
+                target.store.mkdir()
+            for parent in created_parents:
+                parent.rmdir()
+        raise
+    if migrated_from:
+        print(f"已迁移记录：{_rel(root, migrated_from)} → {_rel(root, target.store)}")
     if not existed:
         if args.store_dir:
             print(f"Context Keeper 记录位置：{_rel(root, target.store)}")
@@ -745,23 +794,24 @@ def cmd_init(args: argparse.Namespace) -> int:
     return 0
 
 
-def _baseline_path(root: Path, session: str) -> Path:
-    key = hashlib.sha256(f"{root.resolve()}:{session}".encode()).hexdigest()
+def _baseline_path(root: Path, session: str, store_dir: str | None = None) -> Path:
+    store = _layout(root, store_dir).store
+    key = hashlib.sha256(json.dumps([str(root.resolve()), str(store), session]).encode()).hexdigest()
     return Path.home() / ".cache" / "context-keeper" / f"{key}.json"
 
 
-def _capture_baseline(root: Path, session: str) -> None:
-    target = _baseline_path(root, session)
+def _capture_baseline(root: Path, session: str, store_dir: str | None = None) -> None:
+    target = _baseline_path(root, session, store_dir)
     if target.exists():
         return
-    records = _plan_files(root) + _worklog_files(root)
+    records = _plan_files(root, store_dir) + _worklog_files(root, None, store_dir)
     baseline = {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in records if _session_id(p) != session}
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(baseline), encoding="utf-8")
 
 
-def _check_baseline(root: Path, session: str) -> list[str]:
-    target = _baseline_path(root, session)
+def _check_baseline(root: Path, session: str, store_dir: str | None = None) -> list[str]:
+    target = _baseline_path(root, session, store_dir)
     if not target.is_file():
         return ["缺少会话历史基线；保存前先运行 record-path 或 record-guard"]
     baseline = json.loads(target.read_text())
@@ -790,7 +840,7 @@ def cmd_record_path(args: argparse.Namespace) -> int:
     except ValueError:
         print("日期必须为有效的 YYYY-MM-DD")
         return 2
-    _capture_baseline(root, args.session_id)
+    _capture_baseline(root, args.session_id, store_dir)
     base = directory / f"{date}-{title}.md"
     if base.exists() and (_session_id(base) != args.session_id or base in _migrated_records(root, store_dir)):
         index = 2
@@ -821,7 +871,7 @@ def cmd_record_guard(args: argparse.Namespace) -> int:
     if path in _migrated_records(root, store_dir):
         print("迁移保留的历史记录不可更新；请创建当前会话的新记录。")
         return 2
-    _capture_baseline(root, args.session_id)
+    _capture_baseline(root, args.session_id, store_dir)
     actual = _session_id(path)
     if actual != args.session_id:
         print(f"跨会话修改已阻止：文件属于 {actual or '未知会话'}，当前会话为 {args.session_id}")
@@ -985,54 +1035,123 @@ def _message_text(content: object) -> str:
     return ""
 
 
-def _codex_messages(path: Path, root: Path) -> list[tuple[str, str, str]]:
+class HistoryBudget:
+    """Cooperative limits for raw-history reads (not a hard process timeout)."""
+
+    def __init__(self, max_bytes: int, timeout_seconds: float):
+        self.remaining_bytes = max_bytes
+        self.bytes_read = 0
+        self.deadline = time.monotonic() + timeout_seconds
+        self.exhausted: set[str] = set()
+
+    def remaining_seconds(self) -> float:
+        return max(0.0, self.deadline - time.monotonic())
+
+    def consume(self, size: int) -> bool:
+        """Account every byte returned to Python, including unusable fragments."""
+        self.bytes_read += size
+        self.remaining_bytes -= size
+        if time.monotonic() >= self.deadline:
+            self.exhausted.add("耗时")
+        if self.remaining_bytes <= 0:
+            self.exhausted.add("读取字节")
+        return not self.exhausted
+
+    def check_time(self) -> bool:
+        if time.monotonic() >= self.deadline:
+            self.exhausted.add("耗时")
+            return False
+        return True
+
+    def can_read(self) -> bool:
+        return self.remaining_bytes > 0 and self.check_time()
+
+
+def _history_lines(path: Path, budget: HistoryBudget | None):
+    """Yield complete JSONL lines without reading beyond the byte budget."""
+    if budget and (not budget.check_time() or budget.remaining_bytes <= 0):
+        if budget.remaining_bytes <= 0:
+            budget.exhausted.add("读取字节")
+        return
+    # Unbuffered fixed-size reads avoid both read-ahead and per-byte readline().
+    with path.open("rb", buffering=0) as handle:
+        line_no = 0
+        pending = bytearray()
+        while True:
+            if budget and not budget.check_time():
+                return
+            if budget and budget.remaining_bytes <= 0:
+                budget.exhausted.add("读取字节")
+                return
+            limit = min(64 * 1024, budget.remaining_bytes) if budget else 64 * 1024
+            raw = handle.read(limit)
+            if not raw:
+                if pending:
+                    line_no += 1
+                    yield line_no, pending.decode("utf-8", errors="replace")
+                return
+            if budget:
+                budget.consume(len(raw))
+            pending.extend(raw)
+            while b"\n" in pending:
+                line, _, rest = pending.partition(b"\n")
+                pending = bytearray(rest)
+                line_no += 1
+                yield line_no, line.decode("utf-8", errors="replace")
+            if budget and "耗时" in budget.exhausted:
+                return
+            # A non-terminated pending record may be partial at the byte cap.
+            if budget and budget.remaining_bytes <= 0:
+                budget.exhausted.add("读取字节")
+                return
+
+
+def _codex_messages(path: Path, root: Path, budget: HistoryBudget | None = None) -> list[tuple[str, str, str]]:
     messages: list[tuple[str, str, str]] = []
     matched_project = False
     try:
-        with path.open(encoding="utf-8", errors="replace") as handle:
-            for line_no, line in enumerate(handle, 1):
-                try:
-                    item = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                if item.get("type") == "session_meta":
-                    cwd = item.get("payload", {}).get("cwd")
-                    matched_project = bool(cwd and Path(cwd).expanduser().resolve() == root)
-                    continue
-                if not matched_project or item.get("type") != "response_item":
-                    continue
-                payload = item.get("payload", {})
-                if payload.get("type") != "message" or payload.get("role") not in ("user", "assistant"):
-                    continue
-                text = _message_text(payload.get("content"))
-                if text:
-                    messages.append((payload.get("role", "unknown"), text, f"line {line_no}"))
+        for line_no, line in _history_lines(path, budget):
+            try:
+                item = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if item.get("type") == "session_meta":
+                cwd = item.get("payload", {}).get("cwd")
+                matched_project = bool(cwd and Path(cwd).expanduser().resolve() == root)
+                continue
+            if not matched_project or item.get("type") != "response_item":
+                continue
+            payload = item.get("payload", {})
+            if payload.get("type") != "message" or payload.get("role") not in ("user", "assistant"):
+                continue
+            text = _message_text(payload.get("content"))
+            if text:
+                messages.append((payload.get("role", "unknown"), text, f"line {line_no}"))
     except (OSError, json.JSONDecodeError):
         return []
     return messages
 
 
-def _claude_messages(path: Path, root: Path) -> list[tuple[str, str, str]]:
+def _claude_messages(path: Path, root: Path, budget: HistoryBudget | None = None) -> list[tuple[str, str, str]]:
     messages: list[tuple[str, str, str]] = []
     try:
-        with path.open(encoding="utf-8", errors="replace") as handle:
-            for line_no, line in enumerate(handle, 1):
-                try:
-                    item = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                cwd = item.get("cwd")
-                if not cwd or Path(cwd).expanduser().resolve() != root:
-                    continue
-                role = item.get("type")
-                message = item.get("message", {})
-                if role not in ("user", "assistant"):
-                    role = message.get("role")
-                if role not in ("user", "assistant"):
-                    continue
-                text = _message_text(message.get("content", item.get("content")))
-                if text:
-                    messages.append((role, text, f"line {line_no}"))
+        for line_no, line in _history_lines(path, budget):
+            try:
+                item = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            cwd = item.get("cwd")
+            if not cwd or Path(cwd).expanduser().resolve() != root:
+                continue
+            role = item.get("type")
+            message = item.get("message", {})
+            if role not in ("user", "assistant"):
+                role = message.get("role")
+            if role not in ("user", "assistant"):
+                continue
+            text = _message_text(message.get("content", item.get("content")))
+            if text:
+                messages.append((role, text, f"line {line_no}"))
     except (OSError, json.JSONDecodeError):
         return []
     return messages
@@ -1047,18 +1166,75 @@ def _match_excerpt(text: str, pattern: re.Pattern[str], limit: int = 320) -> str
     return _clip(re.sub(r"\s+", " ", text[start:end]), limit)
 
 
-def _history_candidates(directory: Path, query: str) -> list[Path]:
-    if shutil.which("rg"):
-        completed = subprocess.run(
-            ["rg", "-l", "-i", "--glob", "*.jsonl", "-e", query, str(directory)],
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            check=False,
-        )
-        if completed.returncode in (0, 1):
-            return [Path(line) for line in completed.stdout.splitlines() if line.strip()]
-    return list(directory.rglob("*.jsonl"))
+def _history_candidates(directory: Path, limit: int, budget: HistoryBudget, excluded_ids: set[str] | None = None,
+                        excluded_paths: set[Path] | None = None) -> list[Path]:
+    """Bounded metadata-only discovery; content is inspected later under budget."""
+    candidates: list[Path] = []
+    try:
+        for parent, _, names in os.walk(directory):
+            if not budget.check_time():
+                break
+            for name in names:
+                if not name.endswith(".jsonl"):
+                    continue
+                if excluded_ids and any(identifier in name for identifier in excluded_ids):
+                    continue
+                path = Path(parent) / name
+                if excluded_paths and path in excluded_paths:
+                    continue
+                candidates.append(path)
+                if len(candidates) > limit:
+                    budget.exhausted.add("候选文件")
+                    return candidates[:limit]
+    except OSError:
+        return candidates
+    return candidates
+
+
+def _sqlite_connect(path: Path, budget: HistoryBudget) -> sqlite3.Connection:
+    timeout = max(0.001, budget.remaining_seconds())
+    return sqlite3.connect(f"file:{path}?mode=ro", uri=True, timeout=timeout)
+
+
+def _sqlite_failure_marks_timeout(error: sqlite3.Error, budget: HistoryBudget) -> None:
+    if any(word in str(error).lower() for word in ("locked", "busy", "interrupted")):
+        budget.exhausted.add("耗时")
+    else:
+        budget.check_time()
+
+
+def _codex_indexed_paths(root: Path, active_ids: set[str], limit: int, budget: HistoryBudget) -> dict[str, Path] | None:
+    state_path = next((path for path in (Path.home() / ".codex" / "state_5.sqlite", Path.home() / ".codex" / "sqlite" / "state_5.sqlite") if path.is_file()), None)
+    if not state_path:
+        return None
+    try:
+        state = _sqlite_connect(state_path, budget)
+        try:
+            state.set_progress_handler(lambda: 1 if not budget.check_time() else 0, 1000)
+            where = "cwd = ?"
+            params: list[object] = [str(root)]
+            if active_ids:
+                where += " and id not in (" + ",".join("?" for _ in active_ids) + ")"
+                params.extend(sorted(active_ids))
+            columns = {row[1] for row in state.execute("pragma table_info(threads)")}
+            recent = next((name for name in ("updated_at", "updated_at_ms") if name in columns), None)
+            order = f"{recent} desc, rowid desc" if recent else "rowid desc"
+            rows = state.execute(f"select id, rollout_path from threads where {where} order by {order} limit ?", [*params, limit + 1]).fetchall()
+            if len(rows) > limit:
+                budget.exhausted.add("候选文件")
+                rows = rows[:limit]
+            result: dict[str, Path] = {}
+            for thread_id, path in rows:
+                result[thread_id] = Path(path)
+            return result
+        finally:
+            state.close()
+    except sqlite3.Error as error:
+        _sqlite_failure_marks_timeout(error, budget)
+        return None
+    except OSError:
+        budget.check_time()
+        return None
 
 
 def _codex_database_matches(
@@ -1066,18 +1242,14 @@ def _codex_database_matches(
     query: str,
     pattern: re.Pattern[str],
     entries: int,
-    active_ids: set[str],
+    rollout_paths: dict[str, Path],
+    budget: HistoryBudget,
 ) -> list[tuple[str, Path, str, str, str]] | None:
-    state_path = next((path for path in (Path.home() / ".codex" / "state_5.sqlite", Path.home() / ".codex" / "sqlite" / "state_5.sqlite") if path.is_file()), None)
     history_path = Path.home() / ".codex" / "thread_history_1.sqlite"
-    if not state_path or not history_path.is_file():
+    if not rollout_paths or not history_path.is_file():
         return None
     try:
-        state = sqlite3.connect(f"file:{state_path}?mode=ro", uri=True)
-        rows = state.execute("select id, rollout_path from threads where cwd = ?", (str(root),)).fetchall()
-        state.close()
-        rollout_paths = {thread_id: Path(path) for thread_id, path in rows if thread_id not in active_ids}
-        if not rollout_paths:
+        if not budget.can_read():
             return []
         terms = [term.strip() for term in query.split("|") if term.strip()]
         if not terms:
@@ -1085,41 +1257,67 @@ def _codex_database_matches(
         placeholders = ",".join("?" for _ in rollout_paths)
         likes = " or ".join("item_json like ?" for _ in terms)
         sql = (
-            f"select thread_id, rollout_ordinal, item_json from thread_items "
+            f"select rowid, thread_id, rollout_ordinal, length(cast(item_json as blob)) "
+            f"from thread_items "
             f"where thread_id in ({placeholders}) and ({likes}) order by created_at_ms desc limit ?"
         )
+        # SQLite may scan database pages for LIKE; only bytes returned to Python
+        # are capped here.  The cooperative progress handler bounds query time.
         params = [*rollout_paths, *(f"%{term}%" for term in terms), max(entries * 20, 40)]
-        history = sqlite3.connect(f"file:{history_path}?mode=ro", uri=True)
-        items = history.execute(sql, params).fetchall()
-        history.close()
-    except (sqlite3.Error, OSError):
-        return None
-    matches: list[tuple[str, Path, str, str, str]] = []
-    for thread_id, ordinal, raw in items:
+        history = _sqlite_connect(history_path, budget)
         try:
-            item = json.loads(raw)
-        except json.JSONDecodeError:
-            continue
-        item_type = item.get("type")
-        if item_type == "userMessage":
-            role = "user"
-            text = _message_text(item.get("content"))
-        elif item_type == "agentMessage":
-            role = "assistant"
-            text = item.get("text", "")
-        else:
-            continue
-        excerpt = _match_excerpt(text, pattern)
-        if excerpt:
-            matches.append(("Codex", rollout_paths[thread_id], f"ordinal {ordinal}", role, excerpt))
-        if len(matches) >= entries:
-            break
+            history.set_progress_handler(lambda: 1 if not budget.check_time() else 0, 1000)
+            cursor = history.execute(sql, params)
+            payload_cursor = history.cursor()
+            matches: list[tuple[str, Path, str, str, str]] = []
+            for row_id, thread_id, ordinal, raw_size in cursor:
+                if not budget.can_read():
+                    break
+                raw = payload_cursor.execute(
+                    "select substr(cast(item_json as blob), 1, ?) from thread_items where rowid = ?",
+                    (budget.remaining_bytes, row_id),
+                ).fetchone()[0]
+                budget.consume(len(raw))
+                if raw_size > len(raw):
+                    budget.exhausted.add("读取字节")
+                    break
+                try:
+                    item = json.loads(raw.decode("utf-8", errors="replace"))
+                except json.JSONDecodeError:
+                    continue
+                item_type = item.get("type")
+                if item_type == "userMessage":
+                    role = "user"
+                    text = _message_text(item.get("content"))
+                elif item_type == "agentMessage":
+                    role = "assistant"
+                    text = item.get("text", "")
+                else:
+                    continue
+                excerpt = _match_excerpt(text, pattern)
+                if excerpt:
+                    matches.append(("Codex", rollout_paths[thread_id], f"ordinal {ordinal}", role, excerpt))
+                if len(matches) >= entries or not budget.can_read():
+                    break
+        finally:
+            history.close()
+    except sqlite3.Error as error:
+        _sqlite_failure_marks_timeout(error, budget)
+        return None
+    except OSError:
+        budget.check_time()
+        return None
     return matches
 
 
 def cmd_history_search(args: argparse.Namespace) -> int:
+    if (args.entries <= 0 or args.scan_files <= 0 or args.max_bytes <= 0
+            or args.timeout_seconds <= 0 or not math.isfinite(args.timeout_seconds)):
+        print("--entries、--scan-files、--max-bytes 和 --timeout-seconds 必须为正数。")
+        return 2
     root = Path(args.root).resolve()
     pattern = _compile_pattern(args.query)
+    budget = HistoryBudget(args.max_bytes, args.timeout_seconds)
     codex_root = Path(args.codex_history).expanduser().resolve() if args.codex_history else Path.home() / ".codex" / "sessions"
     claude_root = Path(args.claude_history).expanduser().resolve() if args.claude_history else Path.home() / ".claude" / "projects"
     sources: list[tuple[str, Path, object]] = []
@@ -1134,27 +1332,38 @@ def cmd_history_search(args: argparse.Namespace) -> int:
     }
     matches: list[tuple[str, Path, str, str, str]] = []
     database_matches = None
+    indexed_paths: dict[str, Path] | None = None
     if args.agent in ("auto", "codex") and not args.codex_history:
-        database_matches = _codex_database_matches(root, args.query, pattern, args.entries, set() if args.include_current else active_ids)
+        indexed_paths = _codex_indexed_paths(root, set() if args.include_current else active_ids, args.scan_files, budget)
+        if indexed_paths:
+            database_matches = _codex_database_matches(root, args.query, pattern, args.entries, indexed_paths, budget)
         if database_matches:
             matches.extend(database_matches)
-    if args.agent in ("auto", "codex") and codex_root.is_dir() and not database_matches:
-        sources.extend(
-            ("Codex", path, _codex_messages)
-            for path in _history_candidates(codex_root, args.query)
-            if args.include_current or not any(identifier in path.name for identifier in active_ids)
-        )
-    if args.agent in ("auto", "claude") and claude_root.is_dir():
-        sources.extend(
-            ("Claude Code", path, _claude_messages)
-            for path in _history_candidates(claude_root, args.query)
-            if args.include_current or not any(identifier in path.name for identifier in active_ids)
-        )
-    sources.sort(key=lambda item: item[1].stat().st_mtime if item[1].exists() else 0, reverse=True)
-    for agent, path, reader in sources[: args.scan_files]:
+    selected_files = len(indexed_paths or {})
+    if args.agent in ("auto", "codex") and not database_matches:
+        candidates = list(indexed_paths.values()) if indexed_paths else []
+        remaining = args.scan_files - len(candidates)
+        if remaining > 0 and codex_root.is_dir():
+            candidates.extend(_history_candidates(codex_root, remaining, budget,
+                                                  None if args.include_current else active_ids, set(candidates)))
+        for path in candidates:
+            sources.append(("Codex", path, _codex_messages))
+        selected_files = len(candidates)
+    if args.agent in ("auto", "claude") and claude_root.is_dir() and len(matches) < args.entries:
+        remaining = args.scan_files - selected_files
+        if remaining <= 0:
+            budget.exhausted.add("候选文件")
+        else:
+            for path in _history_candidates(claude_root, remaining, budget,
+                                            None if args.include_current else active_ids):
+                sources.append(("Claude Code", path, _claude_messages))
+    # Do not sort by reading every path's metadata: source order is already bounded.
+    for agent, path, reader in sources:
         if len(matches) >= args.entries:
             break
-        for role, message, location in reader(path, root):
+        if not budget.can_read():
+            break
+        for role, message, location in reader(path, root, budget):
             excerpt = _match_excerpt(message, pattern)
             if excerpt:
                 matches.append((agent, path, location, role, excerpt))
@@ -1164,12 +1373,14 @@ def cmd_history_search(args: argparse.Namespace) -> int:
             break
     if not matches:
         print("当前原始会话检索未找到证据；这不代表历史上从未发生。")
-        return 0
-    print(f"命中 {len(matches)} 条原始会话证据：")
-    for index, (agent, path, location, role, excerpt) in enumerate(matches, 1):
-        print(f"\n{index}. [{agent} 原文] {path}#{location}；角色：{role}")
-        print(f"- {excerpt}")
-    print("\n以上内容来自会话数据库或原始会话文件；ordinal 为数据库序号，line 为文件行号。引用结论时仍需结合日期、版本和当前适用范围。")
+    else:
+        print(f"命中 {len(matches)} 条原始会话证据：")
+        for index, (agent, path, location, role, excerpt) in enumerate(matches, 1):
+            print(f"\n{index}. [{agent} 原文] {path}#{location}；角色：{role}")
+            print(f"- {excerpt}")
+        print("\n以上内容来自会话数据库或原始会话文件；ordinal 为数据库序号，line 为文件行号。引用结论时仍需结合日期、版本和当前适用范围。")
+    if budget.exhausted:
+        print("检索不完整：预算耗尽（" + "、".join(sorted(budget.exhausted)) + "）；以上结果不能代表完整零命中。")
     return 0
 
 
@@ -1357,7 +1568,7 @@ def cmd_save_report(args: argparse.Namespace) -> int:
         if _session_id(worklog) != args.session_id:
             return _save_report_error("当前会话不能保存其他会话的工作日志")
     if args.session_id:
-        problems = _check_baseline(root, args.session_id)
+        problems = _check_baseline(root, args.session_id, store_dir)
         for plan in _plan_files(root, store_dir):
             if _session_id(plan) == args.session_id:
                 problems.extend(f"{plan.name}：{issue}" for issue in _validate_plan(plan))
@@ -1487,6 +1698,8 @@ def build_parser() -> argparse.ArgumentParser:
     history.add_argument("--agent", choices=["auto", "codex", "claude"], default="auto")
     history.add_argument("--entries", type=int, default=5)
     history.add_argument("--scan-files", type=int, default=500)
+    history.add_argument("--max-bytes", type=int, default=8 * 1024 * 1024, help="原始会话总读取字节上限")
+    history.add_argument("--timeout-seconds", type=float, default=3.0, help="协作式检索耗时上限")
     history.add_argument("--include-current", action="store_true", help="包含当前正在进行的会话")
     history.add_argument("--codex-history", help=argparse.SUPPRESS)
     history.add_argument("--claude-history", help=argparse.SUPPRESS)

@@ -3,10 +3,10 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
-from test_context_keeper_probe import PROBE, _call, _write_valid_context
+from test_context_keeper_probe import IsolatedProbeTestCase, PROBE, _call, _write_valid_context
 
 
-class MigrationTests(unittest.TestCase):
+class MigrationTests(IsolatedProbeTestCase):
     def test_all_normal_commands_block_without_mutation(self):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)

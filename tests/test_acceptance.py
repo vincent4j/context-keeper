@@ -7,10 +7,72 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from test_context_keeper_probe import PROBE, _call, _experience, _write_valid_context, _save
+from test_context_keeper_probe import IsolatedProbeTestCase, PROBE, _call, _experience, _write_valid_context, _save
 
 
-class AcceptanceTests(unittest.TestCase):
+class AcceptanceTests(IsolatedProbeTestCase):
+    def test_init_migration_requires_approval_before_any_write(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d).resolve()
+            self.assertEqual(_call('init', '--root', d, '--approved')[0], 0)
+            store = root / 'docs/context-keeper'
+            record = store / 'worklogs/2026-09-23-原文.md'
+            record.write_bytes(b'original\x00record')
+            before = {str(path.relative_to(root)): (path.is_dir(), path.read_bytes() if path.is_file() else None)
+                      for path in root.rglob('*')}
+            rc, out = _call('init', '--root', d, '--store-dir', 'notes/history', '--migrate')
+            self.assertEqual(rc, PROBE.RC_NEEDS_CONFIRMATION, out)
+            self.assertEqual(before, {str(path.relative_to(root)): (path.is_dir(), path.read_bytes() if path.is_file() else None)
+                                      for path in root.rglob('*')})
+            self.assertFalse((root / 'context-keeper.json').exists())
+            rc, out = _call('init', '--root', d, '--store-dir', 'notes/history', '--migrate', '--approved')
+            self.assertEqual(rc, 0, out)
+            self.assertEqual((root / 'notes/history/worklogs' / record.name).read_bytes(), b'original\x00record')
+            self.assertEqual(_call('resume', '--root', d)[0], 0)
+
+    def test_init_migration_restores_source_if_config_write_fails(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d).resolve()
+            self.assertEqual(_call('init', '--root', d, '--approved')[0], 0)
+            record = root / 'docs/context-keeper/worklogs/original.bin'
+            record.write_bytes(b'original bytes')
+            before = {str(path.relative_to(root)): (path.is_dir(), path.read_bytes() if path.is_file() else None)
+                      for path in root.rglob('*')}
+            with patch.object(PROBE, '_write_config', side_effect=OSError('simulated failure')):
+                with self.assertRaises(OSError):
+                    _call('init', '--root', d, '--store-dir', 'notes/history', '--migrate', '--approved')
+            self.assertEqual(record.read_bytes(), b'original bytes')
+            self.assertEqual(before, {str(path.relative_to(root)): (path.is_dir(), path.read_bytes() if path.is_file() else None)
+                                      for path in root.rglob('*')})
+
+    def test_jsonl_lines_are_complete_once_with_correct_numbers(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / 'history.jsonl'
+            prefix = b'{"first":1}\n\nbroken\n'
+            long_row = ('{"text":"' + 'x' * (65535 - len(prefix) - len('{"text":"')) + '中' + '"}').encode()
+            self.assertEqual((prefix + long_row).index('中'.encode()), 65535)
+            rows = [b'{"first":1}', b'', b'broken', long_row, b'{"last":2}']
+            for terminal_newline in (False, True):
+                with self.subTest(terminal_newline=terminal_newline):
+                    path.write_bytes(b'\n'.join(rows) + (b'\n' if terminal_newline else b''))
+                    self.assertEqual(list(PROBE._history_lines(path, None)),
+                                     list(enumerate((row.decode('utf-8') for row in rows), 1)))
+
+    def test_jsonl_partial_tail_and_cross_file_budget(self):
+        with tempfile.TemporaryDirectory() as d:
+            first = Path(d) / 'first.jsonl'; second = Path(d) / 'second.jsonl'
+            first.write_bytes(b'one\ntwo\npartial')
+            second.write_bytes(b'next\n')
+            budget = PROBE.HistoryBudget(len(b'one\ntwo\npar'), 3)
+            self.assertEqual(list(PROBE._history_lines(first, budget)), [(1, 'one'), (2, 'two')])
+            self.assertEqual(budget.bytes_read, len(b'one\ntwo\npar'))
+            self.assertEqual(list(PROBE._history_lines(second, budget)), [])
+            first.write_bytes(b'one\ntwo\n')
+            budget = PROBE.HistoryBudget(first.stat().st_size, 3)
+            self.assertEqual(list(PROBE._history_lines(first, budget)), [(1, 'one'), (2, 'two')])
+            self.assertEqual(budget.remaining_bytes, 0)
+            self.assertEqual(list(PROBE._history_lines(second, budget)), [])
+
     def test_invalid_config_never_creates_a_second_store(self):
         for content in ('{broken', '[]', '{}', '{"directory": 42}'):
             with self.subTest(content=content), tempfile.TemporaryDirectory() as d:
@@ -173,6 +235,173 @@ class AcceptanceTests(unittest.TestCase):
                     conn.commit()
                 _,out=_call('history-search','--root',str(root),'--agent','codex','--query','数据库原文关键词','--include-current')
                 self.assertIn('数据库原文关键词',out)
+
+    def test_history_index_limits_content_reads_to_project_candidates(self):
+        with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as h:
+            root=Path(d).resolve(); home=Path(h); codex=home/'.codex'; sessions=codex/'sessions'; sessions.mkdir(parents=True)
+            target=sessions/'target.jsonl'; unrelated=sessions/'unrelated.jsonl'
+            target.write_text('\n'.join(json.dumps(x,ensure_ascii=False) for x in [
+                {'type':'session_meta','payload':{'cwd':str(root)}},
+                {'type':'response_item','payload':{'type':'message','role':'user','content':'索引命中'}}]))
+            unrelated.write_text('x' * 4096)
+            with closing(sqlite3.connect(codex/'state_5.sqlite')) as conn:
+                conn.execute('create table threads (id text, rollout_path text, cwd text)')
+                conn.executemany('insert into threads values (?,?,?)', [('target',str(target),str(root)),('other',str(unrelated),str(root / 'other'))])
+                conn.commit()
+            with patch.object(Path,'home',return_value=home):
+                _,out=_call('history-search','--root',str(root),'--agent','codex','--query','索引命中','--entries','1','--max-bytes','512')
+            self.assertIn('索引命中',out)
+            self.assertNotIn('预算耗尽',out)
+
+    def test_history_scan_and_byte_budgets_report_incomplete_search(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d).resolve(); history=root/'history'; history.mkdir()
+            (history/'a-unrelated.jsonl').write_text('x' * 4096)
+            (history/'b-target.jsonl').write_text('\n'.join(json.dumps(x,ensure_ascii=False) for x in [
+                {'type':'session_meta','payload':{'cwd':str(root)}},
+                {'type':'response_item','payload':{'type':'message','role':'user','content':'后面的命中'}}]))
+            _,out=_call('history-search','--root',str(root),'--agent','codex','--codex-history',str(history),'--query','后面的命中','--scan-files','1')
+            self.assertIn('检索不完整：预算耗尽（候选文件）',out)
+            self.assertNotIn('后面的命中',out)
+            _,out=_call('history-search','--root',str(root),'--agent','codex','--codex-history',str(history),'--query','后面的命中','--scan-files','2','--max-bytes','64')
+            self.assertIn('检索不完整：预算耗尽（',out)
+            self.assertIn('读取字节',out)
+
+    def test_history_timeout_budget_is_deterministic_without_sleep(self):
+        with tempfile.TemporaryDirectory() as d:
+            path=Path(d)/'session.jsonl'; path.write_text('{}\n')
+            budget=PROBE.HistoryBudget(100,1)
+            budget.deadline=0
+            self.assertEqual(list(PROBE._history_lines(path,budget)),[])
+            self.assertEqual(budget.exhausted,{'耗时'})
+            rc,out=_call('history-search','--root',d,'--query','x','--max-bytes','0')
+            self.assertEqual(rc,2); self.assertIn('必须为正数',out)
+
+    def test_history_byte_budget_counts_truncated_raw_reads_and_stops_next_file(self):
+        with tempfile.TemporaryDirectory() as d:
+            first=Path(d)/'first.jsonl'; second=Path(d)/'second.jsonl'
+            first.write_bytes(b'x' * 1024); second.write_bytes(b'y' * 1024)
+            budget=PROBE.HistoryBudget(64,3)
+            self.assertEqual(list(PROBE._history_lines(first,budget)),[])
+            self.assertEqual(budget.bytes_read,64)
+            self.assertEqual(budget.remaining_bytes,0)
+            self.assertEqual(list(PROBE._history_lines(second,budget)),[])
+            self.assertEqual(budget.bytes_read,64)
+            self.assertIn('读取字节',budget.exhausted)
+
+    def test_state_candidates_filter_active_then_report_overflow_and_fallback_when_empty(self):
+        with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as h:
+            root=Path(d).resolve(); home=Path(h); codex=home/'.codex'; sessions=codex/'sessions'; sessions.mkdir(parents=True)
+            old=sessions/'old.jsonl'; target=sessions/'target.jsonl'; active=sessions/'active.jsonl'
+            def write(path,text): path.write_text('\n'.join(json.dumps(x,ensure_ascii=False) for x in [{'type':'session_meta','payload':{'cwd':str(root)}},{'type':'response_item','payload':{'type':'message','role':'user','content':text}}]))
+            write(old,'旧候选'); write(target,'第二候选'); write(active,'空索引回退')
+            with closing(sqlite3.connect(codex/'state_5.sqlite')) as conn:
+                conn.execute('create table threads (id text, rollout_path text, cwd text)')
+                conn.executemany('insert into threads values (?,?,?)',[('old',str(old),str(root)),('target',str(target),str(root))]); conn.commit()
+            with patch.object(Path,'home',return_value=home):
+                _,out=_call('history-search','--root',str(root),'--agent','codex','--query','第二候选','--scan-files','1')
+                self.assertIn('候选文件',out); self.assertIn('第二候选',out)
+                with closing(sqlite3.connect(codex/'state_5.sqlite')) as conn:
+                    conn.execute('delete from threads'); conn.commit()
+                _,out=_call('history-search','--root',str(root),'--agent','codex','--query','空索引回退')
+                self.assertIn('空索引回退',out)
+            with closing(sqlite3.connect(codex/'state_5.sqlite')) as conn:
+                conn.executemany('insert into threads values (?,?,?)',[('active',str(active),str(root)),('target',str(target),str(root))]); conn.commit()
+            with patch.object(Path,'home',return_value=home), patch.dict(PROBE.os.environ,{'CODEX_THREAD_ID':'active'},clear=True):
+                _,out=_call('history-search','--root',str(root),'--agent','codex','--query','第二候选','--scan-files','1')
+            self.assertIn('第二候选',out); self.assertNotIn('候选文件',out)
+
+    def test_partial_state_index_falls_back_within_global_cap(self):
+        with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as h:
+            root=Path(d).resolve(); home=Path(h); codex=home/'.codex'; sessions=codex/'sessions'; sessions.mkdir(parents=True)
+            indexed=sessions/'indexed.jsonl'; missing=sessions/'missing.jsonl'
+            def write(path, word):
+                path.write_text('\n'.join(json.dumps(row) for row in (
+                    {'type':'session_meta','payload':{'cwd':str(root)}},
+                    {'type':'response_item','payload':{'type':'message','role':'user','content':word}})))
+            write(indexed,'unrelated'); write(missing,'found via fallback')
+            with closing(sqlite3.connect(codex/'state_5.sqlite')) as conn:
+                conn.execute('create table threads (id text, rollout_path text, cwd text, updated_at integer)')
+                conn.execute('insert into threads values (?,?,?,?)',('indexed',str(indexed),str(root),10)); conn.commit()
+            with patch.object(Path,'home',return_value=home):
+                _,out=_call('history-search','--root',str(root),'--agent','codex','--query','found via fallback','--scan-files','2')
+            self.assertIn('found via fallback',out)
+
+    def test_archived_index_path_works_without_sessions_directory(self):
+        with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as h:
+            root=Path(d).resolve(); home=Path(h); codex=home/'.codex'; codex.mkdir()
+            archived=home/'archive.jsonl'
+            archived.write_text('\n'.join(json.dumps(row) for row in (
+                {'type':'session_meta','payload':{'cwd':str(root)}},
+                {'type':'response_item','payload':{'type':'message','role':'user','content':'archived proof'}})))
+            with closing(sqlite3.connect(codex/'state_5.sqlite')) as conn:
+                conn.execute('create table threads (id text, rollout_path text, cwd text)')
+                conn.execute('insert into threads values (?,?,?)',('archived',str(archived),str(root))); conn.commit()
+            with patch.object(Path,'home',return_value=home):
+                _,out=_call('history-search','--root',str(root),'--agent','codex','--query','archived proof')
+            self.assertIn('archived proof',out)
+
+    def test_database_hit_reserves_global_candidate_slots_from_claude(self):
+        with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as h:
+            root=Path(d).resolve(); home=Path(h); codex=home/'.codex'; codex.mkdir()
+            archived=home/'archive.jsonl'; archived.write_text('{}\n')
+            claude=home/'.claude/projects'; claude.mkdir(parents=True)
+            (claude/'other.jsonl').write_text(json.dumps({'cwd':str(root),'type':'user','message':{'content':'claude proof'}}))
+            with closing(sqlite3.connect(codex/'state_5.sqlite')) as conn:
+                conn.execute('create table threads (id text, rollout_path text, cwd text)')
+                conn.execute('insert into threads values (?,?,?)',('indexed',str(archived),str(root))); conn.commit()
+            with closing(sqlite3.connect(codex/'thread_history_1.sqlite')) as conn:
+                conn.execute('create table thread_items (thread_id text, rollout_ordinal integer, item_json text, created_at_ms integer)')
+                conn.execute('insert into thread_items values (?,?,?,?)',
+                             ('indexed',1,json.dumps({'type':'userMessage','content':'database proof'}),1)); conn.commit()
+            with patch.object(Path,'home',return_value=home):
+                _,out=_call('history-search','--root',str(root),'--query','database proof|claude proof',
+                            '--entries','2','--scan-files','1')
+            self.assertIn('database proof',out)
+            self.assertNotIn('claude proof',out)
+            self.assertIn('候选文件',out)
+
+    def test_auto_source_merge_and_database_rows_obey_budgets(self):
+        with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as h:
+            root=Path(d).resolve(); codex=root/'codex'; claude=root/'claude'; codex.mkdir(); claude.mkdir()
+            def write(path,text,claude_row=False):
+                rows=[{'cwd':str(root),'type':'user','message':{'content':text}}] if claude_row else [{'type':'session_meta','payload':{'cwd':str(root)}},{'type':'response_item','payload':{'type':'message','role':'user','content':text}}]
+                path.write_text('\n'.join(json.dumps(x,ensure_ascii=False) for x in rows))
+            write(codex/'one.jsonl','Codex 无关'); write(claude/'two.jsonl','Claude 目标',True)
+            _,out=_call('history-search','--root',str(root),'--query','Claude 目标','--scan-files','1','--codex-history',str(codex),'--claude-history',str(claude))
+            self.assertIn('候选文件',out); self.assertNotIn('Claude 目标',out)
+            home=Path(h); db=home/'.codex'; db.mkdir(); path=db/'huge.jsonl'; write(path,'巨型数据库消息')
+            with closing(sqlite3.connect(db/'state_5.sqlite')) as conn:
+                conn.execute('create table threads (id text, rollout_path text, cwd text)'); conn.execute('insert into threads values (?,?,?)',('t',str(path),str(root))); conn.commit()
+            huge=json.dumps({'type':'userMessage','content':'巨型数据库消息'+'x'*100000},ensure_ascii=False)
+            with closing(sqlite3.connect(db/'thread_history_1.sqlite')) as conn:
+                conn.execute('create table thread_items (thread_id text, rollout_ordinal integer, item_json text, created_at_ms integer)'); conn.execute('insert into thread_items values (?,?,?,?)',('t',1,huge,1)); conn.commit()
+            with patch.object(Path,'home',return_value=home):
+                budget=PROBE.HistoryBudget(256,3); paths=PROBE._codex_indexed_paths(root,set(),5,budget); found=PROBE._codex_database_matches(root,'巨型数据库消息',PROBE._compile_pattern('巨型数据库消息'),1,paths or {},budget)
+            self.assertEqual(found,[]); self.assertLessEqual(budget.bytes_read,256); self.assertIn('读取字节',budget.exhausted)
+            for value in ('nan','inf','-inf'):
+                rc,out=_call('history-search','--root',str(root),'--query','x',f'--timeout-seconds={value}')
+                self.assertEqual(rc,2); self.assertIn('必须为正数',out)
+
+    def test_database_payload_budget_is_cumulative_and_accepts_exact_utf8_message(self):
+        with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as h:
+            root=Path(d).resolve(); home=Path(h); codex=home/'.codex'; codex.mkdir(); path=codex/'session.jsonl'
+            item=json.dumps({'type':'userMessage','content':'target '+'x'*140},ensure_ascii=False)
+            exact=json.dumps({'type':'userMessage','content':'中文精确命中'},ensure_ascii=False)
+            with closing(sqlite3.connect(codex/'thread_history_1.sqlite')) as conn:
+                conn.execute('create table thread_items (thread_id text, rollout_ordinal integer, item_json text, created_at_ms integer)')
+                conn.executemany('insert into thread_items values (?,?,?,?)',[('t',1,item,1),('t',2,item,2)]); conn.commit()
+            with patch.object(Path,'home',return_value=home):
+                budget=PROBE.HistoryBudget(256,3)
+                found=PROBE._codex_database_matches(root,'target',PROBE._compile_pattern('target'),5,{'t':path},budget)
+            self.assertEqual(len(found),1); self.assertLessEqual(budget.bytes_read,256); self.assertEqual(budget.remaining_bytes,0)
+            with closing(sqlite3.connect(codex/'thread_history_1.sqlite')) as conn:
+                conn.execute('delete from thread_items'); conn.execute('insert into thread_items values (?,?,?,?)',('t',1,exact,1)); conn.commit()
+            encoded=len(exact.encode())
+            with patch.object(Path,'home',return_value=home):
+                budget=PROBE.HistoryBudget(encoded,3)
+                found=PROBE._codex_database_matches(root,'中文精确',PROBE._compile_pattern('中文精确'),1,{'t':path},budget)
+            self.assertEqual(len(found),1); self.assertEqual(budget.bytes_read,encoded); self.assertEqual(budget.remaining_bytes,0)
 
     def test_same_theme_duplicates_reported(self):
         with tempfile.TemporaryDirectory() as d:
