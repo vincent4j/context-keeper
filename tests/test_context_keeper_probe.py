@@ -444,6 +444,38 @@ class SaveReportTests(IsolatedProbeTestCase):
             self.assertEqual(result, 2)
             self.assertIn("字段不完整", output)
 
+    def test_blocks_evolution_growth_and_coverage_reports_same_reason(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            worklog = _write_valid_context(root, evolution=True)
+            experience = root / "docs/context-keeper/evolution/耗时分析.md"
+            text = _experience() + "\n" + "重复过程" * 600
+            experience.write_text(text)
+            result, output = _save(root, worklog)
+            self.assertEqual(result, 2, output)
+            self.assertIn("2000", output)
+            self.assertNotIn("已保存上下文", output)
+            self.assertEqual(experience.read_text(), text)
+            result, output = _call("coverage", "--root", str(root), "--details")
+            self.assertEqual(result, 1)
+            self.assertIn("evolution_invalid=1", output)
+            self.assertIn("2000", output)
+
+    def test_blocks_dated_appendices_but_allows_date_in_evidence(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            worklog = _write_valid_context(root, evolution=True)
+            experience = root / "docs/context-keeper/evolution/耗时分析.md"
+            for heading in ("## 2026-10-07 第一轮测试", "### 2026-10-07 第二轮纠正"):
+                with self.subTest(heading=heading):
+                    experience.write_text(_experience() + "\n" + heading + "\n新增过程\n")
+                    result, output = _save(root, worklog)
+                    self.assertEqual(result, 2, output)
+                    self.assertIn("逐日期", output)
+            experience.write_text(_experience().replace("生成后整体处理较慢", "2026-10-07验证：生成后整体处理较慢"))
+            result, output = _save(root, worklog)
+            self.assertEqual(result, 0, output)
+
     def test_blocks_repeated_visible_insight(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

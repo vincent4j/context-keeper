@@ -25,6 +25,8 @@ DEFAULT_STORE = "docs/context-keeper"
 CONFIG_FILE = "context-keeper.json"
 EVOLUTION_FIELDS = ("编号", "状态", "触发条件", "已知事实", "证据位置", "建议动作", "适用范围")
 EVOLUTION_STATUSES = {"待验证", "已验证", "已替代"}
+EVOLUTION_MAX_CHARS = 2000
+EVOLUTION_DATED_HEADING_RE = re.compile(r"^#{2,6}\s+\d{4}-\d{2}-\d{2}(?:\b|\s)", re.M)
 RC_NEEDS_CONFIRMATION = 5
 
 
@@ -519,6 +521,11 @@ def _field_map(path: Path) -> dict[str, str]:
 def _validate_evolution(path: Path) -> list[str]:
     fields = _field_map(path)
     problems = [f"缺少字段 {name}" for name in EVOLUTION_FIELDS if not fields.get(name)]
+    text = _read_text(path)
+    if len(text) > EVOLUTION_MAX_CHARS:
+        problems.append(f"经验正文超过 {EVOLUTION_MAX_CHARS} 字符；只留规则、边界和证据链接，过程移到工作日志")
+    if EVOLUTION_DATED_HEADING_RE.search(text):
+        problems.append("经验含逐日期追加章节；修订已有规则和证据链接，不追加操作流水")
     status = fields.get("状态")
     if status and status not in EVOLUTION_STATUSES:
         problems.append(f"状态无效 {status}")
@@ -1621,7 +1628,9 @@ def cmd_save_report(args: argparse.Namespace) -> int:
             return _save_report_error("自我进化经验文件不存在：" + "、".join(_rel(root, path) for path in missing_links))
         invalid = [(path, _validate_evolution(path)) for path in notice_links if _validate_evolution(path)]
         if invalid:
-            return _save_report_error("自我进化经验字段不完整：" + "、".join(_rel(root, path) for path, _ in invalid))
+            return _save_report_error("自我进化经验字段不完整或内容不符合保存规范：" + "；".join(
+                f"{_rel(root, path)}：{'、'.join(problems)}" for path, problems in invalid
+            ))
         for (kind, _), link in zip(notices, notice_links):
             if kind == "已沉淀" and any(old_kind == "已沉淀" and link in _notice_links(old, [(old_kind, content)]) for old in previous_logs for old_kind, content in _evolution_notices(old)):
                 return _save_report_error("同一经验已经沉淀过；请记录本次复用或修正，不要重复宣称沉淀")
