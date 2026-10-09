@@ -319,6 +319,67 @@ class TokenBoundaryTests(IsolatedProbeTestCase):
         self.assertIn("无需压缩", output)
 
 
+class CompactReminderTests(IsolatedProbeTestCase):
+    def _store(self) -> Path:
+        temporary = tempfile.TemporaryDirectory(prefix="context-keeper-remind-")
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        _call("init", "--root", str(root), "--approved")
+        return root
+
+    def test_compact_level_ladder(self):
+        self.assertIsNone(PROBE._compact_level(15000, 0))
+        self.assertEqual(PROBE._compact_level(25000, 0), 20480)
+        self.assertEqual(PROBE._compact_level(31000, 0), 30720)
+        self.assertIsNone(PROBE._compact_level(31000, 30720))
+        self.assertEqual(PROBE._compact_level(45000, 30720), 40960)
+        self.assertEqual(PROBE._compact_level(210 * 1024, 0), 204800)
+        self.assertIsNone(PROBE._compact_level(210 * 1024, 204800))
+        self.assertEqual(PROBE._compact_level(215 * 1024, 204800), 215040)
+
+    def test_save_report_reminds_then_snooze_then_next_threshold(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            worklog = _write_valid_context(root)
+            memory = root / "docs/context-keeper/memory-keeper.md"
+            with memory.open("a", encoding="utf-8") as handle:
+                handle.write("x" * 21000 + "\n")
+            rc, output = _save(root, worklog)
+            self.assertEqual(rc, 0)
+            self.assertIn("体积提醒", output)
+            self.assertIn("20KB 阈值", output)
+
+            rc, output = _call("compact", "--root", str(root), "--snooze")
+            self.assertEqual(rc, 0)
+            self.assertIn("增长到约 30KB 后会再次提醒", output)
+            rc, output = _save(root, worklog)
+            self.assertEqual(rc, 0)
+            self.assertNotIn("体积提醒", output)
+
+            with memory.open("a", encoding="utf-8") as handle:
+                handle.write("y" * 21000 + "\n")
+            rc, output = _save(root, worklog)
+            self.assertEqual(rc, 0)
+            self.assertIn("40KB 阈值", output)
+
+    def test_compact_settles_state_at_new_size(self):
+        root = self._store()
+        memory = root / "docs/context-keeper/memory-keeper.md"
+        blocks = []
+        for index in range(1, 19):
+            day = f"2026-09-{index:02d}"
+            blocks.append(f"## {day} - 主题{index} `feature`\n- **任务：** {'任务内容' * 20}\n- **详见：** [日志](worklogs/{day}-主题{index}.md)\n")
+        memory.write_text(
+            "# 项目记忆索引\n\n## 未完成事项\n\n- 暂无\n\n## 时间线（最新在前）\n\n"
+            + "\n".join(reversed(blocks)) + "\n---\n",
+            encoding="utf-8",
+        )
+        _call("compact", "--root", str(root), "--approved")
+        settled = PROBE._read_compact_settled(PROBE._compact_state_path(root))
+        self.assertEqual(settled, memory.stat().st_size)
+        self.assertIsNone(PROBE._compact_level(memory.stat().st_size, settled))
+
+
 class ResumeAndSearchTests(IsolatedProbeTestCase):
     def test_resume_defaults_to_five_entries_and_three_plus_two(self):
         with tempfile.TemporaryDirectory() as temp_dir:

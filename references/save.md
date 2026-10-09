@@ -112,6 +112,8 @@ python3 <skill-dir>/scripts/context_keeper_probe.py compact --root <repo> --appr
 
 归档条目合并为单行（日期、类型、主题、任务一句和记录链接），放在时间线分隔线之后的“时间线归档”章节，不再进入续接候选，但链接保留、仍可全文检索。历史文件不被改写。
 
+保存收尾时 `save-report` 会检查 memory-keeper 体积并按阶梯提醒：20KB 起每增长 10KB 一级（20/30/40/50…KB）。看到提醒后转达用户并询问是否压缩：同意就直接运行 `compact --approved`（用户的同意即为确认），拒绝则运行 `compact --snooze` 记录当前级别，之后不再重复询问，增长到下一阈值才再提醒。压缩后从压缩后的体积重新起算。
+
 未完成事项使用以下格式，便于续接时按当前任务筛选：
 
 ```markdown

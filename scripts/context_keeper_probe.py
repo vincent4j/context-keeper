@@ -28,6 +28,8 @@ EVOLUTION_STATUSES = {"待验证", "已验证", "已替代"}
 EVOLUTION_MAX_CHARS = 2000
 EVOLUTION_DATED_HEADING_RE = re.compile(r"^#{2,6}\s+\d{4}-\d{2}-\d{2}(?:\b|\s)", re.M)
 RC_NEEDS_CONFIRMATION = 5
+COMPACT_FIRST = 20480
+COMPACT_STEP = 10240
 
 
 class Layout(NamedTuple):
@@ -1053,6 +1055,46 @@ def cmd_search(args: argparse.Namespace) -> int:
     return 0
 
 
+def _compact_state_path(root: Path, store_dir: str | None = None) -> Path:
+    store = _layout(root, store_dir).store
+    key = hashlib.sha256(json.dumps([str(root.resolve()), str(store)]).encode()).hexdigest()
+    return Path.home() / ".cache" / "context-keeper" / f"compact-state-{key}.json"
+
+
+def _read_compact_settled(state_path: Path) -> int:
+    if not state_path.is_file():
+        return 0
+    try:
+        return int(json.loads(_read_text(state_path)).get("settled", 0))
+    except (json.JSONDecodeError, OSError, TypeError, ValueError):
+        return 0
+
+
+def _write_compact_settled(state_path: Path, settled: int) -> None:
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    state_path.write_text(json.dumps({"settled": settled}), encoding="utf-8")
+
+
+def _compact_level(size: int, settled: int) -> int | None:
+    """当前体积命中的最高提醒级别（字节）；未达到首阈值或该级别已被处理时返回 None。"""
+    if size < COMPACT_FIRST:
+        return None
+    level = COMPACT_FIRST + ((size - COMPACT_FIRST) // COMPACT_STEP) * COMPACT_STEP
+    return level if level > settled else None
+
+
+def _compact_reminder(memory: Path, state_path: Path) -> str | None:
+    if not memory.is_file():
+        return None
+    size = memory.stat().st_size
+    level = _compact_level(size, _read_compact_settled(state_path))
+    if level is None:
+        return None
+    nxt = level + COMPACT_STEP
+    return (f"体积提醒：memory-keeper 当前约 {size // 1024}KB，超过 {level // 1024}KB 阈值；询问用户是否压缩——"
+            f"同意则运行 compact --approved，拒绝则运行 compact --snooze，增长到约 {nxt // 1024}KB 后再提醒。")
+
+
 def _archive_line(entry: list[str]) -> str:
     heading = entry[0].lstrip("# ").strip()
     date_match = re.search(r"\d{4}-\d{2}-\d{2}", heading)
@@ -1079,6 +1121,18 @@ def cmd_compact(args: argparse.Namespace) -> int:
     root = Path(args.root).resolve()
     store_dir = getattr(args, "store_dir", None)
     memory = _layout(root, store_dir).memory
+    state_path = _compact_state_path(root, store_dir)
+    if args.snooze:
+        if not memory.is_file():
+            print("未找到 memory-keeper.md，无需挂起提醒。")
+            return 2
+        level = _compact_level(memory.stat().st_size, 0)
+        if level is None:
+            print("当前未超过任何提醒阈值，无需挂起。")
+            return 0
+        _write_compact_settled(state_path, level)
+        print(f"已记录：本次不压缩；增长到约 {(level + COMPACT_STEP) // 1024}KB 后会再次提醒。")
+        return 0
     if not memory.is_file():
         print("未找到 memory-keeper.md；没有可压缩的时间线。")
         return 2
@@ -1112,6 +1166,7 @@ def cmd_compact(args: argparse.Namespace) -> int:
         print("压缩会丢失原有记录链接，已停止且未写入；请检查时间线格式后重试。")
         return 2
     memory.write_text(updated, encoding="utf-8")
+    _write_compact_settled(state_path, memory.stat().st_size)
     print(f"已压缩时间线：保留最近 {keep} 条，归档 {len(archived)} 条为单行；归档位于时间线分隔线之后。")
     return 0
 
@@ -1746,6 +1801,9 @@ def cmd_save_report(args: argparse.Namespace) -> int:
     print("\n详细内容：")
     print(f"- 工作日志：[{_rel(root, worklog)}]({_rel(root, worklog)})")
     print(f"- 项目记忆：[{_rel(root, memories[0])}]({_rel(root, memories[0])})")
+    reminder = _compact_reminder(layout.memory, _compact_state_path(root, store_dir))
+    if reminder:
+        print("\n" + reminder)
     return 0
 
 
@@ -1827,6 +1885,7 @@ def build_parser() -> argparse.ArgumentParser:
     compact.add_argument("--store-dir", help="显式指定记录目录；默认自动发现")
     compact.add_argument("--keep", type=int, default=15, help="保留最近 N 条详细条目")
     compact.add_argument("--approved", action="store_true")
+    compact.add_argument("--snooze", action="store_true", help="用户拒绝本次压缩；记录当前级别，增长到下一阈值再提醒")
     compact.set_defaults(func=cmd_compact)
     coverage = sub.add_parser("coverage", help="检查索引、摘要、会话、经验字段和链接")
     coverage.add_argument("--root", default=".")

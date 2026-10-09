@@ -46,7 +46,7 @@ python3 <skill-dir>/scripts/install.py --ensure-bridge --skill-dir <skill-dir> -
 - `coverage` 默认只输出一行计数；只有排查缺口时加 `--details`。
 - 同会话、同仓库、同主题的连续更新走快速路径：已成功的 bridge 检查、`status` 和同路径 `record-guard` 不重复执行，除非仓库、分支、记录位置、会话 ID 或外部文件状态变化；只改已索引同主题记录时写后只跑一次 `save-report`，新建记录或改索引/链接/结构才跑 `coverage`；独立检查可同批并行，不拆成多轮对话。
 - 本地脚本门禁目标 1 秒内，同主题增量收尾 5 秒内；超出先报告慢项，不用省略历史保护、保存校验或伪造完成来追时限。
-- `memory-keeper.md` 时间线超过 15 条时，先用 `compact` 预览并确认，把最旧条目归档为单行再写入，控制每次保存的读取成本。
+- `memory-keeper.md` 时间线超过 15 条时，先用 `compact` 预览并确认，把最旧条目归档为单行再写入，控制每次保存的读取成本。`save-report` 按 20KB 起每 +10KB 的阶梯提醒压缩：用户同意即 `compact --approved`，拒绝则 `compact --snooze`，到下一阈值再提醒。
 
 ## 操作路由
 
