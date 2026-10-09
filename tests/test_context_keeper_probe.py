@@ -333,9 +333,9 @@ class CompactReminderTests(IsolatedProbeTestCase):
         self.assertEqual(PROBE._compact_level(31000, 0), 30720)
         self.assertIsNone(PROBE._compact_level(31000, 30720))
         self.assertEqual(PROBE._compact_level(45000, 30720), 40960)
-        self.assertEqual(PROBE._compact_level(210 * 1024, 0), 204800)
-        self.assertIsNone(PROBE._compact_level(210 * 1024, 204800))
-        self.assertEqual(PROBE._compact_level(215 * 1024, 204800), 215040)
+        self.assertEqual(PROBE._compact_level(210 * 1024, 0), 215040)
+        self.assertIsNone(PROBE._compact_level(210 * 1024, 215040))
+        self.assertEqual(PROBE._compact_level(221 * 1024, 215040), 225280)
 
     def test_save_report_reminds_then_snooze_then_next_threshold(self):
         with tempfile.TemporaryDirectory() as temp_dir:
