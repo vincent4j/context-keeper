@@ -837,6 +837,9 @@ def cmd_record_path(args: argparse.Namespace) -> int:
     root = Path(args.root).resolve()
     store_dir = getattr(args, "store_dir", None)
     layout = _layout(root, store_dir)
+    if not layout.store.exists():
+        print("记录库尚未初始化：先运行 init 并取得用户确认，再创建记录。")
+        return 2
     directory = layout.plans if args.kind == "plan" else layout.worklogs
     directory.mkdir(parents=True, exist_ok=True)
     title = _safe_title(args.title)

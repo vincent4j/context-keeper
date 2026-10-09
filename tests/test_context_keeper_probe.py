@@ -216,6 +216,16 @@ class RecordBoundaryTests(IsolatedProbeTestCase):
             self.assertIn("跨会话修改已阻止", output)
 
 
+class StoreCreationGateTests(IsolatedProbeTestCase):
+    def test_record_path_refuses_uninitialized_store(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            rc, output = _call("record-path", "--root", str(root), "--kind", "worklog", "--title", "测试", "--session-id", "a")
+            self.assertEqual(rc, 2)
+            self.assertIn("记录库尚未初始化", output)
+            self.assertFalse((root / "docs" / "context-keeper").exists())
+
+
 class ResumeAndSearchTests(IsolatedProbeTestCase):
     def test_resume_defaults_to_five_entries_and_three_plus_two(self):
         with tempfile.TemporaryDirectory() as temp_dir:
