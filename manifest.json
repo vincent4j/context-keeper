@@ -16,7 +16,7 @@
   "files": [
     {
       "path": "SKILL.md",
-      "sha256": "6d8744aae470a4df83b5653eb9ce192bcc5c31ab3761dec85fe5747ea878e50e"
+      "sha256": "db9ed28a1592e0d59683e77ec817938b7916844cb1ab40a74dde22b4f4d6a0e3"
     },
     {
       "path": "README.md",
@@ -36,7 +36,7 @@
     },
     {
       "path": "references/resume.md",
-      "sha256": "7d441a12d58772e1151f8f542cdd387ddcd8f8d5c4b4e9108be85207782f6a81"
+      "sha256": "861752cd438ae836be5483a619dbe9f4df4189ff9a327de8a73342737b1f6b86"
     },
     {
       "path": "references/install.md",
