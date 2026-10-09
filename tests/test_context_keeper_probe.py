@@ -348,6 +348,7 @@ class CompactReminderTests(IsolatedProbeTestCase):
             self.assertEqual(rc, 0)
             self.assertIn("体积提醒", output)
             self.assertIn("20KB 阈值", output)
+            self.assertIn("回复 1 或 2", output)
 
             rc, output = _call("compact", "--root", str(root), "--snooze")
             self.assertEqual(rc, 0)

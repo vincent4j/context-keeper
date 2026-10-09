@@ -1091,8 +1091,16 @@ def _compact_reminder(memory: Path, state_path: Path) -> str | None:
     if level is None:
         return None
     nxt = level + COMPACT_STEP
-    return (f"体积提醒：memory-keeper 当前约 {size // 1024}KB，超过 {level // 1024}KB 阈值；询问用户是否压缩——"
-            f"同意则运行 compact --approved，拒绝则运行 compact --snooze，增长到约 {nxt // 1024}KB 后再提醒。")
+    return (
+        f"体积提醒：memory-keeper 当前约 {size // 1024}KB，超过 {level // 1024}KB 阈值。请向用户展示：\n"
+        "\n"
+        "你想怎么处理？\n"
+        "\n"
+        "1. 处理 —— 压缩时间线，旧条目归档为单行，链接保留。\n"
+        f"2. 不处理 —— 现在跳过，增长到约 {nxt // 1024}KB 后再提醒。\n"
+        "\n"
+        "回复 1 或 2 即可。"
+    )
 
 
 def _archive_line(entry: list[str]) -> str:
