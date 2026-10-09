@@ -368,12 +368,13 @@ def _plan_files(root: Path, store_dir: str | None = None) -> list[Path]:
     return _markdown_files(_plan_dirs(root, store_dir))
 
 
-def _quick_summary(path: Path, full: bool = False, details: bool = False, max_lines: int = 12) -> list[str]:
+def _quick_summary(path: Path, full: bool = False, details: bool = False, max_lines: int | None = None) -> list[str]:
     lines = _read_text(path).splitlines()
     start = next((idx for idx, line in enumerate(lines) if line.strip() == "## 快速摘要（用于下次对话）"), None)
     if start is None:
         return []
-    block = lines[start : start + max_lines]
+    limit = max_lines if max_lines is not None else (14 if (full or details) else 8)
+    block = lines[start : start + limit]
     if full:
         return [_clip(line) for line in block]
     wanted = ("**类型：**", "**完成：**", "**下一步：**")
@@ -488,6 +489,23 @@ def _compile_pattern(query: str) -> re.Pattern[str]:
 
 def _file_hits(path: Path, pattern: re.Pattern[str], limit: int) -> list[str]:
     return [_clip(line, 180) for line in _read_text(path).splitlines() if pattern.search(line)][:limit]
+
+
+def _linked_records(text: str, base: Path) -> set[str]:
+    """提取文本中的本地 Markdown 链接目标并解析为绝对路径，用于跨源去重。"""
+    resolved: set[str] = set()
+    for enclosed, bare in LOCAL_LINK_RE.findall(text):
+        raw = (enclosed or bare).split("#", 1)[0]
+        if not raw or re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*:", raw):
+            continue
+        target = Path(raw)
+        if not target.is_absolute():
+            target = base / target
+        try:
+            resolved.add(str(target.resolve()))
+        except OSError:
+            continue
+    return resolved
 
 
 def _session_id(path: Path) -> str | None:
@@ -967,6 +985,7 @@ def cmd_search(args: argparse.Namespace) -> int:
     pattern = _compile_pattern(args.query)
     results: list[tuple[str, str, list[str]]] = []
     seen: set[str] = set()
+    linked_records: set[str] = set()
     evolution_count = 0
     for scope, path in _evolution_files(root, args.user_evolution_dir, store_dir):
         if evolution_count >= min(args.evolution_entries, args.entries):
@@ -985,6 +1004,7 @@ def cmd_search(args: argparse.Namespace) -> int:
         suffix = f"{status}；{'项目' if scope == 'project' else '用户级'}"
         results.append(("evolution", f"{title}（{suffix}；{_rel(root, path)}）", hits))
         seen.add(str(path))
+        linked_records |= _linked_records(_read_text(path), path.parent)
         evolution_count += 1
 
     if len(results) < args.entries:
@@ -995,6 +1015,7 @@ def cmd_search(args: argparse.Namespace) -> int:
                 if hits and key not in seen:
                     results.append(("memory", entry[0].lstrip("# ").strip(), hits))
                     seen.add(key)
+                    linked_records |= _linked_records(key, memory_path.parent)
                 if len(results) >= args.entries:
                     break
             if len(results) >= args.entries:
@@ -1009,10 +1030,13 @@ def cmd_search(args: argparse.Namespace) -> int:
             if scanned >= args.scan_worklogs:
                 break
             scanned += 1
+            resolved = str(path.resolve())
+            if resolved in linked_records:
+                continue
             hits = _file_hits(path, pattern, args.hit_lines)
-            if hits and str(path) not in seen:
+            if hits and resolved not in seen:
                 results.append((source_kind, _rel(root, path), hits))
-                seen.add(str(path))
+                seen.add(resolved)
             if len(results) >= args.entries:
                 break
 
@@ -1026,6 +1050,69 @@ def cmd_search(args: argparse.Namespace) -> int:
         for line in hits:
             print(f"- {line}")
     print("\n以上是历史记录或摘要；需要引用原文时，应继续定位原始记录，不能用推测补全。")
+    return 0
+
+
+def _archive_line(entry: list[str]) -> str:
+    heading = entry[0].lstrip("# ").strip()
+    date_match = re.search(r"\d{4}-\d{2}-\d{2}", heading)
+    date = date_match.group(0) if date_match else "未知日期"
+    title = re.sub(r"^\d{4}-\d{2}-\d{2}\s*-\s*", "", heading)
+    title = re.sub(r"\s*`[^`]+`\s*$", "", title).strip()
+    kind_match = re.search(r"`([^`]+)`", heading)
+    kind = f" `{kind_match.group(1)}`" if kind_match else ""
+    task = next((line.split("**任务：**", 1)[1].strip() for line in entry[1:] if line.startswith("- **任务：**")), "")
+    links: list[str] = []
+    for line in entry[1:]:
+        for match in re.finditer(r"!?\[[^\]]*\]\([^)]+\)", line):
+            if match.group(0) not in links:
+                links.append(match.group(0))
+    parts = [f"- {date}{kind} {title}"]
+    if task:
+        parts.append(f"：{_clip(task, 120)}")
+    if links:
+        parts.append("；详见 " + "、".join(links))
+    return "".join(parts) + "\n"
+
+
+def cmd_compact(args: argparse.Namespace) -> int:
+    root = Path(args.root).resolve()
+    store_dir = getattr(args, "store_dir", None)
+    memory = _layout(root, store_dir).memory
+    if not memory.is_file():
+        print("未找到 memory-keeper.md；没有可压缩的时间线。")
+        return 2
+    lines = _read_text(memory).splitlines()
+    start = next((idx for idx, line in enumerate(lines) if line.strip() == "## 时间线（最新在前）"), None)
+    if start is None:
+        print("memory-keeper.md 缺少“## 时间线（最新在前）”章节，未做修改。")
+        return 2
+    terminator = next((idx for idx in range(start + 1, len(lines)) if lines[idx].strip() == "---"), None)
+    span = "\n".join(lines[start:terminator]) if terminator is not None else "\n".join(lines[start:])
+    entries = _memory_entries(memory)
+    keep = max(0, args.keep)
+    if len(entries) <= keep:
+        print(f"时间线共 {len(entries)} 条，未超过保留上限 {keep}，无需压缩。")
+        return 0
+    kept, archived = entries[:keep], entries[keep:]
+    kept_text = "\n".join(line for entry in kept for line in entry)
+    archive_text = "".join(_archive_line(entry) for entry in archived)
+    if not args.approved:
+        print(f"时间线共 {len(entries)} 条；保留最近 {keep} 条详细条目，归档 {len(archived)} 条为单行。")
+        print(f"估算体积：{len(span.encode())} → {len((kept_text + archive_text).encode())} 字节。")
+        print("归档条目不再进入续接候选；标题、日期和记录链接保留，仍可全文检索；历史文件不被改写。")
+        print("确认请加 --approved；可用 --keep 调整保留条数。")
+        return RC_NEEDS_CONFIRMATION
+    original_targets = set(re.findall(r"\]\(([^)]+)\)", span))
+    head = lines[: start + 1] + [""]
+    tail = lines[terminator + 1 :] if terminator is not None else []
+    rebuilt = head + [kept_text] + ["", "---", "", "## 时间线归档（单行，不再进入续接）", "", archive_text.rstrip("\n"), ""] + tail
+    updated = "\n".join(rebuilt).rstrip("\n") + "\n"
+    if set(re.findall(r"\]\(([^)]+)\)", updated)) < original_targets:
+        print("压缩会丢失原有记录链接，已停止且未写入；请检查时间线格式后重试。")
+        return 2
+    memory.write_text(updated, encoding="utf-8")
+    print(f"已压缩时间线：保留最近 {keep} 条，归档 {len(archived)} 条为单行；归档位于时间线分隔线之后。")
     return 0
 
 
@@ -1442,6 +1529,13 @@ def _git(root: Path, *args: str) -> str:
     return completed.stdout.strip()
 
 
+def _clip_block(text: str, limit: int = 30) -> str:
+    lines = text.splitlines()
+    if len(lines) <= limit:
+        return text
+    return "\n".join(lines[:limit]) + f"\n…（其余 {len(lines) - limit} 行省略；需要完整状态请直接运行 git 命令）"
+
+
 def cmd_status(args: argparse.Namespace) -> int:
     root = Path(args.root).resolve()
     for title, content in (
@@ -1450,7 +1544,7 @@ def cmd_status(args: argparse.Namespace) -> int:
         ("stat", _git(root, "diff", "--stat", "HEAD")),
     ):
         print(f"## {title}")
-        print(content or "(empty)")
+        print(_clip_block(content) or "(empty)")
     return 0
 
 
@@ -1728,6 +1822,12 @@ def build_parser() -> argparse.ArgumentParser:
     status = sub.add_parser("status", help="输出 git 状态、文件名和 stat")
     status.add_argument("--root", default=".")
     status.set_defaults(func=cmd_status)
+    compact = sub.add_parser("compact", help="压缩 memory-keeper 时间线，旧条目归档为单行")
+    compact.add_argument("--root", default=".")
+    compact.add_argument("--store-dir", help="显式指定记录目录；默认自动发现")
+    compact.add_argument("--keep", type=int, default=15, help="保留最近 N 条详细条目")
+    compact.add_argument("--approved", action="store_true")
+    compact.set_defaults(func=cmd_compact)
     coverage = sub.add_parser("coverage", help="检查索引、摘要、会话、经验字段和链接")
     coverage.add_argument("--root", default=".")
     coverage.add_argument("--store-dir", help="显式指定记录目录；默认自动发现")

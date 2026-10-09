@@ -4,6 +4,7 @@ import contextlib
 import importlib.util
 import io
 import json
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -224,6 +225,98 @@ class StoreCreationGateTests(IsolatedProbeTestCase):
             self.assertEqual(rc, 2)
             self.assertIn("记录库尚未初始化", output)
             self.assertFalse((root / "docs" / "context-keeper").exists())
+
+
+class TokenBoundaryTests(IsolatedProbeTestCase):
+    def _store(self) -> Path:
+        temporary = tempfile.TemporaryDirectory(prefix="context-keeper-token-")
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        _call("init", "--root", str(root), "--approved")
+        return root
+
+    def test_quick_summary_default_window_is_tight(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "worklog.md"
+            filler = "\n".join(f"填充行{i}" for i in range(6))
+            path.write_text(
+                "# 主题\n\n## 快速摘要（用于下次对话）\n\n**类型：** feature\n**完成：** 完成\n"
+                + filler + "\n**下一步：** 继续\n",
+                encoding="utf-8",
+            )
+            default = PROBE._quick_summary(path)
+            self.assertEqual(default, ["**类型：** feature", "**完成：** 完成"])
+            detailed = PROBE._quick_summary(path, details=True)
+            self.assertIn("**下一步：** 继续", detailed)
+
+    def test_status_output_is_capped(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            subprocess.run(["git", "-C", str(root), "init"], check=True, capture_output=True)
+            for index in range(40):
+                (root / f"f{index}.txt").write_text(str(index), encoding="utf-8")
+            subprocess.run(["git", "-C", str(root), "add", "-A"], check=True, capture_output=True)
+            subprocess.run(["git", "-C", str(root), "-c", "user.email=t@t", "-c", "user.name=t",
+                            "commit", "-m", "init"], check=True, capture_output=True)
+            for index in range(40):
+                (root / f"f{index}.txt").write_text("changed", encoding="utf-8")
+            rc, output = _call("status", "--root", str(root))
+            self.assertEqual(rc, 0)
+            self.assertIn("其余 10 行省略", output)
+            # 未封顶应为 3 个标题 + 41 + 40 + 40 = 124 行；封顶后三个区块各 ≤31 行
+            self.assertLessEqual(len(output.splitlines()), 100)
+
+    def test_search_dedups_linked_records(self):
+        root = self._store()
+        linked = root / "docs/context-keeper/worklogs/2026-09-01-验收.md"
+        unlinked = root / "docs/context-keeper/worklogs/2026-09-02-另一主题.md"
+        linked.parent.mkdir(parents=True, exist_ok=True)
+        linked.write_text("<!-- context-keeper: session-id=a -->\n# 验收\n正文提到关键词\n", encoding="utf-8")
+        unlinked.write_text("<!-- context-keeper: session-id=b -->\n# 其他\n这里也有关键词\n", encoding="utf-8")
+        memory = root / "docs/context-keeper/memory-keeper.md"
+        memory.write_text(
+            "# 索引\n\n## 时间线（最新在前）\n\n"
+            "## 2026-09-01 - 验收 `feature`\n- **任务：** 关键词任务\n"
+            "- **详见：** [日志](worklogs/2026-09-01-验收.md)\n\n---\n",
+            encoding="utf-8",
+        )
+        rc, output = _call("search", "--root", str(root), "--query", "关键词")
+        self.assertEqual(rc, 0)
+        self.assertIn("命中 2 条历史证据", output)
+        self.assertIn("另一主题", output)
+        self.assertNotIn("2026-09-01-验收", output)
+
+    def test_compact_previews_then_archives_with_links(self):
+        root = self._store()
+        memory = root / "docs/context-keeper/memory-keeper.md"
+        blocks = []
+        for index in range(1, 19):
+            day = f"2026-09-{index:02d}"
+            blocks.append(f"## {day} - 主题{index} `feature`\n- **任务：** 任务{index}\n- **详见：** [日志](worklogs/{day}-主题{index}.md)\n")
+        memory.write_text(
+            "# 项目记忆索引\n\n## 未完成事项\n\n- 暂无\n\n## 时间线（最新在前）\n\n"
+            + "\n".join(reversed(blocks)) + "\n---\n",
+            encoding="utf-8",
+        )
+        rc, output = _call("compact", "--root", str(root))
+        self.assertEqual(rc, PROBE.RC_NEEDS_CONFIRMATION)
+        self.assertIn("保留最近 15 条", output)
+        self.assertIn("归档 3 条", output)
+        rc, output = _call("compact", "--root", str(root), "--approved")
+        self.assertEqual(rc, 0)
+        text = memory.read_text(encoding="utf-8")
+        self.assertIn("## 时间线归档", text)
+        self.assertIn("(worklogs/2026-09-01-主题1.md)", text)
+        self.assertEqual(len(PROBE._memory_entries(memory)), 15)
+        rc, output = _call("compact", "--root", str(root))
+        self.assertEqual(rc, 0)
+        self.assertIn("无需压缩", output)
+
+    def test_compact_noop_below_threshold(self):
+        root = self._store()
+        rc, output = _call("compact", "--root", str(root))
+        self.assertEqual(rc, 0)
+        self.assertIn("无需压缩", output)
 
 
 class ResumeAndSearchTests(IsolatedProbeTestCase):
