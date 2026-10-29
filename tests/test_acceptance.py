@@ -436,7 +436,7 @@ class AcceptanceTests(IsolatedProbeTestCase):
                 mem=store/'memory-keeper.md'
                 mem.write_text(mem.read_text()+f'\n## 2026-09-16 - {title} `bugfix`\n- **任务：** {title}\n- **详见：** [日志](worklogs/{log.name})\n')
                 rc,out=_call('save-report','--root',d,'--worklog',str(log),'--session-id','first')
-                self.assertEqual(rc,0,out); self.assertIn('已沉淀',out)
+                self.assertEqual(rc,0,out); self.assertNotIn('已沉淀：',out); self.assertIn('结构与链接检查通过',out)
                 original=log.read_bytes()
                 _,found=_call('resume','--root',d,'--query',title)
                 self.assertIn(action,found)
@@ -445,7 +445,7 @@ class AcceptanceTests(IsolatedProbeTestCase):
                 text=log.read_text().replace('session-id=first','session-id=second').replace('**已沉淀：**','**本次复用：**')
                 log2.write_text(text);mem.write_text(mem.read_text()+f'\n- [后续日志](worklogs/{log2.name})\n')
                 rc,out=_call('save-report','--root',d,'--worklog',str(log2),'--session-id','second')
-                self.assertEqual(rc,0,out);self.assertIn('本次复用',out)
+                self.assertEqual(rc,0,out);self.assertNotIn('本次复用：',out); self.assertIn('结构与链接检查通过',out)
                 self.assertEqual(log.read_bytes(),original)
                 rc,out=_call('coverage','--root',d)
                 self.assertEqual(rc,0,out)

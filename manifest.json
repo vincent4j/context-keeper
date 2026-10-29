@@ -16,31 +16,31 @@
   "files": [
     {
       "path": "SKILL.md",
-      "sha256": "b70c9244f2b56b46671117fbbc95e264959f3fe71dcd04c50e0c77c1bbe17d64"
+      "sha256": "1ba25f707cf403838975c0a01401b474599de79c3dae96ee047b66c70864c61a"
     },
     {
       "path": "README.md",
-      "sha256": "43e4ded11507d3125ef4386ce101678e14781c4d00d65c8c24a75359266c8ebc"
+      "sha256": "7d3da8ccf3c67d50013bbd1133452f49a20301e6f6f64875217860516142e6a3"
     },
     {
       "path": "scripts/install.py",
-      "sha256": "40dba6f83d7005830e8ddf86edd0dfa70b0368c69a3cf5951cc25ab106e700c9"
+      "sha256": "2f8d62c59d4462275d87ed6a8a7edd20ba1b5b6ca188aa4d846abe76fcacd47e"
     },
     {
       "path": "scripts/context_keeper_probe.py",
-      "sha256": "3382037252f0da65c4a077baac98e2a8982bbb447ad17d90be5ee9a884bddbea"
+      "sha256": "9c2731c1dc7c062dd9ea2cfabf72ae1a7052f54b7cddd25a53a9cb4ac580e567"
     },
     {
       "path": "references/save.md",
-      "sha256": "8c76f359c5259cc01b42e61a1abf6b83bb085e9367a6ed2aa0cc7a3c4f004483"
+      "sha256": "1cbdcdaaa8ae1a339f73f7c0e2834b71b46dd1a9282de71d9304e0207129e781"
     },
     {
       "path": "references/resume.md",
-      "sha256": "861752cd438ae836be5483a619dbe9f4df4189ff9a327de8a73342737b1f6b86"
+      "sha256": "1eeeb3a13e5794a6eb61a612b98746bb3430109e910302e106e600d6691233c7"
     },
     {
       "path": "references/install.md",
-      "sha256": "f41a182ae58f4793d43ea02e141455e17117fb37c856e6e07aea61223d1b0ed9"
+      "sha256": "f800edc9fe561180316028fbc4b316021d509a00e4e3d09ff28a4cd5c381ff5f"
     },
     {
       "path": "references/migrate.md",
@@ -48,7 +48,7 @@
     },
     {
       "path": "references/search.md",
-      "sha256": "ec98ff49869b91ab3134003fb0168e1ca494645a30068dfe8ae44aea6aea221c"
+      "sha256": "55056b0679eabb6ce94fd7e52d4bb0fda1985b7f5235c035b71069be6cb034ba"
     }
   ]
 }

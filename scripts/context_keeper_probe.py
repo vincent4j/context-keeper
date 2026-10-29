@@ -680,19 +680,86 @@ def _notice_link_groups(path: Path, notices: list[tuple[str, str]]) -> list[list
     return groups
 
 
-def _theme_summary(memory_path: Path) -> list[str]:
-    if not memory_path.exists():
+def _current_memory_items(memory_path: Path) -> list[tuple[str, str]]:
+    """Read current themes/requirements as items, keeping their continuation lines."""
+    if not memory_path.is_file():
         return []
-    lines = _read_text(memory_path).splitlines()
-    start = next((idx for idx, line in enumerate(lines) if line.strip() == "## 主题摘要（按类型）"), None)
-    if start is None:
-        return []
-    out: list[str] = []
-    for line in lines[start:]:
-        if line.strip() == "---" and out:
-            break
-        out.append(_clip(line, 240))
-    return [line for line in out if line.strip()][:6]
+    items: list[tuple[str, str]] = []
+    section = ""
+    topic = ""
+    current: list[str] = []
+    fence = ""
+
+    def flush() -> None:
+        if current and current[0].strip() not in ("- 无", "- 暂无"):
+            items.append((f"{section} / {topic}" if topic else section, "\n".join(current).strip()))
+        current.clear()
+
+    for line in _read_text(memory_path).splitlines():
+        stripped = line.strip()
+        marker = re.match(r"^(`{3,}|~{3,})", stripped)
+        if marker:
+            if not fence:
+                fence = marker.group(1)[0]
+            elif marker.group(1)[0] == fence:
+                fence = ""
+            continue
+        if fence:
+            continue
+        if stripped.startswith("## ") or stripped == "---":
+            flush()
+            heading = stripped[3:].strip() if stripped.startswith("## ") else ""
+            topic = ""
+            section = heading if re.match(r"^(主题摘要|当前主题|项目约定|项目要求|项目规则|当前要求|用户要求|工作约定|项目偏好)(?:[（(：: 与和/].*)?$", heading) else ""
+        elif section:
+            if stripped.startswith("- ") and not line.startswith((" ", "\t")):
+                flush()
+                current.append(line)
+            elif stripped.startswith("### "):
+                flush()
+                topic = stripped[4:].strip()
+            elif stripped:
+                current.append(line)
+    flush()
+    return items
+
+
+def _bounded_memory_item(text: str, pattern: re.Pattern[str] | None = None) -> str:
+    lines = text.splitlines()
+    hits = [idx for idx, line in enumerate(lines) if pattern and pattern.search(line)]
+    selected = set(range(min(5, len(lines)))) if not hits else {0, hits[0]}
+    if hits:
+        for idx in hits:
+            if len(selected) < 5:
+                selected.add(idx)
+        for idx in (hits[0] - 1, hits[0] + 1):
+            if 0 <= idx < len(lines) and len(selected) < 5:
+                selected.add(idx)
+    # Keep source/next-step pointers within the same seven-line item budget.
+    pointers = []
+    for key in ("来源", "下一步"):
+        pointer = next((idx for idx, line in enumerate(lines) if key in line), None)
+        if pointer is not None:
+            pointers.append(pointer)
+    pointers.extend(idx for idx, line in enumerate(lines) if "证据" in line)
+    for idx in pointers:
+        if len(selected) < 7:
+            selected.add(idx)
+    for idx in range(min(5, len(lines))):
+        if len(selected) < 7:
+            selected.add(idx)
+    shown = [(_match_excerpt(lines[idx], pattern, 260) if pattern and pattern.search(lines[idx])
+              else _clip(lines[idx], 260)) for idx in sorted(selected)]
+    if len(selected) < len(lines) or any(len(lines[idx].strip()) > 260 for idx in selected):
+        shown.append("  …（条目较长，仅显示有限内容；按来源展开）")
+    return "\n".join(shown)
+
+
+def _theme_summary(memory_path: Path, pattern: re.Pattern[str] | None = None, limit: int = 5) -> list[str]:
+    items = _current_memory_items(memory_path)
+    if pattern:
+        items = [(section, text) for section, text in items if pattern.search(text) or pattern.search(section)]
+    return [f"[{section}] {_bounded_memory_item(text, pattern)}" for section, text in items[:limit]]
 
 
 def cmd_init(args: argparse.Namespace) -> int:
@@ -915,19 +982,12 @@ def cmd_resume(args: argparse.Namespace) -> int:
     store_dir = getattr(args, "store_dir", None)
     pattern = _compile_pattern(args.query) if args.query else None
     memory_paths = _memory_paths(root, store_dir)
-    print("最近工作摘要：")
-    worklogs = _worklog_files(root, args.worklogs, store_dir)
-    if not worklogs:
-        print("- 未找到工作日志")
-    for idx, path in enumerate(worklogs, 1):
-        print(f"\n[{idx}] {_rel(root, path)}")
-        summary = _quick_summary(path, full=args.full, details=args.details)
-        if summary:
-            print("\n".join(summary))
-        else:
-            print("- 快速摘要缺失；以下为有限提取，不代表完整记录")
-            for item in _fallback_summary(path):
-                print(f"  - {item}")
+    themes = [item for path in memory_paths for item in _theme_summary(path, pattern, args.entries)]
+    print("相关当前主题与要求：" if pattern else "当前主题与要求：")
+    if themes:
+        print("\n".join(themes[:args.entries]))
+    else:
+        print("- 未找到相关当前主题；历史摘要不能代替当前状态。")
 
     pending: list[str] = []
     for path in memory_paths:
@@ -949,11 +1009,19 @@ def cmd_resume(args: argparse.Namespace) -> int:
         print("\n迁移保留的历史待办（尚未复核，不代表当前状态或授权）：")
         print("\n".join(historical_pending))
 
-    if memory_paths:
-        theme = _theme_summary(memory_paths[0])
-        if theme:
-            print("\n近期主题摘要：")
-            print("\n".join(theme))
+    print("\n历史工作摘要（首次记录快照，不代表当前状态）：")
+    worklogs = _worklog_files(root, args.worklogs, store_dir)
+    if not worklogs:
+        print("- 未找到工作日志")
+    for idx, path in enumerate(worklogs, 1):
+        print(f"\n[{idx}] {_rel(root, path)}")
+        summary = _quick_summary(path, full=args.full, details=args.details)
+        if summary:
+            print("\n".join(summary))
+        else:
+            print("- 快速摘要缺失；以下为有限提取，不代表完整记录")
+            for item in _fallback_summary(path):
+                print(f"  - {item}")
 
     evolution = []
     if pattern:
@@ -986,7 +1054,7 @@ def cmd_search(args: argparse.Namespace) -> int:
     store_dir = getattr(args, "store_dir", None)
     pattern = _compile_pattern(args.query)
     results: list[tuple[str, str, list[str]]] = []
-    seen: set[str] = set()
+    seen: set[object] = set()
     linked_records: set[str] = set()
     evolution_count = 0
     for scope, path in _evolution_files(root, args.user_evolution_dir, store_dir):
@@ -1008,6 +1076,21 @@ def cmd_search(args: argparse.Namespace) -> int:
         seen.add(str(path))
         linked_records |= _linked_records(_read_text(path), path.parent)
         evolution_count += 1
+
+    if len(results) < args.entries:
+        for memory_path in _memory_paths(root, store_dir):
+            for section, text in _current_memory_items(memory_path):
+                if not (pattern.search(text) or pattern.search(section)):
+                    continue
+                key = (section, text)
+                if key not in seen:
+                    results.append(("current", f"{section}（{_rel(root, memory_path)}）", [_bounded_memory_item(text, pattern)]))
+                    seen.add(key)
+                    linked_records |= _linked_records(text, memory_path.parent)
+                if len(results) >= args.entries:
+                    break
+            if len(results) >= args.entries:
+                break
 
     if len(results) < args.entries:
         for memory_path in _memory_paths(root, store_dir):
@@ -1045,13 +1128,13 @@ def cmd_search(args: argparse.Namespace) -> int:
     if not results:
         print("当前检索未找到证据；这不代表历史上从未发生。")
         return 0
-    print(f"命中 {len(results)} 条历史证据：")
-    labels = {"evolution": "进化经验", "memory": "历史索引", "plan": "需求与计划", "worklog": "工作日志"}
+    print(f"命中 {len(results)} 条记录（当前记忆与历史证据）：")
+    labels = {"current": "当前主题与要求", "evolution": "进化经验", "memory": "历史索引", "plan": "需求与计划", "worklog": "工作日志"}
     for idx, (kind, title, hits) in enumerate(results, 1):
         print(f"\n{idx}. [{labels[kind]}] {title}")
         for line in hits:
             print(f"- {line}")
-    print("\n以上是历史记录或摘要；需要引用原文时，应继续定位原始记录，不能用推测补全。")
+    print("\n当前记忆与历史记录已分别标注；引用事实需核对来源，采用前核验当前适用性。")
     return 0
 
 
@@ -1676,7 +1759,7 @@ def cmd_coverage(args: argparse.Namespace) -> int:
         groups = (
             ("Plans 未索引", unindexed_plans),
             ("Worklogs 未索引", unindexed_worklogs),
-            ("缺少快速摘要", missing_summary),
+            ("缺少历史快照摘要（提示项，非日志必填）", missing_summary),
             ("缺少会话标识", missing_session),
             ("进化经验未索引", unindexed_evolution),
         )
@@ -1699,7 +1782,7 @@ def cmd_coverage(args: argparse.Namespace) -> int:
             print(f"\n失效链接：{_rel(root, source)} → {_rel(root, target)}")
         for item in invalid_pending[: args.limit]:
             print(f"\n未完成事项缺少状态/触发/完成/证据字段：{item}")
-    return 1 if any(counts.values()) else 0
+    return 1 if any(value for key, value in counts.items() if key != "missing_summary") else 0
 
 
 def _save_report_error(message: str) -> int:
@@ -1743,28 +1826,6 @@ def cmd_save_report(args: argparse.Namespace) -> int:
             return _save_report_error("；".join(problems[:5]))
     if layout.memory.is_file() and layout.evolution / "index.md" not in _markdown_links(layout.memory):
         return _save_report_error("项目记忆缺少进化经验索引入口")
-    fields = _quick_summary_fields(worklog)
-    missing = [name for name in ("类型", "完成", "下一步", "文件") if not fields.get(name)]
-    if missing:
-        return _save_report_error("快速摘要缺少字段：" + "、".join(missing))
-    visible_items, no_extra = _user_visible_items(worklog)
-    if not visible_items and not no_extra:
-        return _save_report_error("工作日志缺少“给用户看的增量认知”")
-    if visible_items and no_extra:
-        return _save_report_error("不能同时写增量认知和“无新增提醒”")
-    if len(visible_items) > 3:
-        return _save_report_error("“给用户看的增量认知”最多 3 条")
-    if any(not value for _, _, value in visible_items):
-        return _save_report_error("每条增量认知都必须说明影响")
-    if any(len(content) > 120 for _, content, _ in visible_items):
-        return _save_report_error("单条增量认知不能超过 120 字")
-    if any(len(impact) > 80 for _, _, impact in visible_items):
-        return _save_report_error("单条影响不能超过 80 字")
-    previous_logs = _previous_worklogs(root, worklog, store_dir)[-20:]
-    previous_text = "\n".join(_read_text(path) for path in previous_logs)
-    repeated = [content for _, content, _ in visible_items if content in previous_text]
-    if repeated:
-        return _save_report_error("增量认知与历史记录完全重复；请补充新证据或新场景，或改为无新增提醒")
     memories = _memory_paths(root, store_dir)
     if not memories:
         return _save_report_error("未找到 memory-keeper.md")
@@ -1775,37 +1836,36 @@ def cmd_save_report(args: argparse.Namespace) -> int:
     broken_memory_links = [target for path in memories for target in _markdown_links(path) if not target.exists()]
     if broken_memory_links:
         return _save_report_error("项目记忆存在失效链接：" + "、".join(_rel(root, path) for path in broken_memory_links[:3]))
-    notices = _evolution_notices(worklog)
-    if len(notices) > 3:
-        return _save_report_error("自我进化反馈最多三条，请合并同类反馈")
-    if notices:
-        link_groups = _notice_link_groups(worklog, notices)
-        if any(len(group) != 1 for group in link_groups):
-            return _save_report_error("每条自我进化记录必须且只能链接一个对应的 evolution 经验文件")
-        notice_links = [group[0] for group in link_groups]
-        missing_links = [path for path in notice_links if not path.is_file()]
-        if missing_links:
-            return _save_report_error("自我进化经验文件不存在：" + "、".join(_rel(root, path) for path in missing_links))
-        invalid = [(path, _validate_evolution(path)) for path in notice_links if _validate_evolution(path)]
-        if invalid:
-            return _save_report_error("自我进化经验字段不完整或内容不符合保存规范：" + "；".join(
-                f"{_rel(root, path)}：{'、'.join(problems)}" for path, problems in invalid
-            ))
-        for (kind, _), link in zip(notices, notice_links):
-            if kind == "已沉淀" and any(old_kind == "已沉淀" and link in _notice_links(old, [(old_kind, content)]) for old in previous_logs for old_kind, content in _evolution_notices(old)):
-                return _save_report_error("同一经验已经沉淀过；请记录本次复用或修正，不要重复宣称沉淀")
-    print("已保存上下文。")
-    if no_extra:
-        print("\n本轮未发现需要额外提醒的盲点或隐患。")
-    else:
-        print("\n你可能还没意识到：")
-        for index, (kind, content, impact) in enumerate(visible_items, 1):
-            print(f"{index}. [{kind}] {content}")
-            print(f"   影响：{impact}")
-    if notices:
-        print("\n自我进化：")
-        for kind, content in notices:
-            print(f"- {kind}：{content}")
+    current_items = [(path, section, text) for path in memories for section, text in _current_memory_items(path)]
+    # Validate referenced current experience files, not historical notices in the log.
+    referenced = {Path(target) for path, _, text in current_items
+                  for target in _linked_records(text, path.parent)}
+    missing_current_sources = [target for target in sorted(referenced) if not target.exists()]
+    if missing_current_sources:
+        return _save_report_error("当前主题来源链接失效：" + "、".join(_rel(root, path) for path in missing_current_sources[:3]))
+    relevant_experiences = {target for target in referenced
+                            if target.parent == layout.evolution and target.name != "index.md"}
+    invalid = [(path, _validate_evolution(path)) for path in sorted(relevant_experiences)
+               if path.is_file() and _validate_evolution(path)]
+    if invalid:
+        return _save_report_error("当前关联经验字段不完整或内容不符合保存规范：" + "；".join(
+            f"{_rel(root, path)}：{'、'.join(problems)}" for path, problems in invalid))
+    broken_experience_links = [(path, target) for path in relevant_experiences if path.is_file()
+                               for raw in _linked_records(_read_text(path), path.parent)
+                               for target in [Path(raw)] if not target.exists()]
+    if broken_experience_links:
+        path, target = broken_experience_links[0]
+        return _save_report_error(f"当前关联经验来源链接失效：{_rel(root, path)} → {_rel(root, target)}")
+    if relevant_experiences:
+        indexed_experiences = set(_markdown_links(layout.evolution / "index.md")) if (layout.evolution / "index.md").is_file() else set()
+        missing_index = relevant_experiences - indexed_experiences
+        if missing_index:
+            return _save_report_error("当前关联经验缺少索引入口：" + "、".join(_rel(root, path) for path in sorted(missing_index)))
+    print("记录结构与链接检查通过。")
+    print(f"- 已检查当前主题与要求：{len(current_items)} 条；当前关联经验：{len(relevant_experiences)} 份。")
+    if not current_items:
+        print("- 未找到当前主题摘要或要求；本次未验证当前状态，旧日志摘要不能代替。")
+    print("- 本轮事实、记忆更新和复用效果由 Agent 核对说明；不复播日志旧反馈，不证明语义正确或自动记录可靠。")
     print("\n详细内容：")
     print(f"- 工作日志：[{_rel(root, worklog)}]({_rel(root, worklog)})")
     print(f"- 项目记忆：[{_rel(root, memories[0])}]({_rel(root, memories[0])})")

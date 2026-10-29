@@ -89,6 +89,15 @@ class InstallTests(unittest.TestCase):
                     self.assertEqual(result.returncode,0,result.stdout+result.stderr)
                     self.assertEqual(json.loads(result.stdout)['scope'],scope)
                     self.assertTrue(bridge.read_text().startswith('# 用户内容\n\n不要修改。\n'))
+                    written = bridge.read_text()
+                    for boundary in (
+                        '已有授权记录库', '无用户禁止保存/改文件', '失败也记',
+                        '工作日志只追加', '主题记忆可更新', '旧摘要只是历史线索',
+                        '续接命令通过迁移门禁后', '本轮反馈由 Agent 核对说明',
+                        '历史下一步不构成当前授权',
+                    ):
+                        self.assertIn(boundary, written)
+                    self.assertEqual(written.count('<!-- context-keeper:start -->'), 1)
                     before = bridge.stat().st_mtime_ns
                     result = subprocess.run([part for part in cmd if part != '--approved'],env=env,text=True,capture_output=True)
                     self.assertEqual(result.returncode,0,result.stdout+result.stderr)
@@ -97,6 +106,51 @@ class InstallTests(unittest.TestCase):
                     other = project/'CLAUDE.md' if agent=='codex' else project/'AGENTS.md'
                     self.assertFalse(other.exists())
                     self.assertFalse((project/'context-keeper').exists())
+
+    def test_append_preserves_legacy_summary_and_feedback_as_historical_snapshot(self):
+        # Phase 1 keeps parser behavior unchanged; current state belongs in the theme memory.
+        probe_path = INSTALLER.with_name("context_keeper_probe.py")
+        spec = importlib.util.spec_from_file_location("phase1_legacy_probe", probe_path)
+        probe = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(probe)
+        original = """# 排查记录
+
+## 给用户看的增量认知
+本轮未发现需要额外提醒的盲点或隐患。
+
+## 自我进化
+- **本次复用：** 首次判断采用了[经验](../evolution/原经验.md)
+
+## 快速摘要（用于下次对话）
+**类型：** bugfix
+**完成：** 采用方案 A，当时判断有效
+**下一步：** 当时准备交付
+**文件：** app.py
+"""
+        addition = """
+## 追加记录 2026-10-29 16:00:00 +08:00
+
+- **操作与方法：** 执行第二次验证，发现方案 A 未解决问题。
+- **观察与当时判断：** 改用方案 B，结果仍待验证。
+- **后续与证据：** 继续验证；当前状态另在 memory-keeper 更新。
+- **本次反馈：** 本次修正判断，保留首次记录及反馈。
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "worklog.md"
+            log.write_text(original)
+            first_summary = probe._quick_summary(log)
+            first_fields = probe._quick_summary_fields(log)
+            first_feedback = probe._user_visible_items(log)
+            first_evolution = probe._evolution_notices(log)
+            with log.open("a") as output:
+                output.write(addition)
+            self.assertEqual(log.read_text(), original + addition)
+            self.assertEqual(probe._quick_summary(log), first_summary)
+            self.assertEqual(probe._quick_summary_fields(log), first_fields)
+            self.assertEqual(probe._user_visible_items(log), first_feedback)
+            self.assertEqual(probe._evolution_notices(log), first_evolution)
+            self.assertIn("当时判断有效", first_fields["完成"])
+            self.assertIn("方案 B", log.read_text())
 
     def test_first_use_rejects_copied_skill_without_git_checkout(self):
         import shutil

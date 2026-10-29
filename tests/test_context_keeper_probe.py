@@ -116,6 +116,9 @@ def _write_valid_context(root: Path, *, legacy: bool = False, evolution: bool = 
         evolution_dir = root / "docs" / "context-keeper" / "evolution"
         evolution_dir.mkdir(parents=True, exist_ok=True)
         (evolution_dir / "index.md").write_text("# 索引\n", encoding="utf-8")
+    if evolution and not legacy:
+        with memory.open("a", encoding="utf-8") as handle:
+            handle.write("\n## 主题摘要（按类型）\n- 当前采用[经验](evolution/耗时分析.md)，来源已关联。\n")
     PROBE._capture_baseline(root, "session-a")
     return worklog
 
@@ -282,7 +285,7 @@ class TokenBoundaryTests(IsolatedProbeTestCase):
         )
         rc, output = _call("search", "--root", str(root), "--query", "关键词")
         self.assertEqual(rc, 0)
-        self.assertIn("命中 2 条历史证据", output)
+        self.assertIn("命中 2 条记录", output)
         self.assertIn("另一主题", output)
         self.assertNotIn("2026-09-01-验收", output)
 
@@ -565,14 +568,162 @@ class CoverageTests(IsolatedProbeTestCase):
             self.assertIn("pending_invalid=1", output)
 
 
+class CurrentMemoryTests(IsolatedProbeTestCase):
+    def context(self):
+        temporary = tempfile.TemporaryDirectory(prefix="current-memory-")
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        log = _write_valid_context(root)
+        return root, log, log.parent.parent / "memory-keeper.md"
+
+    def add_current(self, memory, body):
+        with memory.open("a", encoding="utf-8") as output:
+            output.write("\n## 主题摘要（按类型）\n" + body + "\n")
+
+    def test_resume_current_b_precedes_historical_a_and_filters_before_limit(self):
+        root, log, memory = self.context()
+        log.write_text(log.read_text().replace("修复保存输出遗漏。", "方案 A 当时有效。"))
+        filler = "".join(f"- **其他主题{i}：** 不相关。\n" for i in range(8))
+        self.add_current(memory, filler + "- **接口修复：** 方案 A 已失败，当前采用方案 B。\n  下一步：等待权限后验证。\n  来源：[日志](worklogs/" + log.name + ")。")
+        result, output = _call("resume", "--root", str(root), "--query", "接口")
+        self.assertEqual(result, 0, output)
+        self.assertIn("方案 B", output)
+        self.assertIn("等待权限", output)
+        self.assertIn("来源：", output)
+        self.assertNotIn("其他主题0", output)
+        self.assertLess(output.index("方案 B"), output.index("方案 A 当时有效"))
+        self.assertIn("首次记录快照，不代表当前状态", output)
+
+    def test_search_requirement_only_section_keeps_continuation_and_cap(self):
+        root, log, memory = self.context()
+        with memory.open("a") as output:
+            output.write("\n## 项目要求\n- 生产变更只允许预览。\n  下一步：取得批准再部署。\n  来源：[日志](worklogs/" + log.name + ")。\n")
+        result, output = _call("search", "--root", str(root), "--query", "生产变更", "--entries", "1")
+        self.assertEqual(result, 0, output)
+        self.assertIn("命中 1 条记录", output)
+        self.assertIn("[当前主题与要求]", output)
+        self.assertIn("取得批准", output)
+        self.assertIn("来源：", output)
+        self.assertNotIn("[工作日志]", output)
+
+    def test_no_matching_current_theme_does_not_show_irrelevant_theme(self):
+        root, log, memory = self.context()
+        self.add_current(memory, "- **邮件：** 已发送。")
+        _, output = _call("resume", "--root", str(root), "--query", "接口")
+        self.assertIn("未找到相关当前主题", output)
+        self.assertNotIn("已发送", output)
+
+    def test_long_current_item_is_bounded_but_keeps_source_and_next_step(self):
+        root, log, memory = self.context()
+        detail = "".join(f"  过程{i}：不应全部展开。\n" for i in range(100))
+        self.add_current(memory, "- **接口：** 当前采用 B。\n" + detail + "  下一步：取得权限。\n  来源：[日志](worklogs/" + log.name + ")。")
+        _, output = _call("resume", "--root", str(root), "--query", "接口")
+        self.assertIn("仅显示有限内容", output)
+        self.assertIn("取得权限", output)
+        self.assertIn("来源：", output)
+        self.assertNotIn("过程99", output)
+        self.assertLess(len(output.splitlines()), 35)
+
+    def test_query_keeps_late_matching_constraint_and_source_within_budget(self):
+        root, log, memory = self.context()
+        detail = "".join(f"  过程{i}：普通说明。\n" for i in range(10))
+        self.add_current(memory, "- **发布：** 当前要求。\n" + detail + "  必须禁止自动发布，先征得明确批准。\n  下一步：等待批准。\n  来源：[日志](worklogs/" + log.name + ")。")
+        for command in ("resume", "search"):
+            with self.subTest(command=command):
+                _, output = _call(command, "--root", str(root), "--query", "禁止自动发布")
+                self.assertIn("必须禁止自动发布，先征得明确批准", output)
+                self.assertIn("来源：", output)
+                self.assertIn("下一步：等待批准", output)
+                self.assertNotIn("过程5", output)
+                self.assertLess(len(output.splitlines()), 35)
+
+    def test_subheading_context_keeps_child_constraint_not_empty_heading(self):
+        root, log, memory = self.context()
+        self.add_current(memory, "### 接口约束\n- 禁止自动发布。\n  来源：[日志](worklogs/" + log.name + ")。\n### 其他约束\n- 忽略其他主题。")
+        items = PROBE._current_memory_items(memory)
+        self.assertEqual(len(items), 2)
+        for command in ("resume", "search"):
+            with self.subTest(command=command):
+                _, output = _call(command, "--root", str(root), "--query", "接口约束")
+                self.assertIn("接口约束", output)
+                self.assertIn("禁止自动发布", output)
+                self.assertIn("来源：", output)
+                self.assertNotIn("忽略其他主题", output)
+
+    def test_code_example_is_not_current_requirement(self):
+        root, log, memory = self.context()
+        with memory.open("a") as output:
+            output.write("\n```markdown\n## 项目要求\n- 虚构关键词要求。\n```\n")
+        self.assertEqual(PROBE._current_memory_items(memory), [])
+        _, output = _call("search", "--root", str(root), "--query", "虚构关键词")
+        self.assertNotIn("[当前主题与要求]", output)
+
+    def test_save_no_experience_does_not_replay_old_log_feedback(self):
+        root, log, memory = self.context()
+        before = log.read_bytes()
+        self.add_current(memory, "- **接口：** 已采用方案 B；来源：[日志](worklogs/" + log.name + ")。")
+        result, output = _save(root, log)
+        self.assertEqual(result, 0, output)
+        self.assertIn("当前关联经验：0 份", output)
+        self.assertNotIn("把 Git 结果当作对话交付", output)
+        self.assertNotIn("**已沉淀：**", output)
+        self.assertEqual(log.read_bytes(), before)
+
+    def test_save_rejects_non_markdown_current_source(self):
+        root, log, memory = self.context()
+        self.add_current(memory, "- **接口：** 验证数据见[结果](missing.json)。")
+        result, output = _save(root, log)
+        self.assertEqual(result, 2, output)
+        self.assertIn("来源链接失效", output)
+
+    def test_save_rejects_broken_current_source(self):
+        root, log, memory = self.context()
+        self.add_current(memory, "- **接口：** 采用 B；来源：[缺失](worklogs/missing.md)。")
+        result, output = _save(root, log)
+        self.assertEqual(result, 2, output)
+        self.assertIn("失效链接", output)
+
+    def test_save_validates_only_directly_referenced_current_experience(self):
+        root, log, memory = self.context()
+        evo = log.parent.parent / "evolution"
+        experience = evo / "接口.md"
+        experience.write_text(_experience("接口", "CK-002").replace("worklogs/2026-08-17-test.md", "[日志](../worklogs/" + log.name + ")"))
+        (evo / "index.md").write_text("# 索引\n- [接口](接口.md)\n")
+        self.add_current(memory, "- **接口：** 采用[接口经验](evolution/接口.md)。")
+        result, output = _save(root, log)
+        self.assertEqual(result, 0, output)
+        self.assertIn("当前关联经验：1 份", output)
+        experience.write_text("# 接口\n")
+        result, output = _save(root, log)
+        self.assertEqual(result, 2, output)
+        self.assertIn("字段不完整", output)
+
+    def test_save_rejects_broken_experience_source_and_missing_index(self):
+        root, log, memory = self.context()
+        evo = log.parent.parent / "evolution"
+        experience = evo / "接口.md"
+        experience.write_text(_experience("接口", "CK-002").replace("worklogs/2026-08-17-test.md", "[缺失](../worklogs/missing.md)"))
+        self.add_current(memory, "- **接口：** 采用[经验](evolution/接口.md)。")
+        result, output = _save(root, log)
+        self.assertEqual(result, 2, output)
+        self.assertIn("来源链接失效", output)
+        experience.write_text(_experience("接口", "CK-002"))
+        result, output = _save(root, log)
+        self.assertEqual(result, 2, output)
+        self.assertIn("缺少索引入口", output)
+
+
+
 class SaveReportTests(IsolatedProbeTestCase):
-    def test_validates_new_layout_and_renders_evolution_notice(self):
+    def test_validates_current_experience_without_replaying_log_notice(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             worklog = _write_valid_context(root, evolution=True)
             result, output = _save(root, worklog)
             self.assertEqual(result, 0, output)
-            self.assertIn("自我进化：", output)
+            self.assertIn("当前关联经验：1 份", output)
+            self.assertNotIn("自我进化：", output)
+            self.assertNotIn("分析历史结论时必须保留证据位置", output)
 
     def test_legacy_layout_requires_migration(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -590,15 +741,16 @@ class SaveReportTests(IsolatedProbeTestCase):
             self.assertEqual(result, 2)
             self.assertIn("其他会话", output)
 
-    def test_blocks_evolution_notice_without_persisted_file(self):
+    def test_ignores_historical_notice_without_claiming_new_experience(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             worklog = _write_valid_context(root)
-            text = worklog.read_text().replace("## 快速摘要", "## 自我进化\n\n- **已沉淀：** 已经学会了。\n\n## 快速摘要")
+            text = worklog.read_text().replace("## 快速摘要", "## 自我进化\n\n- **已沉淀：** 旧日志中的判断。\n\n## 快速摘要")
             worklog.write_text(text)
             result, output = _save(root, worklog)
-            self.assertEqual(result, 2)
-            self.assertNotIn("已保存上下文", output)
+            self.assertEqual(result, 0, output)
+            self.assertIn("当前关联经验：0 份", output)
+            self.assertNotIn("旧日志中的判断", output)
 
     def test_blocks_incomplete_evolution_file(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -641,23 +793,28 @@ class SaveReportTests(IsolatedProbeTestCase):
             result, output = _save(root, worklog)
             self.assertEqual(result, 0, output)
 
-    def test_blocks_repeated_visible_insight(self):
+    def test_historical_feedback_not_replayed_or_revalidated_as_current(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             worklog = _write_valid_context(root)
             previous = worklog.parent / "2026-08-16-old.md"
             previous.write_text("把 Git 结果当作对话交付，会让真正有价值的复盘消失。")
             result, output = _save(root, worklog)
-            self.assertEqual(result, 2)
-            self.assertIn("完全重复", output)
+            self.assertEqual(result, 0, output)
+            self.assertNotIn("把 Git 结果当作对话交付", output)
 
-    def test_blocks_incomplete_summary(self):
+    def test_old_library_without_machine_summary_still_checks_structure(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             worklog = _write_valid_context(root)
-            worklog.write_text(worklog.read_text().replace("**类型：** bugfix | 项目：Demo\n", ""))
-            result, _ = _save(root, worklog)
-            self.assertEqual(result, 2)
+            worklog.write_text("<!-- context-keeper: session-id=session-a -->\n# 实际过程\n执行 A，失败，等待权限。\n")
+            result, output = _save(root, worklog)
+            self.assertEqual(result, 0, output)
+            self.assertIn("本次未验证当前状态", output)
+            self.assertNotIn("你可能还没意识到", output)
+            result, output = _call("coverage", "--root", str(root))
+            self.assertEqual(result, 0, output)
+            self.assertIn("missing_summary=1", output)
 
     def test_allows_explicit_no_new_insight(self):
         with tempfile.TemporaryDirectory() as temp_dir:
