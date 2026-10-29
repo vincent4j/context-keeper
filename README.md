@@ -1,4 +1,8 @@
-<h1 align="center">🧠 Context Keeper 上下文守望者</h1>
+<p align="center">
+  <img src="assets/context-keeper-icon.png" alt="Context Keeper 上下文守望者：镜片中带有方括号的卡通头像" width="128" height="128">
+</p>
+
+<h1 align="center">Context Keeper 上下文守望者</h1>
 
 <p align="center">
   <strong>给你的 AI 编程 Agent 装上项目记忆：续接进度、查找历史、自我进化。</strong>
