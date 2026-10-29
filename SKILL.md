@@ -1,6 +1,11 @@
 ---
 name: context-keeper
 description: 续接项目进度，查找历史事实，自动沉淀经验，让 AI 在使用中持续自我进化。
+version: "1.0.0"
+display_name: "上下文守望者"
+display_name_en: "Context Keeper"
+description_zh: "给你的 AI 编程 Agent 装上项目记忆：续接进度、查找历史、自我进化。昨天的工作接着做，过去的事实找得到，新的经验自动沉淀，让 AI 在使用中持续自我进化。"
+description_en: "Give your AI coding agent project memory: resume progress, find past facts, and evolve through use. Pick up yesterday’s work, retrieve what happened before, and automatically capture new lessons for continuous self-evolution."
 ---
 
 # Context Keeper
