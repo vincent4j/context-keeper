@@ -1,0 +1,192 @@
+{
+  "date": "2026-10-29",
+  "timezone": "Asia/Singapore",
+  "source_commit": "c129d45911447c0cd1ec098c6d90681bdb18c193",
+  "cli": "codex-cli 0.162.0",
+  "configured_model": "existing default; not overridden; runtime model id unavailable",
+  "fixture": "constructed temporary order/customer/supplier identifier import project; not production data",
+  "distinct_new_session_count": 5,
+  "per_session_timeout_seconds": 180,
+  "sessions": [
+    {
+      "session": 1,
+      "prompt_kind": "natural_task",
+      "prompt": "修复当前订单号导入；订单号是原始文本标识，int 处理导致前导零丢失是错的。先跑现有测试确认现象，再保留原值并验证，不增加依赖；上游真实样本尚未获得，真实样本验收保留下一步。",
+      "returncode": 0,
+      "timedout": false,
+      "elapsed_seconds": 66.96
+    },
+    {
+      "session": 2,
+      "prompt_kind": "natural_task",
+      "prompt": "继续上次的订单号修复。当前做到哪里，还缺什么验收？先说明现状，这轮不要改代码。",
+      "returncode": 0,
+      "timedout": false,
+      "elapsed_seconds": 62.11
+    },
+    {
+      "session": 3,
+      "prompt_kind": "natural_task",
+      "prompt": "客户编号导入也出现前导零丢失。请参考以前的处理修复这个入口并验证。",
+      "returncode": 0,
+      "timedout": false,
+      "elapsed_seconds": 76.35
+    },
+    {
+      "session": 4,
+      "prompt_kind": "explicit_experience_capture",
+      "prompt": "订单号与客户编号这次修复的处理方式确认正确。请把这两次已经验证的处理原则、适用范围和证据整理为一条可复用的项目经验，便于以后遇到同类编号导入时使用。请保留仅本地测试通过、真实样本尚未验收的边界，不改业务代码。",
+      "returncode": 0,
+      "timedout": false,
+      "elapsed_seconds": 84.8
+    },
+    {
+      "session": 5,
+      "prompt_kind": "natural_task",
+      "prompt": "供应商编号导入也丢失了前导零。请参考以前的处理修复这个入口并验证，不增加依赖；真实上游样本仍未获得。",
+      "returncode": 0,
+      "timedout": false,
+      "elapsed_seconds": 82.86
+    }
+  ],
+  "outcome": {
+    "capture_and_current_memory": "pass",
+    "new_session_resume": "pass",
+    "historical_method_reuse": "pass",
+    "spontaneous_evolution_capture": "not covered; sessions 1–3 created no numbered experience",
+    "explicit_evolution_capture": "pass in session 4",
+    "cross_session_experience_recall": "pass in session 5",
+    "experience_adoption": "pass in session 5",
+    "local_validation_after_adoption": "6 tests passed after 1 failed + 5 passed",
+    "same_theme_no_duplicate": "pass; count 0 -> 1 -> 1; CK-001 retained"
+  },
+  "protection_checks": {
+    "prior_logs_plans_and_existing_business_code_unchanged": true,
+    "user_entries_unchanged": true,
+    "source_repo_unchanged_during_acceptance": true,
+    "comparison_scope": "Per-session before/after snapshots for sessions 4 and 5, limited to the listed prior logs and order/customer code/tests; excludes the new supplier entry fixed in session 5. Does not assert business code was unchanged during session 1."
+  },
+  "historical_hash_comparisons": {
+    "session_4": {
+      "old_logs_and_code_unchanged": true,
+      "before": {
+        "docs/context-keeper/worklogs/2026-10-29-订单号原始文本保留修复.md": "6f5041ea3f4147fdd96177f833bf791193356127f2d4c805c8a81d7f635ffea8",
+        "docs/context-keeper/worklogs/2026-10-29-客户编号原始文本保留修复.md": "4c6cf338bafb8b3de4b10e2566c89fe2e00210859fd969262bcc8d46381d221b",
+        "test_customer_ids.py": "ef6640b565165c9c75852383edaab528d6bc201b7e5986c3a2277fb54fdfad66",
+        "normalize.py": "c1e5dedb7fc5eb0afbda8f9cb5097c3ca6045e36271f6ffc5e866d497ec52892",
+        "customer_ids.py": "2118370b3888151d35c6042326e3e2a2304feb12298051900a259982274c0962",
+        "test_normalize.py": "215fe713b88859a849ac2d741975da49d8d78cdea2465dbadb1f1a59bcad477b"
+      },
+      "after": {
+        "docs/context-keeper/worklogs/2026-10-29-订单号原始文本保留修复.md": "6f5041ea3f4147fdd96177f833bf791193356127f2d4c805c8a81d7f635ffea8",
+        "docs/context-keeper/worklogs/2026-10-29-客户编号原始文本保留修复.md": "4c6cf338bafb8b3de4b10e2566c89fe2e00210859fd969262bcc8d46381d221b",
+        "test_customer_ids.py": "ef6640b565165c9c75852383edaab528d6bc201b7e5986c3a2277fb54fdfad66",
+        "normalize.py": "c1e5dedb7fc5eb0afbda8f9cb5097c3ca6045e36271f6ffc5e866d497ec52892",
+        "customer_ids.py": "2118370b3888151d35c6042326e3e2a2304feb12298051900a259982274c0962",
+        "test_normalize.py": "215fe713b88859a849ac2d741975da49d8d78cdea2465dbadb1f1a59bcad477b"
+      }
+    },
+    "session_5": {
+      "previous_logs_plans_and_business_code_unchanged": true,
+      "before": {
+        "docs/context-keeper/worklogs/2026-10-29-订单号原始文本保留修复.md": "6f5041ea3f4147fdd96177f833bf791193356127f2d4c805c8a81d7f635ffea8",
+        "docs/context-keeper/worklogs/2026-10-29-客户编号原始文本保留修复.md": "4c6cf338bafb8b3de4b10e2566c89fe2e00210859fd969262bcc8d46381d221b",
+        "docs/context-keeper/worklogs/2026-10-29-编号原始文本保留经验整理.md": "d82c5345e031cd81afcf5e59922d84826a62eed791e0c8dbe63cc5aefb196732",
+        "test_customer_ids.py": "ef6640b565165c9c75852383edaab528d6bc201b7e5986c3a2277fb54fdfad66",
+        "normalize.py": "c1e5dedb7fc5eb0afbda8f9cb5097c3ca6045e36271f6ffc5e866d497ec52892",
+        "customer_ids.py": "2118370b3888151d35c6042326e3e2a2304feb12298051900a259982274c0962",
+        "test_normalize.py": "215fe713b88859a849ac2d741975da49d8d78cdea2465dbadb1f1a59bcad477b"
+      },
+      "after": {
+        "docs/context-keeper/worklogs/2026-10-29-订单号原始文本保留修复.md": "6f5041ea3f4147fdd96177f833bf791193356127f2d4c805c8a81d7f635ffea8",
+        "docs/context-keeper/worklogs/2026-10-29-客户编号原始文本保留修复.md": "4c6cf338bafb8b3de4b10e2566c89fe2e00210859fd969262bcc8d46381d221b",
+        "docs/context-keeper/worklogs/2026-10-29-编号原始文本保留经验整理.md": "d82c5345e031cd81afcf5e59922d84826a62eed791e0c8dbe63cc5aefb196732",
+        "test_customer_ids.py": "ef6640b565165c9c75852383edaab528d6bc201b7e5986c3a2277fb54fdfad66",
+        "normalize.py": "c1e5dedb7fc5eb0afbda8f9cb5097c3ca6045e36271f6ffc5e866d497ec52892",
+        "customer_ids.py": "2118370b3888151d35c6042326e3e2a2304feb12298051900a259982274c0962",
+        "test_normalize.py": "215fe713b88859a849ac2d741975da49d8d78cdea2465dbadb1f1a59bcad477b"
+      }
+    }
+  },
+  "not_covered": [
+    "spontaneous evolution capture without explicit request",
+    "same-session append after an already saved worklog",
+    "desktop UI",
+    "Claude and other hosts",
+    "real upstream samples"
+  ],
+  "previous_unit_test_result": {
+    "count": 131,
+    "status": "pass",
+    "scope": "source tests before commit; separate from live CLI scenarios; not rerun for this documentation archive"
+  },
+  "evidence_archive": {
+    "type": "selected observable command/result excerpts, not full raw trajectories",
+    "selection": "manually selected completed command_execution events; exact source JSONL line numbers retained",
+    "redaction": "temporary project and source paths replaced by placeholders; personal/local executable paths replaced; no stderr/configuration or reasoning/thinking events included",
+    "raw_source_sha256": {
+      "acceptance-summary.json": "7fc9c1fb2023a189e177e0e0c165f5f16fe01dd755a57591ce3f98a4a9ce4722",
+      "evolution-report.json": "7518d013f4e2781d5cd8d4631d974bc03aed9babcdbb4f7c67c232683e2c7fcf",
+      "session-1.events.jsonl": "7456c95d583d60d0a1d0f07b0c2b25f38aaa9efea9e80f483178a5b0f57a9866",
+      "session-1.result.json": "cf8031becfffc48cf3d85aa7034d236ee7121fa1e51bed06115cd642eaa50653",
+      "session-1.prompt.txt": "d2f27494df0906b2675ea6ae934a8cc9b7afd8ea3412f4c1b75b54b03689cb15",
+      "session-1.snapshot.json": "3e5f258aa3dadb734b45e40dd88d9f1b12c79e5e643ef669dccc3a148fd73417",
+      "session-2.events.jsonl": "dc0dce5398eebdcab20ddd90d638f00498832dd559a2438a89ed9af33d0ed2bd",
+      "session-2.result.json": "c13b5239628ed34e85baed40c8f6148fa4871dfba21191d28ddc3624d77023b5",
+      "session-2.prompt.txt": "9fdbaa3bda43fa88efd2505de0ecbc59dc8a5f52e09b90af9b994967d6e06f3a",
+      "session-2.snapshot.json": "3e5f258aa3dadb734b45e40dd88d9f1b12c79e5e643ef669dccc3a148fd73417",
+      "session-3.events.jsonl": "f154ce3b095e297047a809a4cc911ed9dc9586174b383067da0af1224ac332dd",
+      "session-3.result.json": "f0eabcd67e141eb693a6f84f81a014964147997119b0222dd2a65e36ca3cb82c",
+      "session-3.prompt.txt": "2167dc53f2fb11a36db4e1bcb3d8acdffe0630ccea248880c0c743ff5222f3b1",
+      "session-3.snapshot.json": "6ef2bb6db285aaeb7dc002388497a83da18d4a5f4df0ec0cc9f9951abfb1bc9b",
+      "session-4.events.jsonl": "03540c1221829dc24312ace398d89ece19002b51f606800640c0335953e1ffdb",
+      "session-4.result.json": "3996ed2ae6fc8a681146dbe7cdd6dcbc96b35140e865e8a2dff4601683de0e02",
+      "session-4.prompt.txt": "358b079e10b5ce176133151c27deea6d41a725b98b9981ea6581f6767afa9812",
+      "session-4.snapshot.json": "c09a2a152841c29ac580218d265bca5c227a92f3d2de9a7d5e29903e5646f0ee",
+      "session-5.events.jsonl": "e6c5ed9117a1886c9d6ff6c8bd9bf1e038c45392eda69a80210ceaf820c79580",
+      "session-5.result.json": "7da3a52bedbcd44a6b4f977419a2cb31a97847651c24b662232a7093455b9e67",
+      "session-5.prompt.txt": "c6f7e5312ced71a05306f0ab456a5e6f61b2c60129fb17c6cd1c90f0c48b7630",
+      "session-5.snapshot.json": "a64bfd6a2307866d653fc1f760fa13a29423d6686bd4f4a3cde5e59974bffebd",
+      "evolution-after-session-4-check.json": "b95d23e20f56e3947c1f3354addd093fc404dc44337ffedbb8e7e768542935b8",
+      "evolution-after-session-5-check.json": "a0ca8c1730620a1927d64a37951c74c4f9308ca3ad3a0af92de16a2d0ab7102c"
+    },
+    "observations_sha256": "f9c093846cc9fc4e28abddede7006a95ad6fecf5ade2a82075620a897f1d904e",
+    "observation_count": 22,
+    "raw_files_copied": false
+  },
+  "record_snapshots": {
+    "session_1": {
+      "docs/context-keeper/evolution/index.md": "275017ec2cbb13403e3799d4f616bc2c224c4de2fbb3dc3f0dba515e4c44f564",
+      "docs/context-keeper/memory-keeper.md": "db172fb7f331dd128a85a60554011407d1a94241e33c99656db4ccb6a626f98b",
+      "docs/context-keeper/worklogs/2026-10-29-订单号原始文本保留修复.md": "6f5041ea3f4147fdd96177f833bf791193356127f2d4c805c8a81d7f635ffea8"
+    },
+    "session_2": {
+      "docs/context-keeper/evolution/index.md": "275017ec2cbb13403e3799d4f616bc2c224c4de2fbb3dc3f0dba515e4c44f564",
+      "docs/context-keeper/memory-keeper.md": "db172fb7f331dd128a85a60554011407d1a94241e33c99656db4ccb6a626f98b",
+      "docs/context-keeper/worklogs/2026-10-29-订单号原始文本保留修复.md": "6f5041ea3f4147fdd96177f833bf791193356127f2d4c805c8a81d7f635ffea8"
+    },
+    "session_3": {
+      "docs/context-keeper/evolution/index.md": "275017ec2cbb13403e3799d4f616bc2c224c4de2fbb3dc3f0dba515e4c44f564",
+      "docs/context-keeper/memory-keeper.md": "bcc16b8839520e660d7cf58d2d6822ffecd402e431c81d48e6c53a89b428836a",
+      "docs/context-keeper/worklogs/2026-10-29-客户编号原始文本保留修复.md": "4c6cf338bafb8b3de4b10e2566c89fe2e00210859fd969262bcc8d46381d221b",
+      "docs/context-keeper/worklogs/2026-10-29-订单号原始文本保留修复.md": "6f5041ea3f4147fdd96177f833bf791193356127f2d4c805c8a81d7f635ffea8"
+    },
+    "session_4": {
+      "docs/context-keeper/evolution/index.md": "c2aba7d3c131402b26d3790406f072c7b51e05856cb2a1d87a8534c2123c3022",
+      "docs/context-keeper/evolution/编号原始文本保留.md": "765e556c9dcd31c69fbdfeb3d33530695cf70b1cae812e9d4db342b8bd045ed1",
+      "docs/context-keeper/memory-keeper.md": "27af589805de847bba1768e2b937b3ca40e418e0d5facc0ec4b249df8e072e74",
+      "docs/context-keeper/worklogs/2026-10-29-客户编号原始文本保留修复.md": "4c6cf338bafb8b3de4b10e2566c89fe2e00210859fd969262bcc8d46381d221b",
+      "docs/context-keeper/worklogs/2026-10-29-编号原始文本保留经验整理.md": "d82c5345e031cd81afcf5e59922d84826a62eed791e0c8dbe63cc5aefb196732",
+      "docs/context-keeper/worklogs/2026-10-29-订单号原始文本保留修复.md": "6f5041ea3f4147fdd96177f833bf791193356127f2d4c805c8a81d7f635ffea8"
+    },
+    "session_5": {
+      "docs/context-keeper/evolution/index.md": "c2aba7d3c131402b26d3790406f072c7b51e05856cb2a1d87a8534c2123c3022",
+      "docs/context-keeper/evolution/编号原始文本保留.md": "a090ef94ccff014803246307271aea4941992ac51c518f84bce0fe6d6e1518af",
+      "docs/context-keeper/memory-keeper.md": "6276bf3d9fe108207722c6d180bf2269cae5e2add239542171b4ee5d05161e4d",
+      "docs/context-keeper/worklogs/2026-10-29-供应商编号原始文本保留修复.md": "319a06b3a68763c593bec58fc31a16bc9945a5440ae8b87a7f2d2c2b346c6367",
+      "docs/context-keeper/worklogs/2026-10-29-客户编号原始文本保留修复.md": "4c6cf338bafb8b3de4b10e2566c89fe2e00210859fd969262bcc8d46381d221b",
+      "docs/context-keeper/worklogs/2026-10-29-编号原始文本保留经验整理.md": "d82c5345e031cd81afcf5e59922d84826a62eed791e0c8dbe63cc5aefb196732",
+      "docs/context-keeper/worklogs/2026-10-29-订单号原始文本保留修复.md": "6f5041ea3f4147fdd96177f833bf791193356127f2d4c805c8a81d7f635ffea8"
+    }
+  }
+}
