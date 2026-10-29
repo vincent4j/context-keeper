@@ -24,7 +24,7 @@ python3 <source-dir>/scripts/install.py --all
 python3 <skill-dir>/scripts/install.py --ensure-bridge --skill-dir <skill-dir> --root <repo> --codex
 ```
 
-当前宿主是 Claude Code 时使用 `--claude`。得到用户确认后再加 `--approved` 写入。Cursor、WorkBuddy、Hermes、OpenCode 和 OpenClaw 当前只安装原生 Skill 目录，不写自动入口规则。
+当前宿主是 Claude Code 时使用 `--claude`，WorkBuddy 使用 `--workbuddy`。得到用户确认后再加 `--approved` 写入。Cursor、Hermes、OpenCode 和 OpenClaw 当前只安装原生 Skill 目录，不写自动入口规则。
 
 - 用户级安装对应用户级规则；项目级安装对应安装项目的规则，不以当前工作目录猜安装范围。
 - 目标 Agent 必须显式选择，安装器不会根据 PATH、用户目录或项目文件猜测宿主。
@@ -46,7 +46,7 @@ python3 <skill-dir>/scripts/install.py --ensure-bridge --skill-dir <skill-dir> -
 python3 scripts/install.py --all
 ```
 
-也可指定 `--codex`、`--claude`、`--cursor`、`--workbuddy`、`--hermes`、`--opencode` 或 `--openclaw`。用户级入口目前只写入 Codex 和 Claude Code 的用户规则文件，项目历史仍存放在各项目自己的记录目录，不跨项目自动混合。
+也可指定 `--codex`、`--claude`、`--cursor`、`--workbuddy`、`--hermes`、`--opencode` 或 `--openclaw`。用户级入口写入 Codex、Claude Code 和 WorkBuddy 的用户规则文件（WorkBuddy 为 `~/.workbuddy/MEMORY.md`），项目历史仍存放在各项目自己的记录目录，不跨项目自动混合。
 
 ## 项目级
 
@@ -56,9 +56,9 @@ python3 scripts/install.py --all
 python3 scripts/install.py --project <repo> --all
 ```
 
-项目级安装让项目的 Agent Skill 目录从源码仓库加载；选择 Codex 或 Claude Code 时，才会把短入口规则写入项目根目录的规则文件。用户级和项目级同时存在时，Agent 只执行一次检索或沉淀流程。
+项目级安装让项目的 Agent Skill 目录从源码仓库加载；选择 Codex 或 Claude Code 时，把短入口规则写入项目根目录的规则文件；选择 WorkBuddy 时，写入项目 `.workbuddy/memory/MEMORY.md` 顶部。用户级和项目级同时存在时，Agent 只执行一次检索或沉淀流程。
 
-Skill 已通过统一安装或其他方式可用，只需启用 Codex 或 Claude Code 自动入口时：
+Skill 已通过统一安装或其他方式可用，只需启用 Codex、Claude Code 或 WorkBuddy 自动入口时：
 
 ```bash
 python3 scripts/install.py --codex --claude --bridge-only
@@ -85,7 +85,7 @@ python3 scripts/install.py --all --uninstall
 | Codex | `~/.agents/skills`、`~/.codex/skills` | `.agents/skills`、`.codex/skills` | 支持 |
 | Claude Code | `~/.claude/skills` | `.claude/skills` | 支持 |
 | Cursor | `~/.cursor/skills` | `.cursor/skills` | 未启用 |
-| WorkBuddy | `~/.workbuddy/skills` | `.workbuddy/skills` | 未启用 |
+| WorkBuddy | `~/.workbuddy/skills` | `.workbuddy/skills` | 支持配置，待新会话运行时验收 |
 | Hermes | `~/.hermes/skills` | `.agents/skills` | 未启用 |
 | OpenCode | `~/.config/opencode/skills` | `.opencode/skills` | 未启用 |
 | OpenClaw | `~/.agents/skills` | `.agents/skills` | 未启用 |
@@ -105,3 +105,9 @@ python3 scripts/install.py --all --uninstall
 ## 当前实测限制
 
 2026-09-16：Codex/gpt-6-astra 的普通任务、自动沉淀、跨任务复用及失败后检索用例通过。本机 Claude Code/MiniMax-M3 显式保存可用，但自然纠正未自动沉淀，检索也未严格遵守读取预算。不得将安装成功描述为所有模型均可自动运行。详见仓库 `behavior-verification.md`。
+
+## WorkBuddy 既有块接管
+
+使用 `context-keeper:workbuddy:start/end` 标记识别既有 AGM 桥接块。模板与三项目已部署块逐字节兼容；当前块位于顶部时返回 `unchanged`，不写文件。旧文案在批准后原位更新；块不在顶部时移至顶部，保留块外原文；缺失时前置，不追加第二块。损坏、倒置或重复标记在写入 Skill 和规则前停止。此安装门禁不读取记录库，也不绕过记录库迁移门禁。
+
+WorkBuddy 真机新会话自动读取与续接仍需用户另行验收，文件配置成功不构成该结论。

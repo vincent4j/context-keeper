@@ -25,6 +25,25 @@ BRIDGE = f"""{BRIDGE_START}
 """
 
 
+# Adopt AGM-deployed blocks byte-for-byte; runtime behavior is still unverified.
+WORKBUDDY_BRIDGE_START = "<!-- context-keeper:workbuddy:start -->"
+WORKBUDDY_BRIDGE_END = "<!-- context-keeper:workbuddy:end -->"
+WORKBUDDY_BRIDGE = """<!-- context-keeper:workbuddy:start -->
+## Context Keeper（WorkBuddy 桥接，待运行时验收）
+
+项目规则读取项目根 AGENTS.md；项目记忆遵守已安装的 context-keeper SKILL.md，使用用户确认的实际记录库路径，不假设固定目录。未获记录库授权不得写入；遵守 record-path / record-guard、会话标识与 save-report 要求。此入口不存项目历史。
+
+- 无项目聊天不启动自动保存、状态检查或建库询问；仅用户明确要求保存时进入保存路由。本边界优先于所有自动记录触发；临时目录和讨论仓库文件都不自动把聊天变成项目会话。
+- 脚本报告“需要迁移”（退出码 3）时立即停止读写；先展示 migrate 预览，用户确认后才执行 --approved，不绕过门禁读旧目录。
+- 用户提及以前、上次、重复问题，失败准备重试或换路线且证据不足，或准备推翻旧决策依据不清时，做一次限量历史检索；普通新需求不检索，同一问题本轮不重复。
+- 仅在已确认项目、已有授权记录库、无用户禁止保存/改文件且有新事实时，于阶段工作或成果、技术选择、影响路线的失败、用户纠正、新证据、暂停交接或阻塞等待的自然节点记录，交付或暂停回复前完成；失败也记，不等成功，不自动建库或询问。琐碎问答、无影响工具调用和重复状态跳过，不创建空日志；不保存原始凭据或无关隐私，不违反立即停止指令。
+- 工作日志只追加：同会话同主题追加带时间新段，跨会话新建并关联；已有操作、错误方案、当时判断和旧摘要不覆盖、不删除，纠正另追加。主题记忆可更新：当前进度/待办/偏好在 memory-keeper，经验在 evolution，保留来源与替代关系；记录事实不等于新增编号经验。
+- 整理先更新 memory-keeper 当前进度、要求、待办和来源；同主题更新，不按日期堆近似条目。经验先判断下次场景、建议动作与依据，再补证据/修范围或新建主题，不机械生成经验。续接命令通过迁移门禁后先看相关当前主题和待办，旧摘要只是历史线索；必要时有限追溯来源。save-report 只检查结构和链接，本轮反馈由 Agent 核对说明，旧反馈不复播；日志只追加由指令约束，不增加段 ID、锁或回执。
+- 历史事实只来自记录，区分原文、摘要和推断；未找到就说明未找到。采用前核验当前适用性，历史下一步不构成当前授权；不重复提出已被拒绝的保存询问。
+<!-- context-keeper:workbuddy:end -->
+"""
+
+
 def _home() -> Path:
     return Path(os.environ.get("HOME") or str(Path.home())).expanduser().resolve()
 
@@ -126,44 +145,65 @@ def _check_remove_target(target_root: Path) -> Path:
     raise RuntimeError(f"拒绝删除无法确认由安装器创建的目录：{target}；请先核对其中的本地修改")
 
 
-def _upsert_bridge(path: Path) -> str:
+def _bridge_spec(agent: str) -> tuple[str, str, str]:
+    if agent == "workbuddy":
+        return WORKBUDDY_BRIDGE_START, WORKBUDDY_BRIDGE_END, WORKBUDDY_BRIDGE
+    return BRIDGE_START, BRIDGE_END, BRIDGE
+
+
+def _bridge_path(agent: str, base: Path, *, user: bool = False) -> Path:
+    if agent == "workbuddy":
+        return base / (".workbuddy/MEMORY.md" if user else ".workbuddy/memory/MEMORY.md")
+    return base / ({"codex": ".codex/AGENTS.md", "claude": ".claude/CLAUDE.md"}[agent]
+                   if user else {"codex": "AGENTS.md", "claude": "CLAUDE.md"}[agent])
+
+
+def _upsert_bridge(path: Path, agent: str = "codex") -> str:
+    _check_bridge(path, agent)
+    first, last, bridge = _bridge_spec(agent)
     path.parent.mkdir(parents=True, exist_ok=True)
     if not path.exists():
-        path.write_text(BRIDGE + "\n", encoding="utf-8")
+        path.write_text(bridge + "\n", encoding="utf-8")
         return "created"
-    text = path.read_text(encoding="utf-8")
-    start = text.find(BRIDGE_START)
-    end = text.find(BRIDGE_END)
-    if text.count(BRIDGE_START) != text.count(BRIDGE_END) or text.count(BRIDGE_START) > 1 or (end >= 0 and end < start):
-        raise RuntimeError(f"入口标记不完整或重复，停止修改：{path}")
+    # Decode bytes directly so block-external CRLF and trailing bytes survive.
+    text = path.read_bytes().decode("utf-8")
+    start, end = text.find(first), text.find(last)
+    replacement = bridge.rstrip("\n")
     if start >= 0:
-        end += len(BRIDGE_END)
-        replacement = BRIDGE.rstrip("\n")
-        if text[start:end] == replacement:
+        end += len(last)
+        if text[start:end] == replacement and (agent != "workbuddy" or start == 0):
             return "unchanged"
-        path.write_text(text[:start] + replacement + text[end:], encoding="utf-8")
+        if agent == "workbuddy" and start != 0:
+            updated = replacement + "\n\n" + text[:start] + text[end:]
+        else:
+            updated = text[:start] + replacement + text[end:]
+        path.write_bytes(updated.encode("utf-8"))
         return "updated"
-    path.write_text(text + ("\n" if text.endswith("\n") else "\n\n") + BRIDGE, encoding="utf-8")
+    if agent == "workbuddy":
+        path.write_bytes((bridge + "\n" + text).encode("utf-8"))
+        return "prepended"
+    path.write_bytes((text + ("\n" if text.endswith("\n") else "\n\n") + bridge).encode("utf-8"))
     return "appended"
 
 
-def _check_bridge(path: Path) -> None:
+def _check_bridge(path: Path, agent: str = "codex") -> None:
     if not path.exists():
         return
-    text = path.read_text(encoding="utf-8")
-    start = text.find(BRIDGE_START)
-    end = text.find(BRIDGE_END)
-    if text.count(BRIDGE_START) != text.count(BRIDGE_END) or text.count(BRIDGE_START) > 1 or (end >= 0 and end < start):
+    text = path.read_bytes().decode("utf-8")
+    first, last, _ = _bridge_spec(agent)
+    start, end = text.find(first), text.find(last)
+    if text.count(first) != text.count(last) or text.count(first) > 1 or (end >= 0 and end < start):
         raise RuntimeError(f"入口标记不完整或重复，停止修改：{path}")
 
 
-def _bridge_is_current(path: Path) -> bool:
+def _bridge_is_current(path: Path, agent: str = "codex") -> bool:
     if not path.exists():
         return False
-    text = path.read_text(encoding="utf-8")
-    start = text.find(BRIDGE_START)
-    end = text.find(BRIDGE_END)
-    return start >= 0 and end >= start and text[start:end + len(BRIDGE_END)] == BRIDGE.rstrip("\n")
+    text = path.read_bytes().decode("utf-8")
+    first, last, bridge = _bridge_spec(agent)
+    start, end = text.find(first), text.find(last)
+    return (start >= 0 and end >= start and (agent != "workbuddy" or start == 0)
+            and text[start:end + len(last)] == bridge.rstrip("\n"))
 
 
 def _ensure_bridge(args: argparse.Namespace) -> int:
@@ -172,10 +212,11 @@ def _ensure_bridge(args: argparse.Namespace) -> int:
     if args.all or len(selected_agents) != 1 or args.uninstall or args.project or args.codex_dir or args.claude_dir:
         raise RuntimeError("首次入口配置只接受一个当前 Agent，不混用安装、卸载或项目级选项。")
     agent = selected_agents[0]
-    if agent not in ("codex", "claude"):
+    if agent not in ("codex", "claude", "workbuddy"):
         raise RuntimeError(f"{agent} 当前只安装原生 Skill 目录；自动入口尚未完成运行时验证，停止写入规则文件。")
     home = _home()
-    roots = (".agents", ".codex") if agent == "codex" else (".claude", ".agents")
+    roots = {"codex": (".agents", ".codex"), "claude": (".claude", ".agents"),
+             "workbuddy": (".workbuddy",)}[agent]
     loaded = Path(os.path.abspath(Path(args.skill_dir).expanduser()))
     if loaded.resolve() != SOURCE.resolve():
         raise RuntimeError("传入的 Skill 路径与正在运行的安装器不一致，停止配置。")
@@ -200,35 +241,41 @@ def _ensure_bridge(args: argparse.Namespace) -> int:
     if selected is None:
         raise RuntimeError("无法确认安装范围，未修改任何入口。请提供已安装 Skill 的路径，或按安装说明显式选择范围。")
     scope, base = selected
-    if scope == "user":
-        bridge = home / (".codex/AGENTS.md" if agent == "codex" else ".claude/CLAUDE.md")
-    else:
-        bridge = base / ("AGENTS.md" if agent == "codex" else "CLAUDE.md")
-    _check_bridge(bridge)
-    if _bridge_is_current(bridge):
+    bridge = _bridge_path(agent, base, user=scope == "user")
+    _check_bridge(bridge, agent)
+    if _bridge_is_current(bridge, agent):
         print(json.dumps({"scope": scope, "agent": agent, "bridge": str(bridge), "action": "unchanged"}, ensure_ascii=False))
         return 0
     if not args.approved:
         print(json.dumps({"approval_required": True, "operation": "配置自动入口", "file": str(bridge),
                           "effect": "新增或更新 Context Keeper 受控规则区块；保留文件中的其他内容"}, ensure_ascii=False))
         return 0
-    action = _upsert_bridge(bridge)
-    actual = bridge.read_text(encoding="utf-8")
-    if actual.count(BRIDGE_START) != 1 or BRIDGE.rstrip("\n") not in actual:
+    action = _upsert_bridge(bridge, agent)
+    first, _, template = _bridge_spec(agent)
+    actual = bridge.read_bytes().decode("utf-8")
+    if actual.count(first) != 1 or template.rstrip("\n") not in actual:
         raise RuntimeError(f"入口读回校验失败：{bridge}")
     print(json.dumps({"scope": scope, "agent": agent, "bridge": str(bridge), "action": action}, ensure_ascii=False))
     return 0
 
 
-def _remove_bridge(path: Path) -> str:
+def _remove_bridge(path: Path, agent: str = "codex") -> str:
     if not path.exists():
         return "absent"
-    original = path.read_text(encoding="utf-8")
-    start = original.find(BRIDGE_START)
-    end = original.find(BRIDGE_END)
+    original = path.read_bytes().decode("utf-8")
+    first, last, _ = _bridge_spec(agent)
+    start = original.find(first)
+    end = original.find(last)
     if start < 0 or end < start:
         return "absent"
-    end += len(BRIDGE_END)
+    end += len(last)
+    if agent == "workbuddy":
+        updated = original[:start] + original[end:]
+        if updated:
+            path.write_bytes(updated.encode("utf-8"))
+            return "removed"
+        path.unlink()
+        return "removed_file"
     updated = (original[:start].rstrip() + "\n\n" + original[end:].lstrip("\n")).strip()
     if updated:
         path.write_text(updated + "\n", encoding="utf-8")
@@ -273,19 +320,17 @@ def main(argv: list[str] | None = None) -> int:
         raise RuntimeError("请显式选择目标 Agent（例如 --codex），或使用 --all；安装器不会根据目录或命令猜测宿主。")
 
     selected_agents = [agent for agent in agents if getattr(args, agent)]
-    unsupported_bridges = [agent for agent in selected_agents if agent not in ("codex", "claude")]
+    unsupported_bridges = [agent for agent in selected_agents if agent not in ("codex", "claude", "workbuddy")]
     if args.bridge_only and unsupported_bridges:
-        raise RuntimeError("Cursor、WorkBuddy、Hermes、OpenCode 和 OpenClaw 当前只安装 Skill 目录；自动入口尚未完成运行时验证。")
+        raise RuntimeError("Cursor、Hermes、OpenCode 和 OpenClaw 当前只安装 Skill 目录；自动入口尚未完成运行时验证。")
 
     project = Path(args.project).expanduser().resolve() if args.project else None
     home = _home()
     installed: list[str] = []
     removed: list[dict[str, str]] = []
     bridges: list[dict[str, str]] = []
-    bridge_paths = {
-        "codex": project / "AGENTS.md" if project else home / ".codex" / "AGENTS.md",
-        "claude": project / "CLAUDE.md" if project else home / ".claude" / "CLAUDE.md",
-    }
+    bridge_paths = {agent: _bridge_path(agent, project or home, user=project is None)
+                    for agent in ("codex", "claude", "workbuddy")}
     roots_by_agent = {
         agent: ([Path(args.codex_dir)] if agent == "codex" and args.codex_dir else
                 [Path(args.claude_dir)] if agent == "claude" and args.claude_dir else
@@ -314,7 +359,7 @@ def main(argv: list[str] | None = None) -> int:
             _check_install_target(skill_root)
     for agent in selected_agents:
         if agent in bridge_paths:
-            _check_bridge(bridge_paths[agent])
+            _check_bridge(bridge_paths[agent], agent)
 
     if not args.approved:
         print(json.dumps({
@@ -323,7 +368,7 @@ def main(argv: list[str] | None = None) -> int:
             "skill_entries": [str(root.expanduser() / "context-keeper") for root in selected_roots] if not args.bridge_only else [],
             "rule_files": [str(bridge_paths[agent]) for agent in selected_agents if agent in bridge_paths],
             "effect": "仅移除当前源码创建的入口和自身规则区块" if args.uninstall else
-                      "新增或复用 Skill 入口，并在 Codex/Claude Code 规则文件中新增或更新自身区块",
+                      "新增或复用 Skill 入口，并在 Codex/Claude Code/WorkBuddy 规则文件中新增或更新自身区块",
         }, ensure_ascii=False, indent=2))
         return 0
 
@@ -334,7 +379,7 @@ def main(argv: list[str] | None = None) -> int:
         for agent in selected_agents:
             if agent in bridge_paths:
                 bridge = bridge_paths[agent]
-                bridges.append({"file": str(bridge), "action": _remove_bridge(bridge)})
+                bridges.append({"file": str(bridge), "action": _remove_bridge(bridge, agent)})
     else:
         created: list[Path] = []
         saved_bridges: list[tuple[Path, bytes | None]] = []
@@ -350,7 +395,7 @@ def main(argv: list[str] | None = None) -> int:
                 if agent in bridge_paths:
                     bridge = bridge_paths[agent]
                     saved_bridges.append((bridge, bridge.read_bytes() if bridge.exists() else None))
-                    bridges.append({"file": str(bridge), "action": _upsert_bridge(bridge)})
+                    bridges.append({"file": str(bridge), "action": _upsert_bridge(bridge, agent)})
         except (RuntimeError, OSError):
             try:
                 for bridge, original in reversed(saved_bridges):

@@ -278,7 +278,7 @@ class InstallTests(unittest.TestCase):
             payload = json.loads(result.stdout)
             self.assertEqual(payload["scope"], "user")
             self.assertEqual(len(payload["installed"]), 7)
-            self.assertEqual(len(payload["bridges"]), 2)
+            self.assertEqual(len(payload["bridges"]), 3)
             self.assertTrue((home / ".agents" / "skills" / "context-keeper").is_symlink())
             self.assertTrue((home / ".codex" / "skills" / "context-keeper").is_symlink())
             self.assertTrue((home / ".claude" / "skills" / "context-keeper").is_symlink())
@@ -414,10 +414,10 @@ class InstallTests(unittest.TestCase):
             agents_file.write_text("# Existing rules\n", encoding="utf-8")
             original_upsert = installer._upsert_bridge
 
-            def fail_on_claude(path):
+            def fail_on_claude(path, agent="codex"):
                 if path.name == "CLAUDE.md":
                     raise OSError("simulated write failure")
-                return original_upsert(path)
+                return original_upsert(path, agent)
 
             with patch.object(installer, "_upsert_bridge", side_effect=fail_on_claude):
                 with self.assertRaises(OSError):

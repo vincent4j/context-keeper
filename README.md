@@ -51,7 +51,7 @@ Context Keeper 帮 AI 保存项目进度、找回历史事实，更让它在使�
 | ⚡ **会多花 Token 吗？** | 普通新需求不查历史；需要时只读少量相关记录，同一问题不反复查。不全量加载聊天，也不承诺零 Token 成本。 |
 | 📝 **需要自己维护吗？** | 保存记录、整理经验由 AI 执行。你不需要手写日志、整理文件或维护一套知识库。 |
 | 🔎 **会不会编造“以前的经验”？** | 历史结论必须有记录支撑。与你记得的不一致时展示原文，没找到就说明没找到；推断不能冒充事实。 |
-| 🤖 **我的 Agent 能用吗？** | 提供 Codex、Claude Code、Cursor、WorkBuddy、Hermes、OpenCode 和 OpenClaw 的原生 Skill 目录安装。只有 Codex 和 Claude Code 目前写入自动入口；其余五个等待真实运行时验收后再启用自动规则。 |
+| 🤖 **我的 Agent 能用吗？** | 提供 Codex、Claude Code、Cursor、WorkBuddy、Hermes、OpenCode 和 OpenClaw 的原生 Skill 目录安装。Codex、Claude Code 与 WorkBuddy 目前写入自动入口（WorkBuddy 的 `--workbuddy` ensure 桥接已通过安装器接管验证，真机新会话验收待做）；其余四个等待真实运行时验收后再启用自动规则。 |
 
 ---
 
@@ -118,7 +118,7 @@ Context Keeper 帮 AI 保存项目进度、找回历史事实，更让它在使�
 | Codex | `.agents/skills`、`.codex/skills` | 支持 | 已做运行时验收 |
 | Claude Code | `.claude/skills` | 支持 | 已做部分运行时验收 |
 | Cursor | `.cursor/skills` | 未写入 | 安装器已覆盖，待客户端验收 |
-| WorkBuddy | `.workbuddy/skills` | 未写入 | 安装器已覆盖，待客户端验收 |
+| WorkBuddy | `.workbuddy/skills` | 支持（`--workbuddy` ensure，写入项目 `.workbuddy/memory/MEMORY.md` 顶部桥接块，接管既有块） | 安装器接管已验证（幂等 unchanged、无重复块）；真机新会话验收待做 |
 | Hermes | `.hermes/skills`（用户级）或 `.agents/skills`（项目级） | 未写入 | 安装器已覆盖，待客户端验收 |
 | OpenCode | `.config/opencode/skills`（用户级）或 `.opencode/skills`（项目级） | 未写入 | 安装器已覆盖，待客户端验收 |
 | OpenClaw | `.agents/skills` | 未写入 | 安装器已覆盖，待客户端验收 |
