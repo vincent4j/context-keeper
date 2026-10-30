@@ -1,0 +1,17 @@
+{
+  "source_commit": "165114d46b42cd4a9889515580de178e0a16449f",
+  "archive_date": "2026-10-30",
+  "timezone": "Asia/Singapore",
+  "source_artifact_sha256": {
+    "verification.md": "7481e92930ace4ebed5208468b30deb2baf6eb84a04762144e16ab6f48d965f8",
+    "installed-verification-results.json": "55a208ab48c3dab9b4f7ce73f25ba9b7bc82aeb4d656a26540c9b5b4f605b606"
+  },
+  "archived_artifact_sha256": {
+    "report.md": "a6feb27d5df75b93fd695174e45de0e2a51011804ccaa328427f48f54f7829b7",
+    "results.json": "31bf934f15705edd8b8970d5d98ae3d30cf0a2a3b352804d741ea074720b74a2"
+  },
+  "redactions": [
+    "User absolute paths and chat identifiers omitted",
+    "Private configuration backups and raw session traces not published"
+  ]
+}

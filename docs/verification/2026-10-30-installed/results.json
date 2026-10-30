@@ -1,0 +1,80 @@
+{
+  "source_commit": "165114d46b42cd4a9889515580de178e0a16449f",
+  "results": {
+    "codex": {
+      "independent_assertions_passed": 12,
+      "prior_logs_unchanged": {
+        "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md": true
+      },
+      "experience_count": 1,
+      "experiences": [
+        {
+          "file": "docs/context-keeper/evolution/原始文本编号合同.md",
+          "number": "CK-ID-001",
+          "text": "# 原始文本编号合同\n\n- **编号：** CK-ID-001\n- **状态：** 已验证\n- **触发条件：** 本项目新增或修复编号入口，且接口确认编号属于原始文本标识。\n- **已知事实：** 订单与客户合同相同，仅空字符串抛出 ValueError，其他文本原样保留；int 转换会损失前导零、首尾空格，并拒绝字母。移除转换并显式校验空字符串后，订单 5 项、客户 6 项本地测试通过。\n- **证据位置：** [订单修复及合同补充](../worklogs/2026-10-30-订单编号原始文本修复.md)、[客户独立入口修复](../worklogs/2026-10-30-客户编号合同复用修复.md)。\n- **建议动作：** 先核对入口合同，复现数字转换缺陷，再仅拒绝空字符串并直接返回原文；用前导零、字母、普通编号、首尾空格、空字符串验证，避免 strip 或数值转换。\n- **适用范围：** 仅本验证项目中合同相同的字符串编号入口及已测本地用例；非字符串输入未定义，真实上游样本和完整导入链路尚未验收，不推广到其他项目或不同合同。\n"
+        }
+      ],
+      "project_agent_entry_present": false,
+      "project_skill_alias_present": false
+    },
+    "claude": {
+      "independent_assertions_passed": 12,
+      "prior_logs_unchanged": {
+        "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md": true
+      },
+      "experience_count": 1,
+      "experiences": [
+        {
+          "file": "docs/context-keeper/evolution/标识符导入保留原始文本.md",
+          "number": "CK-001",
+          "text": "# 标识符导入保留原始文本\n\n- **编号：** CK-001\n- **状态：** 已验证\n- **触发条件：** 导入或规范化订单号、客户号等编号入口，发现 `int()` 转换造成前导零丢失、字母编号报错，或用户说明编号是原始文本标识。\n- **已知事实：** 订单入口与客户入口原实现都是 `str(int(raw))`，各自在修复前的测试中出现前导零变成数字、字母编号抛 ValueError。两处都改为只对 `raw == \"\"` 显式抛 ValueError，其余原样返回，不 strip、不转数字，修复后各自测试通过。接口合同由用户核对后确认，两入口相同。客户空字符串用例修复前靠 `int(\"\")` 的副作用通过，不是合同校验。\n- **证据位置：** [订单日志](../worklogs/2026-10-30-订单编号原始文本修复.md)、[客户日志](../worklogs/2026-10-30-客户编号原始文本修复.md)\n- **建议动作：** 先确认合同（空值、首尾空格是否保留）；先跑测试看失败再改；去掉数字转换并显式写空值校验，不依赖转换的副作用；检查同类入口是否有相同的 `int()` 转换。\n- **适用范围：** 本项目的 `order_ids.py` 与 `customer_ids.py`，输入为字符串，合同为空串拒绝、其余原文保留。只有本地单元测试支持，真实上游样本导入未验证，不扩展到其他项目或生产数据。\n"
+        }
+      ],
+      "project_agent_entry_present": false,
+      "project_skill_alias_present": false
+    },
+    "workbuddy": {
+      "independent_assertions_passed": 12,
+      "prior_logs_unchanged": {
+        "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md": true
+      },
+      "experience_count": 0,
+      "experiences": [],
+      "project_agent_entry_present": false,
+      "project_skill_alias_present": false
+    },
+    "workbuddy-project-bridge": {
+      "independent_assertions_passed": 12,
+      "prior_logs_unchanged": {
+        "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md": true
+      },
+      "experience_count": 1,
+      "experiences": [
+        {
+          "file": "docs/context-keeper/evolution/CK-001-原始文本编号入口.md",
+          "number": "CK-001",
+          "text": "# 原始文本编号入口的空串校验与不做 strip\n\n- **编号：** CK-001\n- **状态：** 已验证\n- **触发条件：** 新增或修复以字符串承载的编号入口（订单、客户等），或出现前导零丢失、字母编号报错、首尾空格被改写。\n- **已知事实：** 用户核对接口合同确认：空字符串必须抛 `ValueError`；首尾空格属于编号原文，不能 strip；前导零与字母必须保留；订单与客户两入口合同相同，不增加依赖。运行结果：`str(int(raw))` 会破坏前导零、字母编号抛 `invalid literal for int()`、首尾空格被吞；改为只校验 `raw == \"\"` 后直接返回原文，订单入口 5 项、客户入口 5 项本地测试全部通过。待验证：真实上游样本导入表现；仅空白字符串 `\"   \"` 不在合同内，当前两入口均原样放行。\n- **证据位置：** [订单编号日志](../worklogs/2026-10-30-订单编号原始文本修复.md)、[客户编号日志](../worklogs/2026-10-30-客户编号入口原始文本修复.md)。\n- **建议动作：** 直接拒绝数值转换，写显式 `if raw == \"\": raise ValueError(...)` 后 `return raw`；新增同类入口时照此实现，并把用例集对齐为前导零、字母数字、纯数字、空串、首尾空格五类，保持各入口异常文案指向自身业务名。\n- **适用范围：** 本项目 `order_ids.py` / `customer_ids.py` 及后续同类编号入口；仅覆盖本地单元测试，真实数据源接入后须重做验收；不覆盖仅空白、非字符串输入等合同未定义的边界。\n"
+        }
+      ],
+      "project_agent_entry_present": true,
+      "project_skill_alias_present": false
+    }
+  },
+  "all_15_entries_unchanged_after_tests": true,
+  "workbuddy_user_only": {
+    "ui_task_title": "修复订单和客户编号导入入口问题",
+    "reported_model": "快速 (GLM-5.3-Flash)",
+    "duration": "2m6s",
+    "agent_test_count": 10,
+    "no_skill_read_observed": true,
+    "automatic_experience_not_observed": true
+  },
+  "workbuddy_project_bridge": {
+    "ui_task_title": "修复订单编号和客户编号导入问题",
+    "reported_model": "快速 (GLM-5.3-Flash)",
+    "duration": "5m25s",
+    "agent_test_count": 10,
+    "coverage_and_save_report_ui_reported_pass": true,
+    "initial_probe_lookup_exit_137_preserved": true
+  }
+}
