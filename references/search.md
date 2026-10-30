@@ -27,6 +27,8 @@ python3 <skill-dir>/scripts/context_keeper_probe.py search \
   --root <repo> --query '<关键词1|关键词2|关键词3>'
 ```
 
+普通空白分隔的多关键词按任一词命中召回；显式正则中的分组、转义、量词和 `|` 保留原语义，不把表达式内部空格拆词。候选数量与读取预算不变。该规则仅适用于 search/resume，history-search 的原正则行为不变。
+
 脚本依次查：
 
 1. 项目和已批准用户级的 evolution 主题经验；默认排除已替代经验，最多返回 3 条。

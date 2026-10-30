@@ -1,0 +1,11 @@
+{
+  "initial_fixture_source": "../2026-10-30-ab/fixture.json",
+  "supplier_module_before_task": "def normalize_supplier_id(raw: str) -> str:\n    return str(int(raw))\n",
+  "supplier_test_inputs": [
+    "00009",
+    "S009",
+    " 00009 ",
+    ""
+  ],
+  "supplier_expected": "nonempty input unchanged, empty string raises ValueError"
+}

@@ -1,0 +1,262 @@
+diff --git a/DESIGN.md b/DESIGN.md
+index 29395ae..01e8df1 100644
+--- a/DESIGN.md
++++ b/DESIGN.md
+@@ -192,6 +192,8 @@ Context Keeper 用有限上下文保存项目进度、追溯历史事实、复
+ 
+ 回答不清楚时，先留在日志或当前状态中，不建立编号经验。一次操作成功不自动构成长期规则。
+ 
++同一方法在不同问题或业务入口的实际修复中重复验证，且能回答上述问题时，在本轮自然收尾完成经验整理，不等待用户显式请求。先查已有同主题，有则保留编号并补证据/修范围，没有覆盖该认识的主题才新增一条并关联各次验证日志、索引和当前记忆。仅更新日志或主题摘要不能代替该步骤。一次修复内的多个用例、原样重跑、重复描述不算独立验证；不能按次数机械生成经验，仍需核对方法和适用条件，保留局部验证边界。
++
+ 继续沿用现有经验结构：触发条件、已知事实、证据位置、建议动作、适用范围，以及待验证、已验证、已替代状态。
+ 
+ | 内容变化 | 处理方式 |
+@@ -218,6 +220,8 @@ Context Keeper 用有限上下文保存项目进度、追溯历史事实、复
+ 
+ 旧日志及其首次摘要继续兼容，作为历史线索保留，不能主导当前续接。主题与日志冲突时展示差异、按证据判断，不回改旧日志。无需为读取建立追加段管理系统。
+ 
++search/resume 的普通多关键词按空白分词、任一词命中召回，输出预算不变；显式正则保留表达式内部空格。history-search 的原正则行为不变。当前主题未命中时须有限读回当前记忆或已有来源，不能把日志首次片段当作最新状态；这不是全量扫描或完整召回保证。
++
+ ### 6.5 必要的脚本支持与检查边界
+ 
+ | 位置 | 第二阶段调整 |
+diff --git a/SKILL.md b/SKILL.md
+index 252acaa..ead8bac 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -107,6 +107,10 @@ python3 <skill-dir>/scripts/context_keeper_probe.py history-search \
+ 
+ ## 自我进化
+ 
++在已有授权记录库内，同一方法已在不同问题或业务入口的实际修复中重复验证，并能说明下次场景、建议动作和证据边界时，在本轮自然收尾完成经验整理，不等待用户另行要求。先读 evolution/index.md 和相关主题：已有同主题就补证据或修订范围，保留编号；没有覆盖该认识的主题才新增一条经验，并关联各次验证的日志与当前记忆。仅更新日志/主题摘要不能替代已满足条件的经验整理。
++
++一次修复中的多个测试用例、原样重跑同一批测试或重复描述，不算不同问题的重复验证；单次成功、一次性偏好和没有验证的推断不因此新增编号。即使验证次数足够，仍需核对方法与适用条件是否相同，不能只按次数机械新增。只验证了本地用例，就明确限制适用范围，不扩大为生产或所有输入有效。
++
+ 经验文件必须包含编号、状态、触发条件、已知事实、证据位置、建议动作和适用范围；状态只有待验证、已验证、已替代，已替代经验保留替代链接和原证据。搜索优先已验证经验，排除已替代经验，标明待验证经验。
+ 
+ 自动沉淀先适用无项目聊天边界；项目会话再判断记录库是否已存在且获授权。没有授权记录库时，简短查询、即时问答及其纠正直接完成任务，不建库、不询问；已有授权记录库时新增事实按保存路由沉淀；用户明确要求保存时再处理首次建库确认。用户对文案、展示、命名、交互形式等一次性偏好不是经验：写入 memory-keeper 对应主题，不创建编号经验文件。
+diff --git a/manifest.json b/manifest.json
+index d5ac15e..ad1aa3f 100644
+--- a/manifest.json
++++ b/manifest.json
+@@ -16,7 +16,7 @@
+   "files": [
+     {
+       "path": "SKILL.md",
+-      "sha256": "aec1c1e1c6cda592f20b3938ff278fbe36953bc67c196a8b3bf9caae0a53448f"
++      "sha256": "fd11405fa039d7689d01cfc9ab195673036d0af2037f301dc66a7aef0e0ed28b"
+     },
+     {
+       "path": "README.md",
+@@ -24,7 +24,7 @@
+     },
+     {
+       "path": "DESIGN.md",
+-      "sha256": "6b4d7a857a5173b4d170dcde1adca310bbc35d487c2eb556aefd28eea5fe2a84"
++      "sha256": "6de2ce58a60fd18eaf04719da01da746bb6ff0151754ea6156df0834a9a41393"
+     },
+     {
+       "path": "assets/context-keeper-icon.png",
+@@ -44,19 +44,19 @@
+     },
+     {
+       "path": "scripts/install.py",
+-      "sha256": "a41ffca7f7749d483a4076b0ae5ed6599a39c5b980d443a0e4e90b616f994763"
++      "sha256": "73bc61dd72b54944dcdc4c47c3c863a52627a369ddf3541cb7d0984b66db31da"
+     },
+     {
+       "path": "scripts/context_keeper_probe.py",
+-      "sha256": "9878d1b0bfcf52bb3e6d905c37cc70539ed2992e15ee469ded6a50e00b24887b"
++      "sha256": "3193d4ef3267eb7ad5f1ee2155c4df745b52231955ca0f3f3d68909046cf1672"
+     },
+     {
+       "path": "references/save.md",
+-      "sha256": "1cbdcdaaa8ae1a339f73f7c0e2834b71b46dd1a9282de71d9304e0207129e781"
++      "sha256": "93440f9a3a32c6822055d73894f4e15575d8fef29380a62c75592a5dd2822df2"
+     },
+     {
+       "path": "references/resume.md",
+-      "sha256": "1eeeb3a13e5794a6eb61a612b98746bb3430109e910302e106e600d6691233c7"
++      "sha256": "4d93a106221c7fab9e7c964d5c8d491e3726263029ba655f1c0a4e13f2d63c83"
+     },
+     {
+       "path": "references/install.md",
+@@ -68,7 +68,7 @@
+     },
+     {
+       "path": "references/search.md",
+-      "sha256": "55056b0679eabb6ce94fd7e52d4bb0fda1985b7f5235c035b71069be6cb034ba"
++      "sha256": "696d1d807b164976e899a54fa406a03ac2222d5b2e4b457758008d0f638ef530"
+     }
+   ]
+ }
+diff --git a/references/resume.md b/references/resume.md
+index b7ed660..ac1df24 100644
+--- a/references/resume.md
++++ b/references/resume.md
+@@ -9,6 +9,8 @@ python3 <skill-dir>/scripts/context_keeper_probe.py resume \
+ 
+ ## 当前状态优先
+ 
++普通多关键词查询可用空格、制表符或换行分隔，按任一词命中召回，并沿用输出条数限制。例如 `--query '订单 编号 空字符串 首尾空格 验收'`。已有显式正则（如 `订单|客户`、`订单.*验收`、含分组/转义的表达式）保留正则语义，表达式内部空格不拆词。history-search 仍按原正则查询，不受此调整影响。
++
+ 脚本优先展示与关键词相关的 memory-keeper 当前主题、项目要求和未完成事项，再展示有限历史线索。主题先筛选再取最多 5 条，保留同条目的下一步与来源续行；较长条目只展示有限内容并提示按来源展开。来源缺失或冲突时说明边界，不能让旧日志首次摘要替代当前状态。
+ 
+ - 继续工作：先当前进度、约束和待办，再按需看经验。
+@@ -18,6 +20,8 @@ python3 <skill-dir>/scripts/context_keeper_probe.py resume \
+ 
+ 历史工作摘要仍取日志首次快照，明确标为历史，不是最新进度。旧日志没有摘要时有限提取并标明不完整；不为续接批量改写旧日志，也不要求每个追加段独立摘要。
+ 
++如果没有命中当前主题，不能只用历史摘要认定最新进度；在同一记录库内按已有来源有限读回当前记忆或相关日志核对，仍不扩大成全量历史扫描。
++
+ 默认最多 3 份历史短摘要、5 条相关待办及最多 5 条经验/时间线候选。只展开最相关的 1～2 份来源，每次通常不超过 80 行。普通新需求不检索，同一问题本轮不重复，除非出现新证据或路线变化。
+ 
+ 当前摘要也可能过时。涉及文件、代码、版本或环境时定点核验；待验证经验明示，已替代经验不作为当前建议。历史下一步不构成当前执行授权。缺依据时如实说明，必要时按检索说明限量查原始会话。
+diff --git a/references/save.md b/references/save.md
+index c0a6006..7025f51 100644
+--- a/references/save.md
++++ b/references/save.md
+@@ -125,6 +125,8 @@ python3 <skill-dir>/scripts/context_keeper_probe.py compact --root <repo> --appr
+ 
+ 进入经验前先回答：下次什么场景会用到、它改变什么判断或动作、依据是什么及适用范围。回答不清楚时留日志或当前状态，不建立编号经验；一次成功不自动形成长期规则。用户要求与技术验证结果分开，未验证判断明确标为待验证。
+ 
++同一方法在不同问题或业务入口的实际修复中重复验证，且上述问题已有答案时，本轮自然收尾应完成经验整理，不等待显式“保存经验”请求。关联各次验证日志，先查同主题：有则保留编号、补证据/修范围；没有覆盖该认识的主题才新增一条并更新索引与当前记忆。只更新日志或主题摘要不代表经验整理完成。一次修复内的多个用例、原样重复运行、偏好或未经验证的推断不满足这个触发条件；不能按次数机械新增，仍需核对方法与适用条件。局部验证只支持相应局部范围。
++
+ 先查 evolution/index.md 和同主题文件。按主题、场景和建议动作判断是否重复：已有同主题只补证据或修订适用范围；独立新经验才新建文件和编号并补索引。正文保持简洁，不按日期追加流水；详细操作、验证和认识演变留日志。偏好和项目要求更新 memory-keeper 对应主题，不机械生成经验。
+ 
+ 经验沿用以下结构，最多 2000 字符：
+diff --git a/references/search.md b/references/search.md
+index 621d9c2..2a3da6e 100644
+--- a/references/search.md
++++ b/references/search.md
+@@ -27,6 +27,8 @@ python3 <skill-dir>/scripts/context_keeper_probe.py search \
+   --root <repo> --query '<关键词1|关键词2|关键词3>'
+ ```
+ 
++普通空白分隔的多关键词按任一词命中召回；显式正则中的分组、转义、量词和 `|` 保留原语义，不把表达式内部空格拆词。候选数量与读取预算不变。该规则仅适用于 search/resume，history-search 的原正则行为不变。
++
+ 脚本依次查：
+ 
+ 1. 项目和已批准用户级的 evolution 主题经验；默认排除已替代经验，最多返回 3 条。
+diff --git a/scripts/context_keeper_probe.py b/scripts/context_keeper_probe.py
+index 205fe66..d886873 100755
+--- a/scripts/context_keeper_probe.py
++++ b/scripts/context_keeper_probe.py
+@@ -489,6 +489,20 @@ def _compile_pattern(query: str) -> re.Pattern[str]:
+         return re.compile(re.escape(query), re.IGNORECASE)
+ 
+ 
++def _compile_query_pattern(query: str) -> re.Pattern[str]:
++    """Recall any plain whitespace-separated keyword; preserve explicit regexes."""
++    query = query.strip()
++    if not query:
++        return re.compile(r"(?!)")
++    # Preserve significant spaces inside existing regex expressions.
++    if re.search(r"[\\|()[\]{}^$*+?]", query):
++        return _compile_pattern(query)
++    terms = list(dict.fromkeys(query.split()))
++    if len(terms) == 1:
++        return _compile_pattern(query)
++    return re.compile("|".join(re.escape(term) for term in terms), re.IGNORECASE)
++
++
+ def _file_hits(path: Path, pattern: re.Pattern[str], limit: int) -> list[str]:
+     return [_clip(line, 180) for line in _read_text(path).splitlines() if pattern.search(line)][:limit]
+ 
+@@ -983,7 +997,7 @@ def cmd_record_guard(args: argparse.Namespace) -> int:
+ def cmd_resume(args: argparse.Namespace) -> int:
+     root = Path(args.root).resolve()
+     store_dir = getattr(args, "store_dir", None)
+-    pattern = _compile_pattern(args.query) if args.query else None
++    pattern = _compile_query_pattern(args.query) if args.query else None
+     memory_paths = _memory_paths(root, store_dir)
+     themes = [item for path in memory_paths for item in _theme_summary(path, pattern, args.entries)]
+     print("相关当前主题与要求：" if pattern else "当前主题与要求：")
+@@ -1055,7 +1069,7 @@ def cmd_resume(args: argparse.Namespace) -> int:
+ def cmd_search(args: argparse.Namespace) -> int:
+     root = Path(args.root).resolve()
+     store_dir = getattr(args, "store_dir", None)
+-    pattern = _compile_pattern(args.query)
++    pattern = _compile_query_pattern(args.query)
+     results: list[tuple[str, str, list[str]]] = []
+     seen: set[object] = set()
+     linked_records: set[str] = set()
+@@ -1909,7 +1923,7 @@ def build_parser() -> argparse.ArgumentParser:
+     resume = sub.add_parser("resume", help="输出轻量续接摘要")
+     resume.add_argument("--root", default=".")
+     resume.add_argument("--store-dir", help="显式指定记录目录；默认自动发现")
+-    resume.add_argument("--query", help="当前任务关键词，用于筛选相关未完成事项和经验")
++    resume.add_argument("--query", help="空白分隔的关键词按任一词召回；显式正则保留原语义")
+     resume.add_argument("--worklogs", type=int, default=3)
+     resume.add_argument("--entries", type=int, default=5)
+     resume.add_argument("--pending", type=int, default=5)
+@@ -1920,7 +1934,7 @@ def build_parser() -> argparse.ArgumentParser:
+     search = sub.add_parser("search", help="分层查找历史证据和进化经验")
+     search.add_argument("--root", default=".")
+     search.add_argument("--store-dir", help="显式指定记录目录；默认自动发现")
+-    search.add_argument("--query", required=True)
++    search.add_argument("--query", required=True, help="空白分隔的关键词按任一词召回；显式正则保留原语义")
+     search.add_argument("--entries", type=int, default=5)
+     search.add_argument("--evolution-entries", type=int, default=3)
+     search.add_argument("--hit-lines", type=int, default=3)
+diff --git a/scripts/install.py b/scripts/install.py
+index 63a6825..b2961b3 100755
+--- a/scripts/install.py
++++ b/scripts/install.py
+@@ -19,7 +19,7 @@ BRIDGE = f"""{BRIDGE_START}
+ - 用户提及以前、上次、重复问题，失败准备重试或换路线且证据不足，或准备推翻旧决策依据不清时，做一次限量历史检索；普通新需求不检索，同一问题本轮不重复。
+ - 仅在已确认项目、已有授权记录库、无用户禁止保存/改文件且有新事实时，于阶段工作或成果、技术选择、影响路线的失败、用户纠正、新证据、暂停交接或阻塞等待的自然节点记录，交付或暂停回复前完成；失败也记，不等成功，不自动建库或询问。琐碎问答、无影响工具调用和重复状态跳过，不创建空日志；不保存原始凭据或无关隐私，不违反立即停止指令。
+ - 工作日志只追加：同会话同主题追加带时间新段，跨会话新建并关联；已有操作、错误方案、当时判断和旧摘要不覆盖、不删除，纠正另追加。主题记忆可更新：当前进度/待办/偏好在 memory-keeper，经验在 evolution，保留来源与替代关系；记录事实不等于新增编号经验。
+-- 整理先更新 memory-keeper 当前进度、要求、待办和来源；同主题更新，不按日期堆近似条目。经验先判断下次场景、建议动作与依据，再补证据/修范围或新建主题，不机械生成经验。续接命令通过迁移门禁后先看相关当前主题和待办，旧摘要只是历史线索；必要时有限追溯来源。save-report 只检查结构和链接，本轮反馈由 Agent 核对说明，旧反馈不复播；日志只追加由指令约束，不增加段 ID、锁或回执。
++- 整理先更新 memory-keeper 当前进度、要求、待办和来源；同主题更新，不按日期堆近似条目。同一方法在不同问题/业务入口的实际修复中重复验证，且场景、动作与证据边界明确时，本轮自然收尾整理经验，不等显式请求；先查同主题，已有则保留编号补证据/修范围，否则新增一条并关联各次日志和当前记忆。多个用例或原样重跑不算独立验证，不按次数机械新增。续接命令通过迁移门禁后先看相关当前主题和待办，旧摘要只是历史线索；必要时有限追溯来源。save-report 只检查结构和链接，本轮反馈由 Agent 核对说明，旧反馈不复播；日志只追加由指令约束，不增加段 ID、锁或回执。
+ - 历史事实只来自记录，区分原文、摘要和推断；未找到就说明未找到。采用前核验当前适用性，历史下一步不构成当前授权；不重复提出已被拒绝的保存询问。
+ {BRIDGE_END}
+ """
+diff --git a/tests/test_context_keeper_probe.py b/tests/test_context_keeper_probe.py
+index 4ec46e2..727046a 100644
+--- a/tests/test_context_keeper_probe.py
++++ b/tests/test_context_keeper_probe.py
+@@ -594,6 +594,43 @@ class CurrentMemoryTests(IsolatedProbeTestCase):
+         self.assertLess(output.index("方案 B"), output.index("方案 A 当时有效"))
+         self.assertIn("首次记录快照，不代表当前状态", output)
+ 
++    def test_multi_keyword_query_recalls_latest_contract_before_old_snapshot(self):
++        root, log, memory = self.context()
++        log.write_text(log.read_text().replace("修复保存输出遗漏。", "早期只保留编号，3 项测试通过。"))
++        self.add_current(memory, "- **订单导入：** 当前空字符串抛出 ValueError，首尾空格原样保留，5 项测试通过。\n  来源：[日志](worklogs/" + log.name + ")。")
++        memory.write_text(memory.read_text().replace("完成真实保存复测；状态：进行中；触发：下次保存；完成：报告通过；证据：测试输出。",
++                                                    "真实样本验收；状态：未开始；触发：获得样本；完成：核验原文；证据：日志。"))
++        for command in ("resume", "search"):
++            with self.subTest(command=command):
++                result, output = _call(command, "--root", str(root), "--query",
++                                       "订单 编号 导入 空字符串 首尾空格 验收")
++                self.assertEqual(result, 0, output)
++                self.assertIn("当前空字符串抛出 ValueError", output)
++                self.assertIn("首尾空格原样保留，5 项测试通过", output)
++                self.assertNotIn("未找到相关当前主题", output)
++                if command == "resume":
++                    self.assertIn("真实样本验收", output)
++                    self.assertLess(output.index("5 项测试通过"), output.index("3 项测试通过"))
++
++    def test_keyword_queries_preserve_regex_and_do_not_widen_zero_hits(self):
++        root, _, memory = self.context()
++        self.add_current(memory, "- 订单 order_ids.py：保留原文。\n- 客户 customer_ids.py：保留原文。\n- 误匹配 order_idsXpy：不应命中点号文件名词项。")
++        for command in ("resume", "search"):
++            for query, present, absent in (
++                ("  order_ids.py\t不存在的词  ", "订单 order_ids.py", "误匹配"),
++                (r"^- (订单|客户)\b", "客户 customer_ids.py", "误匹配"),
++                (r"订单 order_ids\.py", "订单 order_ids.py", "客户 customer_ids.py"),
++                (r"订单.*保留|客户.*保留", "客户 customer_ids.py", "误匹配"),
++                ("不存在甲 不存在乙", None, "保留原文"),
++                ("  \t  ", None, "保留原文"),
++            ):
++                with self.subTest(command=command, query=query):
++                    result, output = _call(command, "--root", str(root), "--query", query)
++                    self.assertEqual(result, 0, output)
++                    if present:
++                        self.assertIn(present, output)
++                    self.assertNotIn(absent, output)
++
+     def test_search_requirement_only_section_keeps_continuation_and_cap(self):
+         root, log, memory = self.context()
+         with memory.open("a") as output:

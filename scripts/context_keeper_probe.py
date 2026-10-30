@@ -489,6 +489,20 @@ def _compile_pattern(query: str) -> re.Pattern[str]:
         return re.compile(re.escape(query), re.IGNORECASE)
 
 
+def _compile_query_pattern(query: str) -> re.Pattern[str]:
+    """Recall any plain whitespace-separated keyword; preserve explicit regexes."""
+    query = query.strip()
+    if not query:
+        return re.compile(r"(?!)")
+    # Preserve significant spaces inside existing regex expressions.
+    if re.search(r"[\\|()[\]{}^$*+?]", query):
+        return _compile_pattern(query)
+    terms = list(dict.fromkeys(query.split()))
+    if len(terms) == 1:
+        return _compile_pattern(query)
+    return re.compile("|".join(re.escape(term) for term in terms), re.IGNORECASE)
+
+
 def _file_hits(path: Path, pattern: re.Pattern[str], limit: int) -> list[str]:
     return [_clip(line, 180) for line in _read_text(path).splitlines() if pattern.search(line)][:limit]
 
@@ -983,7 +997,7 @@ def cmd_record_guard(args: argparse.Namespace) -> int:
 def cmd_resume(args: argparse.Namespace) -> int:
     root = Path(args.root).resolve()
     store_dir = getattr(args, "store_dir", None)
-    pattern = _compile_pattern(args.query) if args.query else None
+    pattern = _compile_query_pattern(args.query) if args.query else None
     memory_paths = _memory_paths(root, store_dir)
     themes = [item for path in memory_paths for item in _theme_summary(path, pattern, args.entries)]
     print("相关当前主题与要求：" if pattern else "当前主题与要求：")
@@ -1055,7 +1069,7 @@ def cmd_resume(args: argparse.Namespace) -> int:
 def cmd_search(args: argparse.Namespace) -> int:
     root = Path(args.root).resolve()
     store_dir = getattr(args, "store_dir", None)
-    pattern = _compile_pattern(args.query)
+    pattern = _compile_query_pattern(args.query)
     results: list[tuple[str, str, list[str]]] = []
     seen: set[object] = set()
     linked_records: set[str] = set()
@@ -1909,7 +1923,7 @@ def build_parser() -> argparse.ArgumentParser:
     resume = sub.add_parser("resume", help="输出轻量续接摘要")
     resume.add_argument("--root", default=".")
     resume.add_argument("--store-dir", help="显式指定记录目录；默认自动发现")
-    resume.add_argument("--query", help="当前任务关键词，用于筛选相关未完成事项和经验")
+    resume.add_argument("--query", help="空白分隔的关键词按任一词召回；显式正则保留原语义")
     resume.add_argument("--worklogs", type=int, default=3)
     resume.add_argument("--entries", type=int, default=5)
     resume.add_argument("--pending", type=int, default=5)
@@ -1920,7 +1934,7 @@ def build_parser() -> argparse.ArgumentParser:
     search = sub.add_parser("search", help="分层查找历史证据和进化经验")
     search.add_argument("--root", default=".")
     search.add_argument("--store-dir", help="显式指定记录目录；默认自动发现")
-    search.add_argument("--query", required=True)
+    search.add_argument("--query", required=True, help="空白分隔的关键词按任一词召回；显式正则保留原语义")
     search.add_argument("--entries", type=int, default=5)
     search.add_argument("--evolution-entries", type=int, default=3)
     search.add_argument("--hit-lines", type=int, default=3)

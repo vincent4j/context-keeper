@@ -1,0 +1,940 @@
+{
+  "trial_a-initial-before": {
+    "docs/context-keeper/evolution/index.md": {
+      "sha256": "275017ec2cbb13403e3799d4f616bc2c224c4de2fbb3dc3f0dba515e4c44f564",
+      "size": 78,
+      "text": "# 自我进化索引\n\n## 有效经验\n\n- 暂无\n\n## 已替代经验\n\n- 暂无\n"
+    },
+    "docs/context-keeper/memory-keeper.md": {
+      "sha256": "e77e710cad26a722a81b818ad465111aebbc94b4ffc79af0e22a5add1847ee7a",
+      "size": 192,
+      "text": "# 项目记忆索引\n\n## 未完成事项\n\n- 暂无\n\n## 主题摘要（按类型）\n\n---\n\n## 进化经验入口\n\n- [进化经验索引](evolution/index.md)\n\n## 时间线（最新在前）\n\n---\n"
+    },
+    "order_ids.py": {
+      "sha256": "cbe5e335072d3f839f834e78cb507c8fb3fb07d531d23d4d5411cb24c3c6dc67",
+      "size": 66,
+      "text": "def normalize_order_id(raw: str) -> str:\n    return str(int(raw))\n"
+    },
+    "test_order_ids.py": {
+      "sha256": "e613872ca52a663549d2a03b92f1f0ec8cbd8af7e58f7914fa52c0be335aa22a",
+      "size": 372,
+      "text": "import unittest\nfrom order_ids import normalize_order_id\n\nclass OrderIdTests(unittest.TestCase):\n    def test_leading_zero(self):\n        self.assertEqual(normalize_order_id(\"00123\"), \"00123\")\n    def test_alphanumeric(self):\n        self.assertEqual(normalize_order_id(\"A007\"), \"A007\")\n    def test_plain(self):\n        self.assertEqual(normalize_order_id(\"123\"), \"123\")\n"
+    }
+  },
+  "trial_a-initial-after": {
+    "docs/context-keeper/evolution/index.md": {
+      "sha256": "275017ec2cbb13403e3799d4f616bc2c224c4de2fbb3dc3f0dba515e4c44f564",
+      "size": 78,
+      "text": "# 自我进化索引\n\n## 有效经验\n\n- 暂无\n\n## 已替代经验\n\n- 暂无\n"
+    },
+    "docs/context-keeper/memory-keeper.md": {
+      "sha256": "8bd7a208fb2f09a365e24dc824bfb2880af238cd74121aa9334a1d6fe8928f8b",
+      "size": 1257,
+      "text": "# 项目记忆索引\n\n## 未完成事项\n\n- 真实上游订单编号样本导入验收；状态：未开始；触发：获得真实上游样本后；完成：验证导入保留原始文本编号并记录结果；证据：[本轮日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n## 主题摘要（按类型）\n\n- **订单编号导入修复：** `normalize_order_id` 已移除 int 转换，直接返回原始文本；现有 3 项本地测试全部通过。真实上游样本未获得，验收待办保留；来源：[日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n## 项目要求\n\n- 订单编号是原始文本标识；不增加依赖。只修改本项目，不提交或推送，不迁移记录库，不改用户级配置。验证结论限于实际测试范围；来源：本轮用户要求及 [日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n---\n\n## 进化经验入口\n\n- [进化经验索引](evolution/index.md)\n\n## 时间线（最新在前）\n\n## 2026-10-30 - 订单编号原始文本修复 `fix`\n- **任务：** 先复现 int 转换问题，再移除转换，现有 3 项测试通过；真实样本验收待办。\n- **详见：** [日志](worklogs/2026-10-30-订单编号原始文本修复.md)\n\n---\n"
+    },
+    "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md": {
+      "sha256": "d6dc8efe9da6a3d67c1df10506afd5428311f2b613c641941c06d073dd548622",
+      "size": 1526,
+      "text": "<!-- context-keeper: session-id=order-id-fix-20261030-a -->\n# 订单编号原始文本修复\n\n## 追加记录 2026-10-30 12:40:09 +0800\n\n- **目标与背景：** 用户明确订单编号为原始文本标识，要求先跑现有测试，再修复 int 转换造成的前导零丢失和字母编号报错；不增加依赖。真实上游样本尚未获得，真实样本验收是后续待办。\n- **操作与方法：** 修改前运行 `python3 -m unittest -v`，3 项中 1 项通过、1 项失败、1 项报错：`00123` 返回 `123`，`A007` 触发 ValueError。将 [order_ids.py](../../../order_ids.py) 的 `str(int(raw))` 改为直接返回 `raw`，加上原始文本语义说明；未新增依赖或修改测试。\n- **观察与当时判断：** 修改后同一命令运行 [现有测试](../../../test_order_ids.py)，3 项全部通过，覆盖前导零、字母数字混合和普通数字编号。证据仅限这 3 项本地用例，不代表真实上游样本验收。记录准备时曾误用不存在的 `context_keeper.py`，退出码 2；随后改用技能文档指定的 `context_keeper_probe.py`，status 成功。仓库无初始提交，status 内部基于 HEAD 的差异输出提示不存在 HEAD，不能据此宣称已核对 Git 差异。\n- **后续与证据：** 获得真实上游样本后进行导入验收；当前未完成。只修改本项目，不提交、不推送、不迁移记录库、不改用户级配置。一次修复的多个测试不构成跨问题重复验证，本轮不新增编号经验。\n"
+    },
+    "order_ids.py": {
+      "sha256": "f351d11341a7dba2883ba78beed51d2233148d62648a03c06ef69e1b6e30140a",
+      "size": 103,
+      "text": "def normalize_order_id(raw: str) -> str:\n    \"\"\"保留订单编号的原始文本。\"\"\"\n    return raw\n"
+    },
+    "test_order_ids.py": {
+      "sha256": "e613872ca52a663549d2a03b92f1f0ec8cbd8af7e58f7914fa52c0be335aa22a",
+      "size": 372,
+      "text": "import unittest\nfrom order_ids import normalize_order_id\n\nclass OrderIdTests(unittest.TestCase):\n    def test_leading_zero(self):\n        self.assertEqual(normalize_order_id(\"00123\"), \"00123\")\n    def test_alphanumeric(self):\n        self.assertEqual(normalize_order_id(\"A007\"), \"A007\")\n    def test_plain(self):\n        self.assertEqual(normalize_order_id(\"123\"), \"123\")\n"
+    }
+  },
+  "trial_a-append-before": {
+    "docs/context-keeper/evolution/index.md": {
+      "sha256": "275017ec2cbb13403e3799d4f616bc2c224c4de2fbb3dc3f0dba515e4c44f564",
+      "size": 78,
+      "text": "# 自我进化索引\n\n## 有效经验\n\n- 暂无\n\n## 已替代经验\n\n- 暂无\n"
+    },
+    "docs/context-keeper/memory-keeper.md": {
+      "sha256": "8bd7a208fb2f09a365e24dc824bfb2880af238cd74121aa9334a1d6fe8928f8b",
+      "size": 1257,
+      "text": "# 项目记忆索引\n\n## 未完成事项\n\n- 真实上游订单编号样本导入验收；状态：未开始；触发：获得真实上游样本后；完成：验证导入保留原始文本编号并记录结果；证据：[本轮日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n## 主题摘要（按类型）\n\n- **订单编号导入修复：** `normalize_order_id` 已移除 int 转换，直接返回原始文本；现有 3 项本地测试全部通过。真实上游样本未获得，验收待办保留；来源：[日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n## 项目要求\n\n- 订单编号是原始文本标识；不增加依赖。只修改本项目，不提交或推送，不迁移记录库，不改用户级配置。验证结论限于实际测试范围；来源：本轮用户要求及 [日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n---\n\n## 进化经验入口\n\n- [进化经验索引](evolution/index.md)\n\n## 时间线（最新在前）\n\n## 2026-10-30 - 订单编号原始文本修复 `fix`\n- **任务：** 先复现 int 转换问题，再移除转换，现有 3 项测试通过；真实样本验收待办。\n- **详见：** [日志](worklogs/2026-10-30-订单编号原始文本修复.md)\n\n---\n"
+    },
+    "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md": {
+      "sha256": "d6dc8efe9da6a3d67c1df10506afd5428311f2b613c641941c06d073dd548622",
+      "size": 1526,
+      "text": "<!-- context-keeper: session-id=order-id-fix-20261030-a -->\n# 订单编号原始文本修复\n\n## 追加记录 2026-10-30 12:40:09 +0800\n\n- **目标与背景：** 用户明确订单编号为原始文本标识，要求先跑现有测试，再修复 int 转换造成的前导零丢失和字母编号报错；不增加依赖。真实上游样本尚未获得，真实样本验收是后续待办。\n- **操作与方法：** 修改前运行 `python3 -m unittest -v`，3 项中 1 项通过、1 项失败、1 项报错：`00123` 返回 `123`，`A007` 触发 ValueError。将 [order_ids.py](../../../order_ids.py) 的 `str(int(raw))` 改为直接返回 `raw`，加上原始文本语义说明；未新增依赖或修改测试。\n- **观察与当时判断：** 修改后同一命令运行 [现有测试](../../../test_order_ids.py)，3 项全部通过，覆盖前导零、字母数字混合和普通数字编号。证据仅限这 3 项本地用例，不代表真实上游样本验收。记录准备时曾误用不存在的 `context_keeper.py`，退出码 2；随后改用技能文档指定的 `context_keeper_probe.py`，status 成功。仓库无初始提交，status 内部基于 HEAD 的差异输出提示不存在 HEAD，不能据此宣称已核对 Git 差异。\n- **后续与证据：** 获得真实上游样本后进行导入验收；当前未完成。只修改本项目，不提交、不推送、不迁移记录库、不改用户级配置。一次修复的多个测试不构成跨问题重复验证，本轮不新增编号经验。\n"
+    },
+    "order_ids.py": {
+      "sha256": "f351d11341a7dba2883ba78beed51d2233148d62648a03c06ef69e1b6e30140a",
+      "size": 103,
+      "text": "def normalize_order_id(raw: str) -> str:\n    \"\"\"保留订单编号的原始文本。\"\"\"\n    return raw\n"
+    },
+    "test_order_ids.py": {
+      "sha256": "e613872ca52a663549d2a03b92f1f0ec8cbd8af7e58f7914fa52c0be335aa22a",
+      "size": 372,
+      "text": "import unittest\nfrom order_ids import normalize_order_id\n\nclass OrderIdTests(unittest.TestCase):\n    def test_leading_zero(self):\n        self.assertEqual(normalize_order_id(\"00123\"), \"00123\")\n    def test_alphanumeric(self):\n        self.assertEqual(normalize_order_id(\"A007\"), \"A007\")\n    def test_plain(self):\n        self.assertEqual(normalize_order_id(\"123\"), \"123\")\n"
+    }
+  },
+  "trial_a-append-after": {
+    "docs/context-keeper/evolution/index.md": {
+      "sha256": "275017ec2cbb13403e3799d4f616bc2c224c4de2fbb3dc3f0dba515e4c44f564",
+      "size": 78,
+      "text": "# 自我进化索引\n\n## 有效经验\n\n- 暂无\n\n## 已替代经验\n\n- 暂无\n"
+    },
+    "docs/context-keeper/memory-keeper.md": {
+      "sha256": "91b2dcd5564a4fa4c9a0fe34537c5d402b6445c76b7a7362022e151c40cfef82",
+      "size": 1491,
+      "text": "# 项目记忆索引\n\n## 未完成事项\n\n- 真实上游订单编号样本导入验收；状态：未开始；触发：获得真实上游样本后；完成：验证导入保留原始文本编号并记录结果；证据：[本轮日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n## 主题摘要（按类型）\n\n- **订单编号导入修复：** `normalize_order_id` 对空字符串抛出 ValueError，其余原样返回，保留前导零、字母和首尾空格；5 项本地测试全部通过。真实上游样本未获得，验收待办保留；来源：[日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n## 项目要求\n\n- 订单编号是原始文本标识；用户核对接口合同确认空字符串必须抛出 ValueError，首尾空格属于原文，不能 strip，前导零和字母必须保留。不增加依赖。只修改本项目，不提交或推送，不迁移记录库，不改用户级配置。验证结论限于实际测试范围；来源：本轮用户要求及 [日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n---\n\n## 进化经验入口\n\n- [进化经验索引](evolution/index.md)\n\n## 时间线（最新在前）\n\n## 2026-10-30 - 订单编号原始文本修复 `fix`\n- **任务：** 先复现 int 转换问题并移除转换，再按合同补充空字符串校验与首尾空格测试，5 项测试通过；真实样本验收待办。\n- **详见：** [日志](worklogs/2026-10-30-订单编号原始文本修复.md)\n\n---\n"
+    },
+    "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md": {
+      "sha256": "d8ad3123bb54aa27655d38ee642efaeaf3316beffa957c80919e614fa947f65f",
+      "size": 2817,
+      "text": "<!-- context-keeper: session-id=order-id-fix-20261030-a -->\n# 订单编号原始文本修复\n\n## 追加记录 2026-10-30 12:40:09 +0800\n\n- **目标与背景：** 用户明确订单编号为原始文本标识，要求先跑现有测试，再修复 int 转换造成的前导零丢失和字母编号报错；不增加依赖。真实上游样本尚未获得，真实样本验收是后续待办。\n- **操作与方法：** 修改前运行 `python3 -m unittest -v`，3 项中 1 项通过、1 项失败、1 项报错：`00123` 返回 `123`，`A007` 触发 ValueError。将 [order_ids.py](../../../order_ids.py) 的 `str(int(raw))` 改为直接返回 `raw`，加上原始文本语义说明；未新增依赖或修改测试。\n- **观察与当时判断：** 修改后同一命令运行 [现有测试](../../../test_order_ids.py)，3 项全部通过，覆盖前导零、字母数字混合和普通数字编号。证据仅限这 3 项本地用例，不代表真实上游样本验收。记录准备时曾误用不存在的 `context_keeper.py`，退出码 2；随后改用技能文档指定的 `context_keeper_probe.py`，status 成功。仓库无初始提交，status 内部基于 HEAD 的差异输出提示不存在 HEAD，不能据此宣称已核对 Git 差异。\n- **后续与证据：** 获得真实上游样本后进行导入验收；当前未完成。只修改本项目，不提交、不推送、不迁移记录库、不改用户级配置。一次修复的多个测试不构成跨问题重复验证，本轮不新增编号经验。\n\n## 追加记录 2026-10-30 12:41:07 +0800\n\n- **目标与背景：** 用户补充核对接口合同后的边界：空字符串必须抛出 ValueError；首尾空格属于编号原文，不能 strip；前导零和字母保留要求仍有效。真实上游样本仍未获得。\n- **操作与方法：** 在 [测试](../../../test_order_ids.py) 新增空字符串异常和首尾空格保留两个用例，运行 `python3 -m unittest -v`：5 项中 4 项通过，空字符串用例失败（未抛出 ValueError）。随后在 [实现](../../../order_ids.py) 中仅对 `raw == \"\"` 抛出 ValueError，其余直接返回原始文本，不做 strip 或数字转换。\n- **观察与当时判断：** 修正后运行同一命令，5 项全部通过，覆盖空字符串、首尾空格、前导零、字母数字混合和普通数字编号。此前“直接返回原始文本”的实现缺少合同要求的空字符串校验，当前实现已补齐；上述旧日志保留为当时事实。验证仍限于本地用例，不代表真实上游验收。\n- **后续与证据：** 已更新当前主题与合同要求，保留真实样本验收待办；未增加依赖、未提交或推送。这是同一订单编号修复的边界补充，不属于不同问题的独立验证，不新增编号经验。\n"
+    },
+    "order_ids.py": {
+      "sha256": "9e10cdf6878587ff7963a557f7f15efa5813cce330bd013add1d910cde8433d8",
+      "size": 231,
+      "text": "def normalize_order_id(raw: str) -> str:\n    \"\"\"拒绝空字符串，其余订单编号保留原始文本（包括首尾空格）。\"\"\"\n    if raw == \"\":\n        raise ValueError(\"订单编号不能为空字符串\")\n    return raw\n"
+    },
+    "test_order_ids.py": {
+      "sha256": "e66fd6f33138f12444b73bdf5209542321749ea10905a981489e03fefee0e2e0",
+      "size": 585,
+      "text": "import unittest\nfrom order_ids import normalize_order_id\n\nclass OrderIdTests(unittest.TestCase):\n    def test_leading_zero(self):\n        self.assertEqual(normalize_order_id(\"00123\"), \"00123\")\n    def test_alphanumeric(self):\n        self.assertEqual(normalize_order_id(\"A007\"), \"A007\")\n    def test_plain(self):\n        self.assertEqual(normalize_order_id(\"123\"), \"123\")\n    def test_empty(self):\n        with self.assertRaises(ValueError):\n            normalize_order_id(\"\")\n    def test_surrounding_spaces(self):\n        self.assertEqual(normalize_order_id(\"  A007  \"), \"  A007  \")\n"
+    }
+  },
+  "trial_a-resume-before": {
+    "docs/context-keeper/evolution/index.md": {
+      "sha256": "275017ec2cbb13403e3799d4f616bc2c224c4de2fbb3dc3f0dba515e4c44f564",
+      "size": 78,
+      "text": "# 自我进化索引\n\n## 有效经验\n\n- 暂无\n\n## 已替代经验\n\n- 暂无\n"
+    },
+    "docs/context-keeper/memory-keeper.md": {
+      "sha256": "91b2dcd5564a4fa4c9a0fe34537c5d402b6445c76b7a7362022e151c40cfef82",
+      "size": 1491,
+      "text": "# 项目记忆索引\n\n## 未完成事项\n\n- 真实上游订单编号样本导入验收；状态：未开始；触发：获得真实上游样本后；完成：验证导入保留原始文本编号并记录结果；证据：[本轮日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n## 主题摘要（按类型）\n\n- **订单编号导入修复：** `normalize_order_id` 对空字符串抛出 ValueError，其余原样返回，保留前导零、字母和首尾空格；5 项本地测试全部通过。真实上游样本未获得，验收待办保留；来源：[日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n## 项目要求\n\n- 订单编号是原始文本标识；用户核对接口合同确认空字符串必须抛出 ValueError，首尾空格属于原文，不能 strip，前导零和字母必须保留。不增加依赖。只修改本项目，不提交或推送，不迁移记录库，不改用户级配置。验证结论限于实际测试范围；来源：本轮用户要求及 [日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n---\n\n## 进化经验入口\n\n- [进化经验索引](evolution/index.md)\n\n## 时间线（最新在前）\n\n## 2026-10-30 - 订单编号原始文本修复 `fix`\n- **任务：** 先复现 int 转换问题并移除转换，再按合同补充空字符串校验与首尾空格测试，5 项测试通过；真实样本验收待办。\n- **详见：** [日志](worklogs/2026-10-30-订单编号原始文本修复.md)\n\n---\n"
+    },
+    "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md": {
+      "sha256": "d8ad3123bb54aa27655d38ee642efaeaf3316beffa957c80919e614fa947f65f",
+      "size": 2817,
+      "text": "<!-- context-keeper: session-id=order-id-fix-20261030-a -->\n# 订单编号原始文本修复\n\n## 追加记录 2026-10-30 12:40:09 +0800\n\n- **目标与背景：** 用户明确订单编号为原始文本标识，要求先跑现有测试，再修复 int 转换造成的前导零丢失和字母编号报错；不增加依赖。真实上游样本尚未获得，真实样本验收是后续待办。\n- **操作与方法：** 修改前运行 `python3 -m unittest -v`，3 项中 1 项通过、1 项失败、1 项报错：`00123` 返回 `123`，`A007` 触发 ValueError。将 [order_ids.py](../../../order_ids.py) 的 `str(int(raw))` 改为直接返回 `raw`，加上原始文本语义说明；未新增依赖或修改测试。\n- **观察与当时判断：** 修改后同一命令运行 [现有测试](../../../test_order_ids.py)，3 项全部通过，覆盖前导零、字母数字混合和普通数字编号。证据仅限这 3 项本地用例，不代表真实上游样本验收。记录准备时曾误用不存在的 `context_keeper.py`，退出码 2；随后改用技能文档指定的 `context_keeper_probe.py`，status 成功。仓库无初始提交，status 内部基于 HEAD 的差异输出提示不存在 HEAD，不能据此宣称已核对 Git 差异。\n- **后续与证据：** 获得真实上游样本后进行导入验收；当前未完成。只修改本项目，不提交、不推送、不迁移记录库、不改用户级配置。一次修复的多个测试不构成跨问题重复验证，本轮不新增编号经验。\n\n## 追加记录 2026-10-30 12:41:07 +0800\n\n- **目标与背景：** 用户补充核对接口合同后的边界：空字符串必须抛出 ValueError；首尾空格属于编号原文，不能 strip；前导零和字母保留要求仍有效。真实上游样本仍未获得。\n- **操作与方法：** 在 [测试](../../../test_order_ids.py) 新增空字符串异常和首尾空格保留两个用例，运行 `python3 -m unittest -v`：5 项中 4 项通过，空字符串用例失败（未抛出 ValueError）。随后在 [实现](../../../order_ids.py) 中仅对 `raw == \"\"` 抛出 ValueError，其余直接返回原始文本，不做 strip 或数字转换。\n- **观察与当时判断：** 修正后运行同一命令，5 项全部通过，覆盖空字符串、首尾空格、前导零、字母数字混合和普通数字编号。此前“直接返回原始文本”的实现缺少合同要求的空字符串校验，当前实现已补齐；上述旧日志保留为当时事实。验证仍限于本地用例，不代表真实上游验收。\n- **后续与证据：** 已更新当前主题与合同要求，保留真实样本验收待办；未增加依赖、未提交或推送。这是同一订单编号修复的边界补充，不属于不同问题的独立验证，不新增编号经验。\n"
+    },
+    "order_ids.py": {
+      "sha256": "9e10cdf6878587ff7963a557f7f15efa5813cce330bd013add1d910cde8433d8",
+      "size": 231,
+      "text": "def normalize_order_id(raw: str) -> str:\n    \"\"\"拒绝空字符串，其余订单编号保留原始文本（包括首尾空格）。\"\"\"\n    if raw == \"\":\n        raise ValueError(\"订单编号不能为空字符串\")\n    return raw\n"
+    },
+    "test_order_ids.py": {
+      "sha256": "e66fd6f33138f12444b73bdf5209542321749ea10905a981489e03fefee0e2e0",
+      "size": 585,
+      "text": "import unittest\nfrom order_ids import normalize_order_id\n\nclass OrderIdTests(unittest.TestCase):\n    def test_leading_zero(self):\n        self.assertEqual(normalize_order_id(\"00123\"), \"00123\")\n    def test_alphanumeric(self):\n        self.assertEqual(normalize_order_id(\"A007\"), \"A007\")\n    def test_plain(self):\n        self.assertEqual(normalize_order_id(\"123\"), \"123\")\n    def test_empty(self):\n        with self.assertRaises(ValueError):\n            normalize_order_id(\"\")\n    def test_surrounding_spaces(self):\n        self.assertEqual(normalize_order_id(\"  A007  \"), \"  A007  \")\n"
+    }
+  },
+  "trial_a-resume-after": {
+    "docs/context-keeper/evolution/index.md": {
+      "sha256": "275017ec2cbb13403e3799d4f616bc2c224c4de2fbb3dc3f0dba515e4c44f564",
+      "size": 78,
+      "text": "# 自我进化索引\n\n## 有效经验\n\n- 暂无\n\n## 已替代经验\n\n- 暂无\n"
+    },
+    "docs/context-keeper/memory-keeper.md": {
+      "sha256": "91b2dcd5564a4fa4c9a0fe34537c5d402b6445c76b7a7362022e151c40cfef82",
+      "size": 1491,
+      "text": "# 项目记忆索引\n\n## 未完成事项\n\n- 真实上游订单编号样本导入验收；状态：未开始；触发：获得真实上游样本后；完成：验证导入保留原始文本编号并记录结果；证据：[本轮日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n## 主题摘要（按类型）\n\n- **订单编号导入修复：** `normalize_order_id` 对空字符串抛出 ValueError，其余原样返回，保留前导零、字母和首尾空格；5 项本地测试全部通过。真实上游样本未获得，验收待办保留；来源：[日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n## 项目要求\n\n- 订单编号是原始文本标识；用户核对接口合同确认空字符串必须抛出 ValueError，首尾空格属于原文，不能 strip，前导零和字母必须保留。不增加依赖。只修改本项目，不提交或推送，不迁移记录库，不改用户级配置。验证结论限于实际测试范围；来源：本轮用户要求及 [日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n---\n\n## 进化经验入口\n\n- [进化经验索引](evolution/index.md)\n\n## 时间线（最新在前）\n\n## 2026-10-30 - 订单编号原始文本修复 `fix`\n- **任务：** 先复现 int 转换问题并移除转换，再按合同补充空字符串校验与首尾空格测试，5 项测试通过；真实样本验收待办。\n- **详见：** [日志](worklogs/2026-10-30-订单编号原始文本修复.md)\n\n---\n"
+    },
+    "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md": {
+      "sha256": "d8ad3123bb54aa27655d38ee642efaeaf3316beffa957c80919e614fa947f65f",
+      "size": 2817,
+      "text": "<!-- context-keeper: session-id=order-id-fix-20261030-a -->\n# 订单编号原始文本修复\n\n## 追加记录 2026-10-30 12:40:09 +0800\n\n- **目标与背景：** 用户明确订单编号为原始文本标识，要求先跑现有测试，再修复 int 转换造成的前导零丢失和字母编号报错；不增加依赖。真实上游样本尚未获得，真实样本验收是后续待办。\n- **操作与方法：** 修改前运行 `python3 -m unittest -v`，3 项中 1 项通过、1 项失败、1 项报错：`00123` 返回 `123`，`A007` 触发 ValueError。将 [order_ids.py](../../../order_ids.py) 的 `str(int(raw))` 改为直接返回 `raw`，加上原始文本语义说明；未新增依赖或修改测试。\n- **观察与当时判断：** 修改后同一命令运行 [现有测试](../../../test_order_ids.py)，3 项全部通过，覆盖前导零、字母数字混合和普通数字编号。证据仅限这 3 项本地用例，不代表真实上游样本验收。记录准备时曾误用不存在的 `context_keeper.py`，退出码 2；随后改用技能文档指定的 `context_keeper_probe.py`，status 成功。仓库无初始提交，status 内部基于 HEAD 的差异输出提示不存在 HEAD，不能据此宣称已核对 Git 差异。\n- **后续与证据：** 获得真实上游样本后进行导入验收；当前未完成。只修改本项目，不提交、不推送、不迁移记录库、不改用户级配置。一次修复的多个测试不构成跨问题重复验证，本轮不新增编号经验。\n\n## 追加记录 2026-10-30 12:41:07 +0800\n\n- **目标与背景：** 用户补充核对接口合同后的边界：空字符串必须抛出 ValueError；首尾空格属于编号原文，不能 strip；前导零和字母保留要求仍有效。真实上游样本仍未获得。\n- **操作与方法：** 在 [测试](../../../test_order_ids.py) 新增空字符串异常和首尾空格保留两个用例，运行 `python3 -m unittest -v`：5 项中 4 项通过，空字符串用例失败（未抛出 ValueError）。随后在 [实现](../../../order_ids.py) 中仅对 `raw == \"\"` 抛出 ValueError，其余直接返回原始文本，不做 strip 或数字转换。\n- **观察与当时判断：** 修正后运行同一命令，5 项全部通过，覆盖空字符串、首尾空格、前导零、字母数字混合和普通数字编号。此前“直接返回原始文本”的实现缺少合同要求的空字符串校验，当前实现已补齐；上述旧日志保留为当时事实。验证仍限于本地用例，不代表真实上游验收。\n- **后续与证据：** 已更新当前主题与合同要求，保留真实样本验收待办；未增加依赖、未提交或推送。这是同一订单编号修复的边界补充，不属于不同问题的独立验证，不新增编号经验。\n"
+    },
+    "order_ids.py": {
+      "sha256": "9e10cdf6878587ff7963a557f7f15efa5813cce330bd013add1d910cde8433d8",
+      "size": 231,
+      "text": "def normalize_order_id(raw: str) -> str:\n    \"\"\"拒绝空字符串，其余订单编号保留原始文本（包括首尾空格）。\"\"\"\n    if raw == \"\":\n        raise ValueError(\"订单编号不能为空字符串\")\n    return raw\n"
+    },
+    "test_order_ids.py": {
+      "sha256": "e66fd6f33138f12444b73bdf5209542321749ea10905a981489e03fefee0e2e0",
+      "size": 585,
+      "text": "import unittest\nfrom order_ids import normalize_order_id\n\nclass OrderIdTests(unittest.TestCase):\n    def test_leading_zero(self):\n        self.assertEqual(normalize_order_id(\"00123\"), \"00123\")\n    def test_alphanumeric(self):\n        self.assertEqual(normalize_order_id(\"A007\"), \"A007\")\n    def test_plain(self):\n        self.assertEqual(normalize_order_id(\"123\"), \"123\")\n    def test_empty(self):\n        with self.assertRaises(ValueError):\n            normalize_order_id(\"\")\n    def test_surrounding_spaces(self):\n        self.assertEqual(normalize_order_id(\"  A007  \"), \"  A007  \")\n"
+    }
+  },
+  "trial_a-reuse-before": {
+    "docs/context-keeper/evolution/index.md": {
+      "sha256": "275017ec2cbb13403e3799d4f616bc2c224c4de2fbb3dc3f0dba515e4c44f564",
+      "size": 78,
+      "text": "# 自我进化索引\n\n## 有效经验\n\n- 暂无\n\n## 已替代经验\n\n- 暂无\n"
+    },
+    "docs/context-keeper/memory-keeper.md": {
+      "sha256": "91b2dcd5564a4fa4c9a0fe34537c5d402b6445c76b7a7362022e151c40cfef82",
+      "size": 1491,
+      "text": "# 项目记忆索引\n\n## 未完成事项\n\n- 真实上游订单编号样本导入验收；状态：未开始；触发：获得真实上游样本后；完成：验证导入保留原始文本编号并记录结果；证据：[本轮日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n## 主题摘要（按类型）\n\n- **订单编号导入修复：** `normalize_order_id` 对空字符串抛出 ValueError，其余原样返回，保留前导零、字母和首尾空格；5 项本地测试全部通过。真实上游样本未获得，验收待办保留；来源：[日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n## 项目要求\n\n- 订单编号是原始文本标识；用户核对接口合同确认空字符串必须抛出 ValueError，首尾空格属于原文，不能 strip，前导零和字母必须保留。不增加依赖。只修改本项目，不提交或推送，不迁移记录库，不改用户级配置。验证结论限于实际测试范围；来源：本轮用户要求及 [日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n---\n\n## 进化经验入口\n\n- [进化经验索引](evolution/index.md)\n\n## 时间线（最新在前）\n\n## 2026-10-30 - 订单编号原始文本修复 `fix`\n- **任务：** 先复现 int 转换问题并移除转换，再按合同补充空字符串校验与首尾空格测试，5 项测试通过；真实样本验收待办。\n- **详见：** [日志](worklogs/2026-10-30-订单编号原始文本修复.md)\n\n---\n"
+    },
+    "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md": {
+      "sha256": "d8ad3123bb54aa27655d38ee642efaeaf3316beffa957c80919e614fa947f65f",
+      "size": 2817,
+      "text": "<!-- context-keeper: session-id=order-id-fix-20261030-a -->\n# 订单编号原始文本修复\n\n## 追加记录 2026-10-30 12:40:09 +0800\n\n- **目标与背景：** 用户明确订单编号为原始文本标识，要求先跑现有测试，再修复 int 转换造成的前导零丢失和字母编号报错；不增加依赖。真实上游样本尚未获得，真实样本验收是后续待办。\n- **操作与方法：** 修改前运行 `python3 -m unittest -v`，3 项中 1 项通过、1 项失败、1 项报错：`00123` 返回 `123`，`A007` 触发 ValueError。将 [order_ids.py](../../../order_ids.py) 的 `str(int(raw))` 改为直接返回 `raw`，加上原始文本语义说明；未新增依赖或修改测试。\n- **观察与当时判断：** 修改后同一命令运行 [现有测试](../../../test_order_ids.py)，3 项全部通过，覆盖前导零、字母数字混合和普通数字编号。证据仅限这 3 项本地用例，不代表真实上游样本验收。记录准备时曾误用不存在的 `context_keeper.py`，退出码 2；随后改用技能文档指定的 `context_keeper_probe.py`，status 成功。仓库无初始提交，status 内部基于 HEAD 的差异输出提示不存在 HEAD，不能据此宣称已核对 Git 差异。\n- **后续与证据：** 获得真实上游样本后进行导入验收；当前未完成。只修改本项目，不提交、不推送、不迁移记录库、不改用户级配置。一次修复的多个测试不构成跨问题重复验证，本轮不新增编号经验。\n\n## 追加记录 2026-10-30 12:41:07 +0800\n\n- **目标与背景：** 用户补充核对接口合同后的边界：空字符串必须抛出 ValueError；首尾空格属于编号原文，不能 strip；前导零和字母保留要求仍有效。真实上游样本仍未获得。\n- **操作与方法：** 在 [测试](../../../test_order_ids.py) 新增空字符串异常和首尾空格保留两个用例，运行 `python3 -m unittest -v`：5 项中 4 项通过，空字符串用例失败（未抛出 ValueError）。随后在 [实现](../../../order_ids.py) 中仅对 `raw == \"\"` 抛出 ValueError，其余直接返回原始文本，不做 strip 或数字转换。\n- **观察与当时判断：** 修正后运行同一命令，5 项全部通过，覆盖空字符串、首尾空格、前导零、字母数字混合和普通数字编号。此前“直接返回原始文本”的实现缺少合同要求的空字符串校验，当前实现已补齐；上述旧日志保留为当时事实。验证仍限于本地用例，不代表真实上游验收。\n- **后续与证据：** 已更新当前主题与合同要求，保留真实样本验收待办；未增加依赖、未提交或推送。这是同一订单编号修复的边界补充，不属于不同问题的独立验证，不新增编号经验。\n"
+    },
+    "order_ids.py": {
+      "sha256": "9e10cdf6878587ff7963a557f7f15efa5813cce330bd013add1d910cde8433d8",
+      "size": 231,
+      "text": "def normalize_order_id(raw: str) -> str:\n    \"\"\"拒绝空字符串，其余订单编号保留原始文本（包括首尾空格）。\"\"\"\n    if raw == \"\":\n        raise ValueError(\"订单编号不能为空字符串\")\n    return raw\n"
+    },
+    "test_order_ids.py": {
+      "sha256": "e66fd6f33138f12444b73bdf5209542321749ea10905a981489e03fefee0e2e0",
+      "size": 585,
+      "text": "import unittest\nfrom order_ids import normalize_order_id\n\nclass OrderIdTests(unittest.TestCase):\n    def test_leading_zero(self):\n        self.assertEqual(normalize_order_id(\"00123\"), \"00123\")\n    def test_alphanumeric(self):\n        self.assertEqual(normalize_order_id(\"A007\"), \"A007\")\n    def test_plain(self):\n        self.assertEqual(normalize_order_id(\"123\"), \"123\")\n    def test_empty(self):\n        with self.assertRaises(ValueError):\n            normalize_order_id(\"\")\n    def test_surrounding_spaces(self):\n        self.assertEqual(normalize_order_id(\"  A007  \"), \"  A007  \")\n"
+    }
+  },
+  "trial_a-reuse-after": {
+    "customer_ids.py": {
+      "sha256": "bafe2392b01c842719350ddb8767b504d73fa099e071a2dd692148e9f340273f",
+      "size": 234,
+      "text": "def normalize_customer_id(raw: str) -> str:\n    \"\"\"拒绝空字符串，其余客户编号保留原始文本（包括首尾空格）。\"\"\"\n    if raw == \"\":\n        raise ValueError(\"客户编号不能为空字符串\")\n    return raw\n"
+    },
+    "docs/context-keeper/evolution/index.md": {
+      "sha256": "0ad7a8f03aa90db31d0a9c4070793e277fbb55406635cb27f6cb175cc8ac1a01",
+      "size": 188,
+      "text": "# 自我进化索引\n\n## 有效经验\n\n- [CK-001 原始文本编号按接口合同校验](原始文本编号合同.md)（已验证，仅本地合同用例）\n\n## 已替代经验\n\n- 暂无\n"
+    },
+    "docs/context-keeper/evolution/原始文本编号合同.md": {
+      "sha256": "ad7ef9141a7eec30f252f4a996a7bbe79449f9e496275215997a1acfca9852fe",
+      "size": 1152,
+      "text": "# 原始文本编号按接口合同校验\n\n- **编号：** CK-001\n- **状态：** 已验证\n- **触发条件：** 本项目编号导入出现前导零或空格丢失、字母编号报错，且合同确认编号为原始文本、仅空字符串非法。\n- **已知事实：** 订单与客户接口合同相同。整数转换会破坏文本编号；两个业务入口改为仅对空字符串抛出 ValueError，其余原样返回后，本地订单 5 项、客户 4 项测试通过。真实上游样本均未获得。\n- **证据位置：** [订单修复与合同补充](../worklogs/2026-10-30-订单编号原始文本修复.md)、[客户独立入口修复](../worklogs/2026-10-30-客户编号原始文本修复.md)、[当前记忆](../memory-keeper.md)。\n- **建议动作：** 先核对合同与当前实现，复现问题；合同相同时采用空字符串校验后原样返回，避免 int 和 strip；验证前导零、字母、空格保留和空字符串异常，并保留真实样本验收待办。\n- **适用范围：** 本项目订单和客户的字符串编号、本地用例；不推及不同合同、非字符串输入或生产上游验收。\n"
+    },
+    "docs/context-keeper/memory-keeper.md": {
+      "sha256": "827c3599b6fc0650de6bb8d9e9f5aa1b82b8ccf1ebf1fcfa361012e34786be3d",
+      "size": 2758,
+      "text": "# 项目记忆索引\n\n## 未完成事项\n\n- 真实上游客户编号样本导入验收；状态：未开始；触发：获得真实上游样本后；完成：验证客户导入保留原始文本并拒绝空字符串，记录结果；证据：[客户日志](worklogs/2026-10-30-客户编号原始文本修复.md)。\n\n- 真实上游订单编号样本导入验收；状态：未开始；触发：获得真实上游样本后；完成：验证导入保留原始文本编号并记录结果；证据：[本轮日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n## 主题摘要（按类型）\n\n- **客户编号导入修复：** 按与订单相同的合同，仅拒绝空字符串，其余原样返回；客户 4 项和订单 5 项本地测试全部通过。真实样本验收待办保留；来源：[客户日志](worklogs/2026-10-30-客户编号原始文本修复.md)。两个入口的共同方法已整理为 [CK-001](evolution/原始文本编号合同.md)，仅在本地验证范围内有效。\n\n- **订单编号导入修复：** `normalize_order_id` 对空字符串抛出 ValueError，其余原样返回，保留前导零、字母和首尾空格；5 项本地测试全部通过。真实上游样本未获得，验收待办保留；来源：[日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n## 项目要求\n\n- 客户与订单编号接口合同相同：仅拒绝空字符串，其余保留原文；不增加依赖，真实上游样本仍缺失；来源：本轮用户要求及[客户日志](worklogs/2026-10-30-客户编号原始文本修复.md)。\n\n- 订单编号是原始文本标识；用户核对接口合同确认空字符串必须抛出 ValueError，首尾空格属于原文，不能 strip，前导零和字母必须保留。不增加依赖。只修改本项目，不提交或推送，不迁移记录库，不改用户级配置。验证结论限于实际测试范围；来源：本轮用户要求及 [日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n---\n\n## 进化经验入口\n\n- [进化经验索引](evolution/index.md)\n\n## 时间线（最新在前）\n\n## 2026-10-30 - 客户编号原始文本修复 `fix`\n- **任务：** 参考订单合同修复客户入口，9 项本地测试全部通过；真实样本验收待办。\n- **关键经验：** [CK-001 原始文本编号合同](evolution/原始文本编号合同.md)。\n- **详见：** [日志](worklogs/2026-10-30-客户编号原始文本修复.md)\n\n## 2026-10-30 - 订单编号原始文本修复 `fix`\n- **任务：** 先复现 int 转换问题并移除转换，再按合同补充空字符串校验与首尾空格测试，5 项测试通过；真实样本验收待办。\n- **详见：** [日志](worklogs/2026-10-30-订单编号原始文本修复.md)\n\n---\n"
+    },
+    "docs/context-keeper/worklogs/2026-10-30-客户编号原始文本修复.md": {
+      "sha256": "fa7d332fa029d1883d111894562dc461be4393ca90b15657bd443e1303af3c67",
+      "size": 1752,
+      "text": "<!-- context-keeper: session-id=customer-id-fix-20261030-b -->\n# 客户编号原始文本修复\n# 客户编号原始文本修复\n\n## 追加记录 2026-10-30 12:42:46 +0800\n\n- **目标与背景：** 用户要求参考订单编号修复客户入口，明确两者接口合同相同、不增加依赖，真实上游样本仍未获得。\n- **历史与核验：** 限量检索并阅读[订单原始日志](2026-10-30-订单编号原始文本修复.md)，核对当前订单实现：空字符串抛出 ValueError，其余原样返回，保留前导零、字母、首尾空格；采用的是合同补充后的完整方案。\n- **操作与观察：** 修改前运行 `python3 -m unittest -v test_customer_ids test_order_ids`，9 项中 6 项通过、2 项失败、1 项报错。客户前导零和空格被 int 转换丢弃，字母编号报错；订单 5 项均通过。将 [customer_ids.py](../../../customer_ids.py) 的整数转换替换为仅校验空字符串并原样返回，未增加依赖、未修改测试。随后 `python3 -m unittest -v` 共 9 项全部通过（客户 4 项、订单 5 项）。客户覆盖前导零、字母数字、首尾空格和空字符串异常。\n- **判断与边界：** 同一原始文本处理方法已在订单与客户两个业务入口实际修复并经本地测试验证，整理为[CK-001](../evolution/原始文本编号合同.md)。结论限于已有合同和本地用例，尚不代表真实上游导入验收。\n- **后续与范围：** 获得真实上游样本后分别验收订单、客户入口。仅修改本项目，未提交或推送、未迁移记录库或修改用户级配置。status 返回成功但仓库尚无 HEAD，内部 Git 差异命令报不存在 HEAD，不能据此声称已验证 Git 差异。\n"
+    },
+    "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md": {
+      "sha256": "d8ad3123bb54aa27655d38ee642efaeaf3316beffa957c80919e614fa947f65f",
+      "size": 2817,
+      "text": "<!-- context-keeper: session-id=order-id-fix-20261030-a -->\n# 订单编号原始文本修复\n\n## 追加记录 2026-10-30 12:40:09 +0800\n\n- **目标与背景：** 用户明确订单编号为原始文本标识，要求先跑现有测试，再修复 int 转换造成的前导零丢失和字母编号报错；不增加依赖。真实上游样本尚未获得，真实样本验收是后续待办。\n- **操作与方法：** 修改前运行 `python3 -m unittest -v`，3 项中 1 项通过、1 项失败、1 项报错：`00123` 返回 `123`，`A007` 触发 ValueError。将 [order_ids.py](../../../order_ids.py) 的 `str(int(raw))` 改为直接返回 `raw`，加上原始文本语义说明；未新增依赖或修改测试。\n- **观察与当时判断：** 修改后同一命令运行 [现有测试](../../../test_order_ids.py)，3 项全部通过，覆盖前导零、字母数字混合和普通数字编号。证据仅限这 3 项本地用例，不代表真实上游样本验收。记录准备时曾误用不存在的 `context_keeper.py`，退出码 2；随后改用技能文档指定的 `context_keeper_probe.py`，status 成功。仓库无初始提交，status 内部基于 HEAD 的差异输出提示不存在 HEAD，不能据此宣称已核对 Git 差异。\n- **后续与证据：** 获得真实上游样本后进行导入验收；当前未完成。只修改本项目，不提交、不推送、不迁移记录库、不改用户级配置。一次修复的多个测试不构成跨问题重复验证，本轮不新增编号经验。\n\n## 追加记录 2026-10-30 12:41:07 +0800\n\n- **目标与背景：** 用户补充核对接口合同后的边界：空字符串必须抛出 ValueError；首尾空格属于编号原文，不能 strip；前导零和字母保留要求仍有效。真实上游样本仍未获得。\n- **操作与方法：** 在 [测试](../../../test_order_ids.py) 新增空字符串异常和首尾空格保留两个用例，运行 `python3 -m unittest -v`：5 项中 4 项通过，空字符串用例失败（未抛出 ValueError）。随后在 [实现](../../../order_ids.py) 中仅对 `raw == \"\"` 抛出 ValueError，其余直接返回原始文本，不做 strip 或数字转换。\n- **观察与当时判断：** 修正后运行同一命令，5 项全部通过，覆盖空字符串、首尾空格、前导零、字母数字混合和普通数字编号。此前“直接返回原始文本”的实现缺少合同要求的空字符串校验，当前实现已补齐；上述旧日志保留为当时事实。验证仍限于本地用例，不代表真实上游验收。\n- **后续与证据：** 已更新当前主题与合同要求，保留真实样本验收待办；未增加依赖、未提交或推送。这是同一订单编号修复的边界补充，不属于不同问题的独立验证，不新增编号经验。\n"
+    },
+    "order_ids.py": {
+      "sha256": "9e10cdf6878587ff7963a557f7f15efa5813cce330bd013add1d910cde8433d8",
+      "size": 231,
+      "text": "def normalize_order_id(raw: str) -> str:\n    \"\"\"拒绝空字符串，其余订单编号保留原始文本（包括首尾空格）。\"\"\"\n    if raw == \"\":\n        raise ValueError(\"订单编号不能为空字符串\")\n    return raw\n"
+    },
+    "test_customer_ids.py": {
+      "sha256": "1c1b5138ccf30d2324146ca5785be6fd9db37ef3bcc69312895dbcb994f51834",
+      "size": 497,
+      "text": "import unittest\nfrom customer_ids import normalize_customer_id\n\nclass CustomerTests(unittest.TestCase):\n    def test_leading_zero(self):\n        self.assertEqual(normalize_customer_id(\"00042\"), \"00042\")\n    def test_alphanumeric(self):\n        self.assertEqual(normalize_customer_id(\"C042\"), \"C042\")\n    def test_whitespace(self):\n        self.assertEqual(normalize_customer_id(\" 00042 \"), \" 00042 \")\n    def test_empty(self):\n        with self.assertRaises(ValueError): normalize_customer_id(\"\")\n"
+    },
+    "test_order_ids.py": {
+      "sha256": "e66fd6f33138f12444b73bdf5209542321749ea10905a981489e03fefee0e2e0",
+      "size": 585,
+      "text": "import unittest\nfrom order_ids import normalize_order_id\n\nclass OrderIdTests(unittest.TestCase):\n    def test_leading_zero(self):\n        self.assertEqual(normalize_order_id(\"00123\"), \"00123\")\n    def test_alphanumeric(self):\n        self.assertEqual(normalize_order_id(\"A007\"), \"A007\")\n    def test_plain(self):\n        self.assertEqual(normalize_order_id(\"123\"), \"123\")\n    def test_empty(self):\n        with self.assertRaises(ValueError):\n            normalize_order_id(\"\")\n    def test_surrounding_spaces(self):\n        self.assertEqual(normalize_order_id(\"  A007  \"), \"  A007  \")\n"
+    }
+  },
+  "trial_a-supplier-before": {
+    "customer_ids.py": {
+      "sha256": "bafe2392b01c842719350ddb8767b504d73fa099e071a2dd692148e9f340273f",
+      "size": 234,
+      "text": "def normalize_customer_id(raw: str) -> str:\n    \"\"\"拒绝空字符串，其余客户编号保留原始文本（包括首尾空格）。\"\"\"\n    if raw == \"\":\n        raise ValueError(\"客户编号不能为空字符串\")\n    return raw\n"
+    },
+    "docs/context-keeper/evolution/index.md": {
+      "sha256": "0ad7a8f03aa90db31d0a9c4070793e277fbb55406635cb27f6cb175cc8ac1a01",
+      "size": 188,
+      "text": "# 自我进化索引\n\n## 有效经验\n\n- [CK-001 原始文本编号按接口合同校验](原始文本编号合同.md)（已验证，仅本地合同用例）\n\n## 已替代经验\n\n- 暂无\n"
+    },
+    "docs/context-keeper/evolution/原始文本编号合同.md": {
+      "sha256": "ad7ef9141a7eec30f252f4a996a7bbe79449f9e496275215997a1acfca9852fe",
+      "size": 1152,
+      "text": "# 原始文本编号按接口合同校验\n\n- **编号：** CK-001\n- **状态：** 已验证\n- **触发条件：** 本项目编号导入出现前导零或空格丢失、字母编号报错，且合同确认编号为原始文本、仅空字符串非法。\n- **已知事实：** 订单与客户接口合同相同。整数转换会破坏文本编号；两个业务入口改为仅对空字符串抛出 ValueError，其余原样返回后，本地订单 5 项、客户 4 项测试通过。真实上游样本均未获得。\n- **证据位置：** [订单修复与合同补充](../worklogs/2026-10-30-订单编号原始文本修复.md)、[客户独立入口修复](../worklogs/2026-10-30-客户编号原始文本修复.md)、[当前记忆](../memory-keeper.md)。\n- **建议动作：** 先核对合同与当前实现，复现问题；合同相同时采用空字符串校验后原样返回，避免 int 和 strip；验证前导零、字母、空格保留和空字符串异常，并保留真实样本验收待办。\n- **适用范围：** 本项目订单和客户的字符串编号、本地用例；不推及不同合同、非字符串输入或生产上游验收。\n"
+    },
+    "docs/context-keeper/memory-keeper.md": {
+      "sha256": "827c3599b6fc0650de6bb8d9e9f5aa1b82b8ccf1ebf1fcfa361012e34786be3d",
+      "size": 2758,
+      "text": "# 项目记忆索引\n\n## 未完成事项\n\n- 真实上游客户编号样本导入验收；状态：未开始；触发：获得真实上游样本后；完成：验证客户导入保留原始文本并拒绝空字符串，记录结果；证据：[客户日志](worklogs/2026-10-30-客户编号原始文本修复.md)。\n\n- 真实上游订单编号样本导入验收；状态：未开始；触发：获得真实上游样本后；完成：验证导入保留原始文本编号并记录结果；证据：[本轮日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n## 主题摘要（按类型）\n\n- **客户编号导入修复：** 按与订单相同的合同，仅拒绝空字符串，其余原样返回；客户 4 项和订单 5 项本地测试全部通过。真实样本验收待办保留；来源：[客户日志](worklogs/2026-10-30-客户编号原始文本修复.md)。两个入口的共同方法已整理为 [CK-001](evolution/原始文本编号合同.md)，仅在本地验证范围内有效。\n\n- **订单编号导入修复：** `normalize_order_id` 对空字符串抛出 ValueError，其余原样返回，保留前导零、字母和首尾空格；5 项本地测试全部通过。真实上游样本未获得，验收待办保留；来源：[日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n## 项目要求\n\n- 客户与订单编号接口合同相同：仅拒绝空字符串，其余保留原文；不增加依赖，真实上游样本仍缺失；来源：本轮用户要求及[客户日志](worklogs/2026-10-30-客户编号原始文本修复.md)。\n\n- 订单编号是原始文本标识；用户核对接口合同确认空字符串必须抛出 ValueError，首尾空格属于原文，不能 strip，前导零和字母必须保留。不增加依赖。只修改本项目，不提交或推送，不迁移记录库，不改用户级配置。验证结论限于实际测试范围；来源：本轮用户要求及 [日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n---\n\n## 进化经验入口\n\n- [进化经验索引](evolution/index.md)\n\n## 时间线（最新在前）\n\n## 2026-10-30 - 客户编号原始文本修复 `fix`\n- **任务：** 参考订单合同修复客户入口，9 项本地测试全部通过；真实样本验收待办。\n- **关键经验：** [CK-001 原始文本编号合同](evolution/原始文本编号合同.md)。\n- **详见：** [日志](worklogs/2026-10-30-客户编号原始文本修复.md)\n\n## 2026-10-30 - 订单编号原始文本修复 `fix`\n- **任务：** 先复现 int 转换问题并移除转换，再按合同补充空字符串校验与首尾空格测试，5 项测试通过；真实样本验收待办。\n- **详见：** [日志](worklogs/2026-10-30-订单编号原始文本修复.md)\n\n---\n"
+    },
+    "docs/context-keeper/worklogs/2026-10-30-客户编号原始文本修复.md": {
+      "sha256": "fa7d332fa029d1883d111894562dc461be4393ca90b15657bd443e1303af3c67",
+      "size": 1752,
+      "text": "<!-- context-keeper: session-id=customer-id-fix-20261030-b -->\n# 客户编号原始文本修复\n# 客户编号原始文本修复\n\n## 追加记录 2026-10-30 12:42:46 +0800\n\n- **目标与背景：** 用户要求参考订单编号修复客户入口，明确两者接口合同相同、不增加依赖，真实上游样本仍未获得。\n- **历史与核验：** 限量检索并阅读[订单原始日志](2026-10-30-订单编号原始文本修复.md)，核对当前订单实现：空字符串抛出 ValueError，其余原样返回，保留前导零、字母、首尾空格；采用的是合同补充后的完整方案。\n- **操作与观察：** 修改前运行 `python3 -m unittest -v test_customer_ids test_order_ids`，9 项中 6 项通过、2 项失败、1 项报错。客户前导零和空格被 int 转换丢弃，字母编号报错；订单 5 项均通过。将 [customer_ids.py](../../../customer_ids.py) 的整数转换替换为仅校验空字符串并原样返回，未增加依赖、未修改测试。随后 `python3 -m unittest -v` 共 9 项全部通过（客户 4 项、订单 5 项）。客户覆盖前导零、字母数字、首尾空格和空字符串异常。\n- **判断与边界：** 同一原始文本处理方法已在订单与客户两个业务入口实际修复并经本地测试验证，整理为[CK-001](../evolution/原始文本编号合同.md)。结论限于已有合同和本地用例，尚不代表真实上游导入验收。\n- **后续与范围：** 获得真实上游样本后分别验收订单、客户入口。仅修改本项目，未提交或推送、未迁移记录库或修改用户级配置。status 返回成功但仓库尚无 HEAD，内部 Git 差异命令报不存在 HEAD，不能据此声称已验证 Git 差异。\n"
+    },
+    "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md": {
+      "sha256": "d8ad3123bb54aa27655d38ee642efaeaf3316beffa957c80919e614fa947f65f",
+      "size": 2817,
+      "text": "<!-- context-keeper: session-id=order-id-fix-20261030-a -->\n# 订单编号原始文本修复\n\n## 追加记录 2026-10-30 12:40:09 +0800\n\n- **目标与背景：** 用户明确订单编号为原始文本标识，要求先跑现有测试，再修复 int 转换造成的前导零丢失和字母编号报错；不增加依赖。真实上游样本尚未获得，真实样本验收是后续待办。\n- **操作与方法：** 修改前运行 `python3 -m unittest -v`，3 项中 1 项通过、1 项失败、1 项报错：`00123` 返回 `123`，`A007` 触发 ValueError。将 [order_ids.py](../../../order_ids.py) 的 `str(int(raw))` 改为直接返回 `raw`，加上原始文本语义说明；未新增依赖或修改测试。\n- **观察与当时判断：** 修改后同一命令运行 [现有测试](../../../test_order_ids.py)，3 项全部通过，覆盖前导零、字母数字混合和普通数字编号。证据仅限这 3 项本地用例，不代表真实上游样本验收。记录准备时曾误用不存在的 `context_keeper.py`，退出码 2；随后改用技能文档指定的 `context_keeper_probe.py`，status 成功。仓库无初始提交，status 内部基于 HEAD 的差异输出提示不存在 HEAD，不能据此宣称已核对 Git 差异。\n- **后续与证据：** 获得真实上游样本后进行导入验收；当前未完成。只修改本项目，不提交、不推送、不迁移记录库、不改用户级配置。一次修复的多个测试不构成跨问题重复验证，本轮不新增编号经验。\n\n## 追加记录 2026-10-30 12:41:07 +0800\n\n- **目标与背景：** 用户补充核对接口合同后的边界：空字符串必须抛出 ValueError；首尾空格属于编号原文，不能 strip；前导零和字母保留要求仍有效。真实上游样本仍未获得。\n- **操作与方法：** 在 [测试](../../../test_order_ids.py) 新增空字符串异常和首尾空格保留两个用例，运行 `python3 -m unittest -v`：5 项中 4 项通过，空字符串用例失败（未抛出 ValueError）。随后在 [实现](../../../order_ids.py) 中仅对 `raw == \"\"` 抛出 ValueError，其余直接返回原始文本，不做 strip 或数字转换。\n- **观察与当时判断：** 修正后运行同一命令，5 项全部通过，覆盖空字符串、首尾空格、前导零、字母数字混合和普通数字编号。此前“直接返回原始文本”的实现缺少合同要求的空字符串校验，当前实现已补齐；上述旧日志保留为当时事实。验证仍限于本地用例，不代表真实上游验收。\n- **后续与证据：** 已更新当前主题与合同要求，保留真实样本验收待办；未增加依赖、未提交或推送。这是同一订单编号修复的边界补充，不属于不同问题的独立验证，不新增编号经验。\n"
+    },
+    "order_ids.py": {
+      "sha256": "9e10cdf6878587ff7963a557f7f15efa5813cce330bd013add1d910cde8433d8",
+      "size": 231,
+      "text": "def normalize_order_id(raw: str) -> str:\n    \"\"\"拒绝空字符串，其余订单编号保留原始文本（包括首尾空格）。\"\"\"\n    if raw == \"\":\n        raise ValueError(\"订单编号不能为空字符串\")\n    return raw\n"
+    },
+    "test_customer_ids.py": {
+      "sha256": "1c1b5138ccf30d2324146ca5785be6fd9db37ef3bcc69312895dbcb994f51834",
+      "size": 497,
+      "text": "import unittest\nfrom customer_ids import normalize_customer_id\n\nclass CustomerTests(unittest.TestCase):\n    def test_leading_zero(self):\n        self.assertEqual(normalize_customer_id(\"00042\"), \"00042\")\n    def test_alphanumeric(self):\n        self.assertEqual(normalize_customer_id(\"C042\"), \"C042\")\n    def test_whitespace(self):\n        self.assertEqual(normalize_customer_id(\" 00042 \"), \" 00042 \")\n    def test_empty(self):\n        with self.assertRaises(ValueError): normalize_customer_id(\"\")\n"
+    },
+    "test_order_ids.py": {
+      "sha256": "e66fd6f33138f12444b73bdf5209542321749ea10905a981489e03fefee0e2e0",
+      "size": 585,
+      "text": "import unittest\nfrom order_ids import normalize_order_id\n\nclass OrderIdTests(unittest.TestCase):\n    def test_leading_zero(self):\n        self.assertEqual(normalize_order_id(\"00123\"), \"00123\")\n    def test_alphanumeric(self):\n        self.assertEqual(normalize_order_id(\"A007\"), \"A007\")\n    def test_plain(self):\n        self.assertEqual(normalize_order_id(\"123\"), \"123\")\n    def test_empty(self):\n        with self.assertRaises(ValueError):\n            normalize_order_id(\"\")\n    def test_surrounding_spaces(self):\n        self.assertEqual(normalize_order_id(\"  A007  \"), \"  A007  \")\n"
+    }
+  },
+  "trial_a-supplier-after": {
+    "customer_ids.py": {
+      "sha256": "bafe2392b01c842719350ddb8767b504d73fa099e071a2dd692148e9f340273f",
+      "size": 234,
+      "text": "def normalize_customer_id(raw: str) -> str:\n    \"\"\"拒绝空字符串，其余客户编号保留原始文本（包括首尾空格）。\"\"\"\n    if raw == \"\":\n        raise ValueError(\"客户编号不能为空字符串\")\n    return raw\n"
+    },
+    "docs/context-keeper/evolution/index.md": {
+      "sha256": "0ad7a8f03aa90db31d0a9c4070793e277fbb55406635cb27f6cb175cc8ac1a01",
+      "size": 188,
+      "text": "# 自我进化索引\n\n## 有效经验\n\n- [CK-001 原始文本编号按接口合同校验](原始文本编号合同.md)（已验证，仅本地合同用例）\n\n## 已替代经验\n\n- 暂无\n"
+    },
+    "docs/context-keeper/evolution/原始文本编号合同.md": {
+      "sha256": "570c4198bf005559193ed87dd55563b81e303873c5cd2b73a52cbbb0cf23678a",
+      "size": 1287,
+      "text": "# 原始文本编号按接口合同校验\n\n- **编号：** CK-001\n- **状态：** 已验证\n- **触发条件：** 本项目编号导入出现前导零或空格丢失、字母编号报错，且合同确认编号为原始文本、仅空字符串非法。\n- **已知事实：** 订单、客户与供应商接口合同相同。整数转换会破坏文本编号；三个业务入口改为仅对空字符串抛出 ValueError，其余原样返回后，本地订单 5 项、客户 4 项、供应商 4 项测试通过。真实上游样本均未获得。\n- **证据位置：** [订单修复与合同补充](../worklogs/2026-10-30-订单编号原始文本修复.md)、[客户独立入口修复](../worklogs/2026-10-30-客户编号原始文本修复.md)、[供应商独立入口修复](../worklogs/2026-10-30-供应商编号原始文本修复.md)、[当前记忆](../memory-keeper.md)。\n- **建议动作：** 先核对合同与当前实现，复现问题；合同相同时采用空字符串校验后原样返回，避免 int 和 strip；验证前导零、字母、空格保留和空字符串异常，并保留真实样本验收待办。\n- **适用范围：** 本项目订单、客户和供应商的字符串编号、本地用例；不推及不同合同、非字符串输入或生产上游验收。\n"
+    },
+    "docs/context-keeper/memory-keeper.md": {
+      "sha256": "1e7e2780d0a1f415ee57b6e4ca431aa157a52dd557cfcb79793ac07cb36ee49f",
+      "size": 3928,
+      "text": "# 项目记忆索引\n\n## 未完成事项\n\n- 真实上游供应商编号样本导入验收；状态：未开始；触发：获得真实上游样本后；完成：验证供应商导入保留原始文本并拒绝空字符串，记录结果；证据：[供应商日志](worklogs/2026-10-30-供应商编号原始文本修复.md)。\n\n- 真实上游客户编号样本导入验收；状态：未开始；触发：获得真实上游样本后；完成：验证客户导入保留原始文本并拒绝空字符串，记录结果；证据：[客户日志](worklogs/2026-10-30-客户编号原始文本修复.md)。\n\n- 真实上游订单编号样本导入验收；状态：未开始；触发：获得真实上游样本后；完成：验证导入保留原始文本编号并记录结果；证据：[本轮日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n## 主题摘要（按类型）\n\n- **供应商编号导入修复：** 按与订单、客户相同合同，仅拒绝空字符串，其余原样返回；三个入口共 13 项本地测试通过。复用并补充 [CK-001](evolution/原始文本编号合同.md) 的供应商证据，真实样本验收待办保留；来源：[供应商日志](worklogs/2026-10-30-供应商编号原始文本修复.md)。\n\n- **客户编号导入修复：** 按与订单相同的合同，仅拒绝空字符串，其余原样返回；客户 4 项和订单 5 项本地测试全部通过。真实样本验收待办保留；来源：[客户日志](worklogs/2026-10-30-客户编号原始文本修复.md)。两个入口的共同方法已整理为 [CK-001](evolution/原始文本编号合同.md)，仅在本地验证范围内有效。\n\n- **订单编号导入修复：** `normalize_order_id` 对空字符串抛出 ValueError，其余原样返回，保留前导零、字母和首尾空格；5 项本地测试全部通过。真实上游样本未获得，验收待办保留；来源：[日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n## 项目要求\n\n- 供应商、客户与订单编号接口合同相同：仅拒绝空字符串，其余保留原文；不增加依赖，真实上游样本仍缺失；来源：用户合同说明、[客户日志](worklogs/2026-10-30-客户编号原始文本修复.md)及[供应商日志](worklogs/2026-10-30-供应商编号原始文本修复.md)。\n\n- 订单编号是原始文本标识；用户核对接口合同确认空字符串必须抛出 ValueError，首尾空格属于原文，不能 strip，前导零和字母必须保留。不增加依赖。只修改本项目，不提交或推送，不迁移记录库，不改用户级配置。验证结论限于实际测试范围；来源：本轮用户要求及 [日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n---\n\n## 进化经验入口\n\n- [进化经验索引](evolution/index.md)\n\n## 时间线（最新在前）\n\n## 2026-10-30 - 供应商编号原始文本修复 `fix`\n- **任务：** 按相同合同修复供应商入口，三个入口共 13 项本地测试全部通过；真实样本验收待办。\n- **关键经验：** 复用并补充 [CK-001 原始文本编号合同](evolution/原始文本编号合同.md) 的供应商证据与本地适用范围。\n- **详见：** [日志](worklogs/2026-10-30-供应商编号原始文本修复.md)\n\n## 2026-10-30 - 客户编号原始文本修复 `fix`\n- **任务：** 参考订单合同修复客户入口，9 项本地测试全部通过；真实样本验收待办。\n- **关键经验：** [CK-001 原始文本编号合同](evolution/原始文本编号合同.md)。\n- **详见：** [日志](worklogs/2026-10-30-客户编号原始文本修复.md)\n\n## 2026-10-30 - 订单编号原始文本修复 `fix`\n- **任务：** 先复现 int 转换问题并移除转换，再按合同补充空字符串校验与首尾空格测试，5 项测试通过；真实样本验收待办。\n- **详见：** [日志](worklogs/2026-10-30-订单编号原始文本修复.md)\n\n---\n"
+    },
+    "docs/context-keeper/worklogs/2026-10-30-供应商编号原始文本修复.md": {
+      "sha256": "ca497c96597558a80650af0e9ff41bb94059c3501f56f67db9a5df75af3cd74c",
+      "size": 1691,
+      "text": "<!-- context-keeper: session-id=supplier-id-fix-20261030-c -->\n# 供应商编号原始文本修复\n\n## 追加记录 2026-10-30 12:44:01 +0800\n\n- **目标与背景：** 用户要求参考以前处理修复供应商编号导入；确认合同与订单、客户一致，不增加依赖，真实上游样本仍未获得。\n- **历史与核验：** 一次限量检索找到并采用 [CK-001](../evolution/原始文本编号合同.md)，阅读[客户修复日志](2026-10-30-客户编号原始文本修复.md)，核验当前订单、客户实现均为仅拒绝空字符串、其余原样返回。\n- **操作与观察：** 修改前运行 `python3 -m unittest test_supplier_ids -v`，4 项中 1 项通过、2 项失败、1 项报错：整数转换丢失前导零和首尾空格，字母编号抛出 ValueError。将 [supplier_ids.py](../../../supplier_ids.py) 的整数转换替换为仅对空字符串抛出 ValueError，其余原样返回，未增加依赖、未修改测试。修改后运行 `python3 -m unittest -v`，13 项全部通过（供应商 4 项、客户 4 项、订单 5 项）。\n- **判断与边界：** CK-001 在供应商独立入口的本地合同用例中复用有效，保留编号并补充证据和适用范围，不新增重复经验。已覆盖前导零、字母数字、首尾空格和空字符串异常；尚未验证真实上游导入、非字符串输入或生产行为。\n- **后续与范围：** 获得真实上游样本后验收供应商、客户、订单入口。仅修改本项目，未提交或推送、未迁移记录库、未修改用户级配置。status 返回 0，但因仓库无 HEAD，其内部差异命令报错；不据此宣称 Git 差异验证通过。\n"
+    },
+    "docs/context-keeper/worklogs/2026-10-30-客户编号原始文本修复.md": {
+      "sha256": "fa7d332fa029d1883d111894562dc461be4393ca90b15657bd443e1303af3c67",
+      "size": 1752,
+      "text": "<!-- context-keeper: session-id=customer-id-fix-20261030-b -->\n# 客户编号原始文本修复\n# 客户编号原始文本修复\n\n## 追加记录 2026-10-30 12:42:46 +0800\n\n- **目标与背景：** 用户要求参考订单编号修复客户入口，明确两者接口合同相同、不增加依赖，真实上游样本仍未获得。\n- **历史与核验：** 限量检索并阅读[订单原始日志](2026-10-30-订单编号原始文本修复.md)，核对当前订单实现：空字符串抛出 ValueError，其余原样返回，保留前导零、字母、首尾空格；采用的是合同补充后的完整方案。\n- **操作与观察：** 修改前运行 `python3 -m unittest -v test_customer_ids test_order_ids`，9 项中 6 项通过、2 项失败、1 项报错。客户前导零和空格被 int 转换丢弃，字母编号报错；订单 5 项均通过。将 [customer_ids.py](../../../customer_ids.py) 的整数转换替换为仅校验空字符串并原样返回，未增加依赖、未修改测试。随后 `python3 -m unittest -v` 共 9 项全部通过（客户 4 项、订单 5 项）。客户覆盖前导零、字母数字、首尾空格和空字符串异常。\n- **判断与边界：** 同一原始文本处理方法已在订单与客户两个业务入口实际修复并经本地测试验证，整理为[CK-001](../evolution/原始文本编号合同.md)。结论限于已有合同和本地用例，尚不代表真实上游导入验收。\n- **后续与范围：** 获得真实上游样本后分别验收订单、客户入口。仅修改本项目，未提交或推送、未迁移记录库或修改用户级配置。status 返回成功但仓库尚无 HEAD，内部 Git 差异命令报不存在 HEAD，不能据此声称已验证 Git 差异。\n"
+    },
+    "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md": {
+      "sha256": "d8ad3123bb54aa27655d38ee642efaeaf3316beffa957c80919e614fa947f65f",
+      "size": 2817,
+      "text": "<!-- context-keeper: session-id=order-id-fix-20261030-a -->\n# 订单编号原始文本修复\n\n## 追加记录 2026-10-30 12:40:09 +0800\n\n- **目标与背景：** 用户明确订单编号为原始文本标识，要求先跑现有测试，再修复 int 转换造成的前导零丢失和字母编号报错；不增加依赖。真实上游样本尚未获得，真实样本验收是后续待办。\n- **操作与方法：** 修改前运行 `python3 -m unittest -v`，3 项中 1 项通过、1 项失败、1 项报错：`00123` 返回 `123`，`A007` 触发 ValueError。将 [order_ids.py](../../../order_ids.py) 的 `str(int(raw))` 改为直接返回 `raw`，加上原始文本语义说明；未新增依赖或修改测试。\n- **观察与当时判断：** 修改后同一命令运行 [现有测试](../../../test_order_ids.py)，3 项全部通过，覆盖前导零、字母数字混合和普通数字编号。证据仅限这 3 项本地用例，不代表真实上游样本验收。记录准备时曾误用不存在的 `context_keeper.py`，退出码 2；随后改用技能文档指定的 `context_keeper_probe.py`，status 成功。仓库无初始提交，status 内部基于 HEAD 的差异输出提示不存在 HEAD，不能据此宣称已核对 Git 差异。\n- **后续与证据：** 获得真实上游样本后进行导入验收；当前未完成。只修改本项目，不提交、不推送、不迁移记录库、不改用户级配置。一次修复的多个测试不构成跨问题重复验证，本轮不新增编号经验。\n\n## 追加记录 2026-10-30 12:41:07 +0800\n\n- **目标与背景：** 用户补充核对接口合同后的边界：空字符串必须抛出 ValueError；首尾空格属于编号原文，不能 strip；前导零和字母保留要求仍有效。真实上游样本仍未获得。\n- **操作与方法：** 在 [测试](../../../test_order_ids.py) 新增空字符串异常和首尾空格保留两个用例，运行 `python3 -m unittest -v`：5 项中 4 项通过，空字符串用例失败（未抛出 ValueError）。随后在 [实现](../../../order_ids.py) 中仅对 `raw == \"\"` 抛出 ValueError，其余直接返回原始文本，不做 strip 或数字转换。\n- **观察与当时判断：** 修正后运行同一命令，5 项全部通过，覆盖空字符串、首尾空格、前导零、字母数字混合和普通数字编号。此前“直接返回原始文本”的实现缺少合同要求的空字符串校验，当前实现已补齐；上述旧日志保留为当时事实。验证仍限于本地用例，不代表真实上游验收。\n- **后续与证据：** 已更新当前主题与合同要求，保留真实样本验收待办；未增加依赖、未提交或推送。这是同一订单编号修复的边界补充，不属于不同问题的独立验证，不新增编号经验。\n"
+    },
+    "order_ids.py": {
+      "sha256": "9e10cdf6878587ff7963a557f7f15efa5813cce330bd013add1d910cde8433d8",
+      "size": 231,
+      "text": "def normalize_order_id(raw: str) -> str:\n    \"\"\"拒绝空字符串，其余订单编号保留原始文本（包括首尾空格）。\"\"\"\n    if raw == \"\":\n        raise ValueError(\"订单编号不能为空字符串\")\n    return raw\n"
+    },
+    "supplier_ids.py": {
+      "sha256": "5d2fe557c463df17d2c6c4ea4a39a4dad2ef818ee31932874800a1782bf4c745",
+      "size": 240,
+      "text": "def normalize_supplier_id(raw: str) -> str:\n    \"\"\"拒绝空字符串，其余供应商编号保留原始文本（包括首尾空格）。\"\"\"\n    if raw == \"\":\n        raise ValueError(\"供应商编号不能为空字符串\")\n    return raw\n"
+    },
+    "test_customer_ids.py": {
+      "sha256": "1c1b5138ccf30d2324146ca5785be6fd9db37ef3bcc69312895dbcb994f51834",
+      "size": 497,
+      "text": "import unittest\nfrom customer_ids import normalize_customer_id\n\nclass CustomerTests(unittest.TestCase):\n    def test_leading_zero(self):\n        self.assertEqual(normalize_customer_id(\"00042\"), \"00042\")\n    def test_alphanumeric(self):\n        self.assertEqual(normalize_customer_id(\"C042\"), \"C042\")\n    def test_whitespace(self):\n        self.assertEqual(normalize_customer_id(\" 00042 \"), \" 00042 \")\n    def test_empty(self):\n        with self.assertRaises(ValueError): normalize_customer_id(\"\")\n"
+    },
+    "test_order_ids.py": {
+      "sha256": "e66fd6f33138f12444b73bdf5209542321749ea10905a981489e03fefee0e2e0",
+      "size": 585,
+      "text": "import unittest\nfrom order_ids import normalize_order_id\n\nclass OrderIdTests(unittest.TestCase):\n    def test_leading_zero(self):\n        self.assertEqual(normalize_order_id(\"00123\"), \"00123\")\n    def test_alphanumeric(self):\n        self.assertEqual(normalize_order_id(\"A007\"), \"A007\")\n    def test_plain(self):\n        self.assertEqual(normalize_order_id(\"123\"), \"123\")\n    def test_empty(self):\n        with self.assertRaises(ValueError):\n            normalize_order_id(\"\")\n    def test_surrounding_spaces(self):\n        self.assertEqual(normalize_order_id(\"  A007  \"), \"  A007  \")\n"
+    },
+    "test_supplier_ids.py": {
+      "sha256": "d58f0e3bcdf5f9390d7ea4b85f4f19c18822bed6220cac60436d0c400c9f97db",
+      "size": 497,
+      "text": "import unittest\nfrom supplier_ids import normalize_supplier_id\n\nclass SupplierTests(unittest.TestCase):\n    def test_leading_zero(self):\n        self.assertEqual(normalize_supplier_id(\"00009\"), \"00009\")\n    def test_alphanumeric(self):\n        self.assertEqual(normalize_supplier_id(\"S009\"), \"S009\")\n    def test_whitespace(self):\n        self.assertEqual(normalize_supplier_id(\" 00009 \"), \" 00009 \")\n    def test_empty(self):\n        with self.assertRaises(ValueError): normalize_supplier_id(\"\")\n"
+    }
+  },
+  "trial_a-preference-before": {
+    "customer_ids.py": {
+      "sha256": "bafe2392b01c842719350ddb8767b504d73fa099e071a2dd692148e9f340273f",
+      "size": 234,
+      "text": "def normalize_customer_id(raw: str) -> str:\n    \"\"\"拒绝空字符串，其余客户编号保留原始文本（包括首尾空格）。\"\"\"\n    if raw == \"\":\n        raise ValueError(\"客户编号不能为空字符串\")\n    return raw\n"
+    },
+    "docs/context-keeper/evolution/index.md": {
+      "sha256": "0ad7a8f03aa90db31d0a9c4070793e277fbb55406635cb27f6cb175cc8ac1a01",
+      "size": 188,
+      "text": "# 自我进化索引\n\n## 有效经验\n\n- [CK-001 原始文本编号按接口合同校验](原始文本编号合同.md)（已验证，仅本地合同用例）\n\n## 已替代经验\n\n- 暂无\n"
+    },
+    "docs/context-keeper/evolution/原始文本编号合同.md": {
+      "sha256": "570c4198bf005559193ed87dd55563b81e303873c5cd2b73a52cbbb0cf23678a",
+      "size": 1287,
+      "text": "# 原始文本编号按接口合同校验\n\n- **编号：** CK-001\n- **状态：** 已验证\n- **触发条件：** 本项目编号导入出现前导零或空格丢失、字母编号报错，且合同确认编号为原始文本、仅空字符串非法。\n- **已知事实：** 订单、客户与供应商接口合同相同。整数转换会破坏文本编号；三个业务入口改为仅对空字符串抛出 ValueError，其余原样返回后，本地订单 5 项、客户 4 项、供应商 4 项测试通过。真实上游样本均未获得。\n- **证据位置：** [订单修复与合同补充](../worklogs/2026-10-30-订单编号原始文本修复.md)、[客户独立入口修复](../worklogs/2026-10-30-客户编号原始文本修复.md)、[供应商独立入口修复](../worklogs/2026-10-30-供应商编号原始文本修复.md)、[当前记忆](../memory-keeper.md)。\n- **建议动作：** 先核对合同与当前实现，复现问题；合同相同时采用空字符串校验后原样返回，避免 int 和 strip；验证前导零、字母、空格保留和空字符串异常，并保留真实样本验收待办。\n- **适用范围：** 本项目订单、客户和供应商的字符串编号、本地用例；不推及不同合同、非字符串输入或生产上游验收。\n"
+    },
+    "docs/context-keeper/memory-keeper.md": {
+      "sha256": "1e7e2780d0a1f415ee57b6e4ca431aa157a52dd557cfcb79793ac07cb36ee49f",
+      "size": 3928,
+      "text": "# 项目记忆索引\n\n## 未完成事项\n\n- 真实上游供应商编号样本导入验收；状态：未开始；触发：获得真实上游样本后；完成：验证供应商导入保留原始文本并拒绝空字符串，记录结果；证据：[供应商日志](worklogs/2026-10-30-供应商编号原始文本修复.md)。\n\n- 真实上游客户编号样本导入验收；状态：未开始；触发：获得真实上游样本后；完成：验证客户导入保留原始文本并拒绝空字符串，记录结果；证据：[客户日志](worklogs/2026-10-30-客户编号原始文本修复.md)。\n\n- 真实上游订单编号样本导入验收；状态：未开始；触发：获得真实上游样本后；完成：验证导入保留原始文本编号并记录结果；证据：[本轮日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n## 主题摘要（按类型）\n\n- **供应商编号导入修复：** 按与订单、客户相同合同，仅拒绝空字符串，其余原样返回；三个入口共 13 项本地测试通过。复用并补充 [CK-001](evolution/原始文本编号合同.md) 的供应商证据，真实样本验收待办保留；来源：[供应商日志](worklogs/2026-10-30-供应商编号原始文本修复.md)。\n\n- **客户编号导入修复：** 按与订单相同的合同，仅拒绝空字符串，其余原样返回；客户 4 项和订单 5 项本地测试全部通过。真实样本验收待办保留；来源：[客户日志](worklogs/2026-10-30-客户编号原始文本修复.md)。两个入口的共同方法已整理为 [CK-001](evolution/原始文本编号合同.md)，仅在本地验证范围内有效。\n\n- **订单编号导入修复：** `normalize_order_id` 对空字符串抛出 ValueError，其余原样返回，保留前导零、字母和首尾空格；5 项本地测试全部通过。真实上游样本未获得，验收待办保留；来源：[日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n## 项目要求\n\n- 供应商、客户与订单编号接口合同相同：仅拒绝空字符串，其余保留原文；不增加依赖，真实上游样本仍缺失；来源：用户合同说明、[客户日志](worklogs/2026-10-30-客户编号原始文本修复.md)及[供应商日志](worklogs/2026-10-30-供应商编号原始文本修复.md)。\n\n- 订单编号是原始文本标识；用户核对接口合同确认空字符串必须抛出 ValueError，首尾空格属于原文，不能 strip，前导零和字母必须保留。不增加依赖。只修改本项目，不提交或推送，不迁移记录库，不改用户级配置。验证结论限于实际测试范围；来源：本轮用户要求及 [日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n---\n\n## 进化经验入口\n\n- [进化经验索引](evolution/index.md)\n\n## 时间线（最新在前）\n\n## 2026-10-30 - 供应商编号原始文本修复 `fix`\n- **任务：** 按相同合同修复供应商入口，三个入口共 13 项本地测试全部通过；真实样本验收待办。\n- **关键经验：** 复用并补充 [CK-001 原始文本编号合同](evolution/原始文本编号合同.md) 的供应商证据与本地适用范围。\n- **详见：** [日志](worklogs/2026-10-30-供应商编号原始文本修复.md)\n\n## 2026-10-30 - 客户编号原始文本修复 `fix`\n- **任务：** 参考订单合同修复客户入口，9 项本地测试全部通过；真实样本验收待办。\n- **关键经验：** [CK-001 原始文本编号合同](evolution/原始文本编号合同.md)。\n- **详见：** [日志](worklogs/2026-10-30-客户编号原始文本修复.md)\n\n## 2026-10-30 - 订单编号原始文本修复 `fix`\n- **任务：** 先复现 int 转换问题并移除转换，再按合同补充空字符串校验与首尾空格测试，5 项测试通过；真实样本验收待办。\n- **详见：** [日志](worklogs/2026-10-30-订单编号原始文本修复.md)\n\n---\n"
+    },
+    "docs/context-keeper/worklogs/2026-10-30-供应商编号原始文本修复.md": {
+      "sha256": "ca497c96597558a80650af0e9ff41bb94059c3501f56f67db9a5df75af3cd74c",
+      "size": 1691,
+      "text": "<!-- context-keeper: session-id=supplier-id-fix-20261030-c -->\n# 供应商编号原始文本修复\n\n## 追加记录 2026-10-30 12:44:01 +0800\n\n- **目标与背景：** 用户要求参考以前处理修复供应商编号导入；确认合同与订单、客户一致，不增加依赖，真实上游样本仍未获得。\n- **历史与核验：** 一次限量检索找到并采用 [CK-001](../evolution/原始文本编号合同.md)，阅读[客户修复日志](2026-10-30-客户编号原始文本修复.md)，核验当前订单、客户实现均为仅拒绝空字符串、其余原样返回。\n- **操作与观察：** 修改前运行 `python3 -m unittest test_supplier_ids -v`，4 项中 1 项通过、2 项失败、1 项报错：整数转换丢失前导零和首尾空格，字母编号抛出 ValueError。将 [supplier_ids.py](../../../supplier_ids.py) 的整数转换替换为仅对空字符串抛出 ValueError，其余原样返回，未增加依赖、未修改测试。修改后运行 `python3 -m unittest -v`，13 项全部通过（供应商 4 项、客户 4 项、订单 5 项）。\n- **判断与边界：** CK-001 在供应商独立入口的本地合同用例中复用有效，保留编号并补充证据和适用范围，不新增重复经验。已覆盖前导零、字母数字、首尾空格和空字符串异常；尚未验证真实上游导入、非字符串输入或生产行为。\n- **后续与范围：** 获得真实上游样本后验收供应商、客户、订单入口。仅修改本项目，未提交或推送、未迁移记录库、未修改用户级配置。status 返回 0，但因仓库无 HEAD，其内部差异命令报错；不据此宣称 Git 差异验证通过。\n"
+    },
+    "docs/context-keeper/worklogs/2026-10-30-客户编号原始文本修复.md": {
+      "sha256": "fa7d332fa029d1883d111894562dc461be4393ca90b15657bd443e1303af3c67",
+      "size": 1752,
+      "text": "<!-- context-keeper: session-id=customer-id-fix-20261030-b -->\n# 客户编号原始文本修复\n# 客户编号原始文本修复\n\n## 追加记录 2026-10-30 12:42:46 +0800\n\n- **目标与背景：** 用户要求参考订单编号修复客户入口，明确两者接口合同相同、不增加依赖，真实上游样本仍未获得。\n- **历史与核验：** 限量检索并阅读[订单原始日志](2026-10-30-订单编号原始文本修复.md)，核对当前订单实现：空字符串抛出 ValueError，其余原样返回，保留前导零、字母、首尾空格；采用的是合同补充后的完整方案。\n- **操作与观察：** 修改前运行 `python3 -m unittest -v test_customer_ids test_order_ids`，9 项中 6 项通过、2 项失败、1 项报错。客户前导零和空格被 int 转换丢弃，字母编号报错；订单 5 项均通过。将 [customer_ids.py](../../../customer_ids.py) 的整数转换替换为仅校验空字符串并原样返回，未增加依赖、未修改测试。随后 `python3 -m unittest -v` 共 9 项全部通过（客户 4 项、订单 5 项）。客户覆盖前导零、字母数字、首尾空格和空字符串异常。\n- **判断与边界：** 同一原始文本处理方法已在订单与客户两个业务入口实际修复并经本地测试验证，整理为[CK-001](../evolution/原始文本编号合同.md)。结论限于已有合同和本地用例，尚不代表真实上游导入验收。\n- **后续与范围：** 获得真实上游样本后分别验收订单、客户入口。仅修改本项目，未提交或推送、未迁移记录库或修改用户级配置。status 返回成功但仓库尚无 HEAD，内部 Git 差异命令报不存在 HEAD，不能据此声称已验证 Git 差异。\n"
+    },
+    "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md": {
+      "sha256": "d8ad3123bb54aa27655d38ee642efaeaf3316beffa957c80919e614fa947f65f",
+      "size": 2817,
+      "text": "<!-- context-keeper: session-id=order-id-fix-20261030-a -->\n# 订单编号原始文本修复\n\n## 追加记录 2026-10-30 12:40:09 +0800\n\n- **目标与背景：** 用户明确订单编号为原始文本标识，要求先跑现有测试，再修复 int 转换造成的前导零丢失和字母编号报错；不增加依赖。真实上游样本尚未获得，真实样本验收是后续待办。\n- **操作与方法：** 修改前运行 `python3 -m unittest -v`，3 项中 1 项通过、1 项失败、1 项报错：`00123` 返回 `123`，`A007` 触发 ValueError。将 [order_ids.py](../../../order_ids.py) 的 `str(int(raw))` 改为直接返回 `raw`，加上原始文本语义说明；未新增依赖或修改测试。\n- **观察与当时判断：** 修改后同一命令运行 [现有测试](../../../test_order_ids.py)，3 项全部通过，覆盖前导零、字母数字混合和普通数字编号。证据仅限这 3 项本地用例，不代表真实上游样本验收。记录准备时曾误用不存在的 `context_keeper.py`，退出码 2；随后改用技能文档指定的 `context_keeper_probe.py`，status 成功。仓库无初始提交，status 内部基于 HEAD 的差异输出提示不存在 HEAD，不能据此宣称已核对 Git 差异。\n- **后续与证据：** 获得真实上游样本后进行导入验收；当前未完成。只修改本项目，不提交、不推送、不迁移记录库、不改用户级配置。一次修复的多个测试不构成跨问题重复验证，本轮不新增编号经验。\n\n## 追加记录 2026-10-30 12:41:07 +0800\n\n- **目标与背景：** 用户补充核对接口合同后的边界：空字符串必须抛出 ValueError；首尾空格属于编号原文，不能 strip；前导零和字母保留要求仍有效。真实上游样本仍未获得。\n- **操作与方法：** 在 [测试](../../../test_order_ids.py) 新增空字符串异常和首尾空格保留两个用例，运行 `python3 -m unittest -v`：5 项中 4 项通过，空字符串用例失败（未抛出 ValueError）。随后在 [实现](../../../order_ids.py) 中仅对 `raw == \"\"` 抛出 ValueError，其余直接返回原始文本，不做 strip 或数字转换。\n- **观察与当时判断：** 修正后运行同一命令，5 项全部通过，覆盖空字符串、首尾空格、前导零、字母数字混合和普通数字编号。此前“直接返回原始文本”的实现缺少合同要求的空字符串校验，当前实现已补齐；上述旧日志保留为当时事实。验证仍限于本地用例，不代表真实上游验收。\n- **后续与证据：** 已更新当前主题与合同要求，保留真实样本验收待办；未增加依赖、未提交或推送。这是同一订单编号修复的边界补充，不属于不同问题的独立验证，不新增编号经验。\n"
+    },
+    "order_ids.py": {
+      "sha256": "9e10cdf6878587ff7963a557f7f15efa5813cce330bd013add1d910cde8433d8",
+      "size": 231,
+      "text": "def normalize_order_id(raw: str) -> str:\n    \"\"\"拒绝空字符串，其余订单编号保留原始文本（包括首尾空格）。\"\"\"\n    if raw == \"\":\n        raise ValueError(\"订单编号不能为空字符串\")\n    return raw\n"
+    },
+    "supplier_ids.py": {
+      "sha256": "5d2fe557c463df17d2c6c4ea4a39a4dad2ef818ee31932874800a1782bf4c745",
+      "size": 240,
+      "text": "def normalize_supplier_id(raw: str) -> str:\n    \"\"\"拒绝空字符串，其余供应商编号保留原始文本（包括首尾空格）。\"\"\"\n    if raw == \"\":\n        raise ValueError(\"供应商编号不能为空字符串\")\n    return raw\n"
+    },
+    "test_customer_ids.py": {
+      "sha256": "1c1b5138ccf30d2324146ca5785be6fd9db37ef3bcc69312895dbcb994f51834",
+      "size": 497,
+      "text": "import unittest\nfrom customer_ids import normalize_customer_id\n\nclass CustomerTests(unittest.TestCase):\n    def test_leading_zero(self):\n        self.assertEqual(normalize_customer_id(\"00042\"), \"00042\")\n    def test_alphanumeric(self):\n        self.assertEqual(normalize_customer_id(\"C042\"), \"C042\")\n    def test_whitespace(self):\n        self.assertEqual(normalize_customer_id(\" 00042 \"), \" 00042 \")\n    def test_empty(self):\n        with self.assertRaises(ValueError): normalize_customer_id(\"\")\n"
+    },
+    "test_order_ids.py": {
+      "sha256": "e66fd6f33138f12444b73bdf5209542321749ea10905a981489e03fefee0e2e0",
+      "size": 585,
+      "text": "import unittest\nfrom order_ids import normalize_order_id\n\nclass OrderIdTests(unittest.TestCase):\n    def test_leading_zero(self):\n        self.assertEqual(normalize_order_id(\"00123\"), \"00123\")\n    def test_alphanumeric(self):\n        self.assertEqual(normalize_order_id(\"A007\"), \"A007\")\n    def test_plain(self):\n        self.assertEqual(normalize_order_id(\"123\"), \"123\")\n    def test_empty(self):\n        with self.assertRaises(ValueError):\n            normalize_order_id(\"\")\n    def test_surrounding_spaces(self):\n        self.assertEqual(normalize_order_id(\"  A007  \"), \"  A007  \")\n"
+    },
+    "test_supplier_ids.py": {
+      "sha256": "d58f0e3bcdf5f9390d7ea4b85f4f19c18822bed6220cac60436d0c400c9f97db",
+      "size": 497,
+      "text": "import unittest\nfrom supplier_ids import normalize_supplier_id\n\nclass SupplierTests(unittest.TestCase):\n    def test_leading_zero(self):\n        self.assertEqual(normalize_supplier_id(\"00009\"), \"00009\")\n    def test_alphanumeric(self):\n        self.assertEqual(normalize_supplier_id(\"S009\"), \"S009\")\n    def test_whitespace(self):\n        self.assertEqual(normalize_supplier_id(\" 00009 \"), \" 00009 \")\n    def test_empty(self):\n        with self.assertRaises(ValueError): normalize_supplier_id(\"\")\n"
+    }
+  },
+  "trial_a-preference-after": {
+    "customer_ids.py": {
+      "sha256": "bafe2392b01c842719350ddb8767b504d73fa099e071a2dd692148e9f340273f",
+      "size": 234,
+      "text": "def normalize_customer_id(raw: str) -> str:\n    \"\"\"拒绝空字符串，其余客户编号保留原始文本（包括首尾空格）。\"\"\"\n    if raw == \"\":\n        raise ValueError(\"客户编号不能为空字符串\")\n    return raw\n"
+    },
+    "docs/context-keeper/evolution/index.md": {
+      "sha256": "0ad7a8f03aa90db31d0a9c4070793e277fbb55406635cb27f6cb175cc8ac1a01",
+      "size": 188,
+      "text": "# 自我进化索引\n\n## 有效经验\n\n- [CK-001 原始文本编号按接口合同校验](原始文本编号合同.md)（已验证，仅本地合同用例）\n\n## 已替代经验\n\n- 暂无\n"
+    },
+    "docs/context-keeper/evolution/原始文本编号合同.md": {
+      "sha256": "570c4198bf005559193ed87dd55563b81e303873c5cd2b73a52cbbb0cf23678a",
+      "size": 1287,
+      "text": "# 原始文本编号按接口合同校验\n\n- **编号：** CK-001\n- **状态：** 已验证\n- **触发条件：** 本项目编号导入出现前导零或空格丢失、字母编号报错，且合同确认编号为原始文本、仅空字符串非法。\n- **已知事实：** 订单、客户与供应商接口合同相同。整数转换会破坏文本编号；三个业务入口改为仅对空字符串抛出 ValueError，其余原样返回后，本地订单 5 项、客户 4 项、供应商 4 项测试通过。真实上游样本均未获得。\n- **证据位置：** [订单修复与合同补充](../worklogs/2026-10-30-订单编号原始文本修复.md)、[客户独立入口修复](../worklogs/2026-10-30-客户编号原始文本修复.md)、[供应商独立入口修复](../worklogs/2026-10-30-供应商编号原始文本修复.md)、[当前记忆](../memory-keeper.md)。\n- **建议动作：** 先核对合同与当前实现，复现问题；合同相同时采用空字符串校验后原样返回，避免 int 和 strip；验证前导零、字母、空格保留和空字符串异常，并保留真实样本验收待办。\n- **适用范围：** 本项目订单、客户和供应商的字符串编号、本地用例；不推及不同合同、非字符串输入或生产上游验收。\n"
+    },
+    "docs/context-keeper/memory-keeper.md": {
+      "sha256": "e4692193f860c0a6bb42f4fd9390bbdb74dd75e8ff333338872189df6c648d00",
+      "size": 4405,
+      "text": "# 项目记忆索引\n\n## 未完成事项\n\n- 真实上游供应商编号样本导入验收；状态：未开始；触发：获得真实上游样本后；完成：验证供应商导入保留原始文本并拒绝空字符串，记录结果；证据：[供应商日志](worklogs/2026-10-30-供应商编号原始文本修复.md)。\n\n- 真实上游客户编号样本导入验收；状态：未开始；触发：获得真实上游样本后；完成：验证客户导入保留原始文本并拒绝空字符串，记录结果；证据：[客户日志](worklogs/2026-10-30-客户编号原始文本修复.md)。\n\n- 真实上游订单编号样本导入验收；状态：未开始；触发：获得真实上游样本后；完成：验证导入保留原始文本编号并记录结果；证据：[本轮日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n## 主题摘要（按类型）\n\n- **供应商编号导入修复：** 按与订单、客户相同合同，仅拒绝空字符串，其余原样返回；三个入口共 13 项本地测试通过。复用并补充 [CK-001](evolution/原始文本编号合同.md) 的供应商证据，真实样本验收待办保留；来源：[供应商日志](worklogs/2026-10-30-供应商编号原始文本修复.md)。\n\n- **客户编号导入修复：** 按与订单相同的合同，仅拒绝空字符串，其余原样返回；客户 4 项和订单 5 项本地测试全部通过。真实样本验收待办保留；来源：[客户日志](worklogs/2026-10-30-客户编号原始文本修复.md)。两个入口的共同方法已整理为 [CK-001](evolution/原始文本编号合同.md)，仅在本地验证范围内有效。\n\n- **订单编号导入修复：** `normalize_order_id` 对空字符串抛出 ValueError，其余原样返回，保留前导零、字母和首尾空格；5 项本地测试全部通过。真实上游样本未获得，验收待办保留；来源：[日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n## 项目要求\n\n- 展示用语偏好：后续向用户说明时，将“编号归一化”统一称为“编号原文保留”；只影响说明措辞，不修改业务代码、接口名称或业务合同。来源：[展示用语偏好日志](worklogs/2026-10-30-展示用语偏好.md)。\n\n- 供应商、客户与订单编号接口合同相同：仅拒绝空字符串，其余保留原文；不增加依赖，真实上游样本仍缺失；来源：用户合同说明、[客户日志](worklogs/2026-10-30-客户编号原始文本修复.md)及[供应商日志](worklogs/2026-10-30-供应商编号原始文本修复.md)。\n\n- 订单编号是原始文本标识；用户核对接口合同确认空字符串必须抛出 ValueError，首尾空格属于原文，不能 strip，前导零和字母必须保留。不增加依赖。只修改本项目，不提交或推送，不迁移记录库，不改用户级配置。验证结论限于实际测试范围；来源：本轮用户要求及 [日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n---\n\n## 进化经验入口\n\n- [进化经验索引](evolution/index.md)\n\n## 时间线（最新在前）\n\n## 2026-10-30 - 展示用语偏好 `docs`\n- **任务：** 记录“编号原文保留”的展示用语偏好，不改业务代码。\n- **详见：** [日志](worklogs/2026-10-30-展示用语偏好.md)\n\n## 2026-10-30 - 供应商编号原始文本修复 `fix`\n- **任务：** 按相同合同修复供应商入口，三个入口共 13 项本地测试全部通过；真实样本验收待办。\n- **关键经验：** 复用并补充 [CK-001 原始文本编号合同](evolution/原始文本编号合同.md) 的供应商证据与本地适用范围。\n- **详见：** [日志](worklogs/2026-10-30-供应商编号原始文本修复.md)\n\n## 2026-10-30 - 客户编号原始文本修复 `fix`\n- **任务：** 参考订单合同修复客户入口，9 项本地测试全部通过；真实样本验收待办。\n- **关键经验：** [CK-001 原始文本编号合同](evolution/原始文本编号合同.md)。\n- **详见：** [日志](worklogs/2026-10-30-客户编号原始文本修复.md)\n\n## 2026-10-30 - 订单编号原始文本修复 `fix`\n- **任务：** 先复现 int 转换问题并移除转换，再按合同补充空字符串校验与首尾空格测试，5 项测试通过；真实样本验收待办。\n- **详见：** [日志](worklogs/2026-10-30-订单编号原始文本修复.md)\n\n---\n"
+    },
+    "docs/context-keeper/worklogs/2026-10-30-供应商编号原始文本修复.md": {
+      "sha256": "ca497c96597558a80650af0e9ff41bb94059c3501f56f67db9a5df75af3cd74c",
+      "size": 1691,
+      "text": "<!-- context-keeper: session-id=supplier-id-fix-20261030-c -->\n# 供应商编号原始文本修复\n\n## 追加记录 2026-10-30 12:44:01 +0800\n\n- **目标与背景：** 用户要求参考以前处理修复供应商编号导入；确认合同与订单、客户一致，不增加依赖，真实上游样本仍未获得。\n- **历史与核验：** 一次限量检索找到并采用 [CK-001](../evolution/原始文本编号合同.md)，阅读[客户修复日志](2026-10-30-客户编号原始文本修复.md)，核验当前订单、客户实现均为仅拒绝空字符串、其余原样返回。\n- **操作与观察：** 修改前运行 `python3 -m unittest test_supplier_ids -v`，4 项中 1 项通过、2 项失败、1 项报错：整数转换丢失前导零和首尾空格，字母编号抛出 ValueError。将 [supplier_ids.py](../../../supplier_ids.py) 的整数转换替换为仅对空字符串抛出 ValueError，其余原样返回，未增加依赖、未修改测试。修改后运行 `python3 -m unittest -v`，13 项全部通过（供应商 4 项、客户 4 项、订单 5 项）。\n- **判断与边界：** CK-001 在供应商独立入口的本地合同用例中复用有效，保留编号并补充证据和适用范围，不新增重复经验。已覆盖前导零、字母数字、首尾空格和空字符串异常；尚未验证真实上游导入、非字符串输入或生产行为。\n- **后续与范围：** 获得真实上游样本后验收供应商、客户、订单入口。仅修改本项目，未提交或推送、未迁移记录库、未修改用户级配置。status 返回 0，但因仓库无 HEAD，其内部差异命令报错；不据此宣称 Git 差异验证通过。\n"
+    },
+    "docs/context-keeper/worklogs/2026-10-30-客户编号原始文本修复.md": {
+      "sha256": "fa7d332fa029d1883d111894562dc461be4393ca90b15657bd443e1303af3c67",
+      "size": 1752,
+      "text": "<!-- context-keeper: session-id=customer-id-fix-20261030-b -->\n# 客户编号原始文本修复\n# 客户编号原始文本修复\n\n## 追加记录 2026-10-30 12:42:46 +0800\n\n- **目标与背景：** 用户要求参考订单编号修复客户入口，明确两者接口合同相同、不增加依赖，真实上游样本仍未获得。\n- **历史与核验：** 限量检索并阅读[订单原始日志](2026-10-30-订单编号原始文本修复.md)，核对当前订单实现：空字符串抛出 ValueError，其余原样返回，保留前导零、字母、首尾空格；采用的是合同补充后的完整方案。\n- **操作与观察：** 修改前运行 `python3 -m unittest -v test_customer_ids test_order_ids`，9 项中 6 项通过、2 项失败、1 项报错。客户前导零和空格被 int 转换丢弃，字母编号报错；订单 5 项均通过。将 [customer_ids.py](../../../customer_ids.py) 的整数转换替换为仅校验空字符串并原样返回，未增加依赖、未修改测试。随后 `python3 -m unittest -v` 共 9 项全部通过（客户 4 项、订单 5 项）。客户覆盖前导零、字母数字、首尾空格和空字符串异常。\n- **判断与边界：** 同一原始文本处理方法已在订单与客户两个业务入口实际修复并经本地测试验证，整理为[CK-001](../evolution/原始文本编号合同.md)。结论限于已有合同和本地用例，尚不代表真实上游导入验收。\n- **后续与范围：** 获得真实上游样本后分别验收订单、客户入口。仅修改本项目，未提交或推送、未迁移记录库或修改用户级配置。status 返回成功但仓库尚无 HEAD，内部 Git 差异命令报不存在 HEAD，不能据此声称已验证 Git 差异。\n"
+    },
+    "docs/context-keeper/worklogs/2026-10-30-展示用语偏好.md": {
+      "sha256": "eecc6f0c51e27cb5d3e7cd5d6ddc2733d60c18ea882a6f16644919cb61ace738",
+      "size": 497,
+      "text": "<!-- context-keeper: session-id=term-preference-20261030-current -->\n# 展示用语偏好\n\n## 追加记录 2026-10-30T12:45:09+08:00\n\n- 用户要求：后续向用户说明时，将“编号归一化”统一称为“编号原文保留”。\n- 范围：仅展示用语偏好，不修改业务代码、接口名称或业务合同。\n- 操作：将偏好写入项目记忆的项目要求；未新增编号经验，未运行业务测试。\n- 来源：本轮用户明确说明；无需新增待办。\n"
+    },
+    "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md": {
+      "sha256": "d8ad3123bb54aa27655d38ee642efaeaf3316beffa957c80919e614fa947f65f",
+      "size": 2817,
+      "text": "<!-- context-keeper: session-id=order-id-fix-20261030-a -->\n# 订单编号原始文本修复\n\n## 追加记录 2026-10-30 12:40:09 +0800\n\n- **目标与背景：** 用户明确订单编号为原始文本标识，要求先跑现有测试，再修复 int 转换造成的前导零丢失和字母编号报错；不增加依赖。真实上游样本尚未获得，真实样本验收是后续待办。\n- **操作与方法：** 修改前运行 `python3 -m unittest -v`，3 项中 1 项通过、1 项失败、1 项报错：`00123` 返回 `123`，`A007` 触发 ValueError。将 [order_ids.py](../../../order_ids.py) 的 `str(int(raw))` 改为直接返回 `raw`，加上原始文本语义说明；未新增依赖或修改测试。\n- **观察与当时判断：** 修改后同一命令运行 [现有测试](../../../test_order_ids.py)，3 项全部通过，覆盖前导零、字母数字混合和普通数字编号。证据仅限这 3 项本地用例，不代表真实上游样本验收。记录准备时曾误用不存在的 `context_keeper.py`，退出码 2；随后改用技能文档指定的 `context_keeper_probe.py`，status 成功。仓库无初始提交，status 内部基于 HEAD 的差异输出提示不存在 HEAD，不能据此宣称已核对 Git 差异。\n- **后续与证据：** 获得真实上游样本后进行导入验收；当前未完成。只修改本项目，不提交、不推送、不迁移记录库、不改用户级配置。一次修复的多个测试不构成跨问题重复验证，本轮不新增编号经验。\n\n## 追加记录 2026-10-30 12:41:07 +0800\n\n- **目标与背景：** 用户补充核对接口合同后的边界：空字符串必须抛出 ValueError；首尾空格属于编号原文，不能 strip；前导零和字母保留要求仍有效。真实上游样本仍未获得。\n- **操作与方法：** 在 [测试](../../../test_order_ids.py) 新增空字符串异常和首尾空格保留两个用例，运行 `python3 -m unittest -v`：5 项中 4 项通过，空字符串用例失败（未抛出 ValueError）。随后在 [实现](../../../order_ids.py) 中仅对 `raw == \"\"` 抛出 ValueError，其余直接返回原始文本，不做 strip 或数字转换。\n- **观察与当时判断：** 修正后运行同一命令，5 项全部通过，覆盖空字符串、首尾空格、前导零、字母数字混合和普通数字编号。此前“直接返回原始文本”的实现缺少合同要求的空字符串校验，当前实现已补齐；上述旧日志保留为当时事实。验证仍限于本地用例，不代表真实上游验收。\n- **后续与证据：** 已更新当前主题与合同要求，保留真实样本验收待办；未增加依赖、未提交或推送。这是同一订单编号修复的边界补充，不属于不同问题的独立验证，不新增编号经验。\n"
+    },
+    "order_ids.py": {
+      "sha256": "9e10cdf6878587ff7963a557f7f15efa5813cce330bd013add1d910cde8433d8",
+      "size": 231,
+      "text": "def normalize_order_id(raw: str) -> str:\n    \"\"\"拒绝空字符串，其余订单编号保留原始文本（包括首尾空格）。\"\"\"\n    if raw == \"\":\n        raise ValueError(\"订单编号不能为空字符串\")\n    return raw\n"
+    },
+    "supplier_ids.py": {
+      "sha256": "5d2fe557c463df17d2c6c4ea4a39a4dad2ef818ee31932874800a1782bf4c745",
+      "size": 240,
+      "text": "def normalize_supplier_id(raw: str) -> str:\n    \"\"\"拒绝空字符串，其余供应商编号保留原始文本（包括首尾空格）。\"\"\"\n    if raw == \"\":\n        raise ValueError(\"供应商编号不能为空字符串\")\n    return raw\n"
+    },
+    "test_customer_ids.py": {
+      "sha256": "1c1b5138ccf30d2324146ca5785be6fd9db37ef3bcc69312895dbcb994f51834",
+      "size": 497,
+      "text": "import unittest\nfrom customer_ids import normalize_customer_id\n\nclass CustomerTests(unittest.TestCase):\n    def test_leading_zero(self):\n        self.assertEqual(normalize_customer_id(\"00042\"), \"00042\")\n    def test_alphanumeric(self):\n        self.assertEqual(normalize_customer_id(\"C042\"), \"C042\")\n    def test_whitespace(self):\n        self.assertEqual(normalize_customer_id(\" 00042 \"), \" 00042 \")\n    def test_empty(self):\n        with self.assertRaises(ValueError): normalize_customer_id(\"\")\n"
+    },
+    "test_order_ids.py": {
+      "sha256": "e66fd6f33138f12444b73bdf5209542321749ea10905a981489e03fefee0e2e0",
+      "size": 585,
+      "text": "import unittest\nfrom order_ids import normalize_order_id\n\nclass OrderIdTests(unittest.TestCase):\n    def test_leading_zero(self):\n        self.assertEqual(normalize_order_id(\"00123\"), \"00123\")\n    def test_alphanumeric(self):\n        self.assertEqual(normalize_order_id(\"A007\"), \"A007\")\n    def test_plain(self):\n        self.assertEqual(normalize_order_id(\"123\"), \"123\")\n    def test_empty(self):\n        with self.assertRaises(ValueError):\n            normalize_order_id(\"\")\n    def test_surrounding_spaces(self):\n        self.assertEqual(normalize_order_id(\"  A007  \"), \"  A007  \")\n"
+    },
+    "test_supplier_ids.py": {
+      "sha256": "d58f0e3bcdf5f9390d7ea4b85f4f19c18822bed6220cac60436d0c400c9f97db",
+      "size": 497,
+      "text": "import unittest\nfrom supplier_ids import normalize_supplier_id\n\nclass SupplierTests(unittest.TestCase):\n    def test_leading_zero(self):\n        self.assertEqual(normalize_supplier_id(\"00009\"), \"00009\")\n    def test_alphanumeric(self):\n        self.assertEqual(normalize_supplier_id(\"S009\"), \"S009\")\n    def test_whitespace(self):\n        self.assertEqual(normalize_supplier_id(\" 00009 \"), \" 00009 \")\n    def test_empty(self):\n        with self.assertRaises(ValueError): normalize_supplier_id(\"\")\n"
+    }
+  },
+  "trial_b-initial-before": {
+    "docs/context-keeper/evolution/index.md": {
+      "sha256": "275017ec2cbb13403e3799d4f616bc2c224c4de2fbb3dc3f0dba515e4c44f564",
+      "size": 78,
+      "text": "# 自我进化索引\n\n## 有效经验\n\n- 暂无\n\n## 已替代经验\n\n- 暂无\n"
+    },
+    "docs/context-keeper/memory-keeper.md": {
+      "sha256": "e77e710cad26a722a81b818ad465111aebbc94b4ffc79af0e22a5add1847ee7a",
+      "size": 192,
+      "text": "# 项目记忆索引\n\n## 未完成事项\n\n- 暂无\n\n## 主题摘要（按类型）\n\n---\n\n## 进化经验入口\n\n- [进化经验索引](evolution/index.md)\n\n## 时间线（最新在前）\n\n---\n"
+    },
+    "order_ids.py": {
+      "sha256": "cbe5e335072d3f839f834e78cb507c8fb3fb07d531d23d4d5411cb24c3c6dc67",
+      "size": 66,
+      "text": "def normalize_order_id(raw: str) -> str:\n    return str(int(raw))\n"
+    },
+    "test_order_ids.py": {
+      "sha256": "e613872ca52a663549d2a03b92f1f0ec8cbd8af7e58f7914fa52c0be335aa22a",
+      "size": 372,
+      "text": "import unittest\nfrom order_ids import normalize_order_id\n\nclass OrderIdTests(unittest.TestCase):\n    def test_leading_zero(self):\n        self.assertEqual(normalize_order_id(\"00123\"), \"00123\")\n    def test_alphanumeric(self):\n        self.assertEqual(normalize_order_id(\"A007\"), \"A007\")\n    def test_plain(self):\n        self.assertEqual(normalize_order_id(\"123\"), \"123\")\n"
+    }
+  },
+  "trial_b-initial-after": {
+    "docs/context-keeper/evolution/index.md": {
+      "sha256": "275017ec2cbb13403e3799d4f616bc2c224c4de2fbb3dc3f0dba515e4c44f564",
+      "size": 78,
+      "text": "# 自我进化索引\n\n## 有效经验\n\n- 暂无\n\n## 已替代经验\n\n- 暂无\n"
+    },
+    "docs/context-keeper/memory-keeper.md": {
+      "sha256": "0908efb5a8fdca090f805d3092a29a7995e4f6f7331905d3b5fcc59325080c99",
+      "size": 1027,
+      "text": "# 项目记忆索引\n\n## 未完成事项\n\n- 真实上游样本验收；状态：未开始；触发：获得真实上游订单编号样本后；完成：真实样本导入保持原始编号文本并通过验收；证据：[修复日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n## 主题摘要（按类型）\n\n- **订单编号导入：** 已移除整数转换，直接保留原始字符串；现有 3 个测试全部通过，真实样本尚未验收；来源：[修复日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n## 项目要求\n\n- 订单编号按原始文本标识处理；不增加依赖，仅修改本项目，不提交或推送；真实样本验收单独保留为待办。\n\n---\n\n## 进化经验入口\n\n- [进化经验索引](evolution/index.md)\n\n## 时间线（最新在前）\n\n## 2026-10-30 - 订单编号原始文本修复 `fix`\n- **任务：** 先复现整数转换问题，再修复并验证。\n- **详见：** [日志](worklogs/2026-10-30-订单编号原始文本修复.md)\n\n---\n"
+    },
+    "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md": {
+      "sha256": "22a7e821865dd3c77fa9fde1021263ffc4e2d119bccff52401b9887cfeb50ad3",
+      "size": 1248,
+      "text": "<!-- context-keeper: session-id=order-ids-20261030-b -->\n# 订单编号原始文本修复\n\n## 追加记录 2026-10-30 12:40:06 +0800\n\n- 用户要求：订单编号是原始文本标识，先跑现有测试，再修复验证；不增加依赖；真实上游样本验收保留为后续待办。\n- 修复前执行 `python3 -m unittest -v`：共 3 个测试，1 通过、1 失败、1 错误。`00123` 经 int 转换变为 `123`；`A007` 抛出 ValueError。\n- 修改 [order_ids.py](../../../order_ids.py)：移除 `str(int(raw))`，直接返回原始字符串，保留原始文本；未增加依赖，未修改现有测试。\n- 修复后执行同一命令：3 个测试全部通过。证据：[现有测试](../../../test_order_ids.py)。仅验证本地用例，尚未取得真实上游样本，不能据此宣称真实样本验收完成。\n- 记录工具首次误用不存在的 context_keeper.py，未执行成功；改用技能文档指定的 context_keeper_probe.py 后 status 成功。status 中 Git 差异命令因仓库尚无 HEAD 报错，不影响上述实际单元测试结果。\n- 后续：取得真实上游样本后进行导入验收。本轮仅一次独立修复，不新增编号经验；不提交、不推送、不改用户级配置。\n"
+    },
+    "order_ids.py": {
+      "sha256": "fe3bcc0a9a66c08de347fd6a0b4b420fdec15e1f870e25cdc14f3fbda5801827",
+      "size": 121,
+      "text": "def normalize_order_id(raw: str) -> str:\n    \"\"\"Preserve the order ID as the original text identifier.\"\"\"\n    return raw\n"
+    },
+    "test_order_ids.py": {
+      "sha256": "e613872ca52a663549d2a03b92f1f0ec8cbd8af7e58f7914fa52c0be335aa22a",
+      "size": 372,
+      "text": "import unittest\nfrom order_ids import normalize_order_id\n\nclass OrderIdTests(unittest.TestCase):\n    def test_leading_zero(self):\n        self.assertEqual(normalize_order_id(\"00123\"), \"00123\")\n    def test_alphanumeric(self):\n        self.assertEqual(normalize_order_id(\"A007\"), \"A007\")\n    def test_plain(self):\n        self.assertEqual(normalize_order_id(\"123\"), \"123\")\n"
+    }
+  },
+  "trial_b-append-before": {
+    "docs/context-keeper/evolution/index.md": {
+      "sha256": "275017ec2cbb13403e3799d4f616bc2c224c4de2fbb3dc3f0dba515e4c44f564",
+      "size": 78,
+      "text": "# 自我进化索引\n\n## 有效经验\n\n- 暂无\n\n## 已替代经验\n\n- 暂无\n"
+    },
+    "docs/context-keeper/memory-keeper.md": {
+      "sha256": "0908efb5a8fdca090f805d3092a29a7995e4f6f7331905d3b5fcc59325080c99",
+      "size": 1027,
+      "text": "# 项目记忆索引\n\n## 未完成事项\n\n- 真实上游样本验收；状态：未开始；触发：获得真实上游订单编号样本后；完成：真实样本导入保持原始编号文本并通过验收；证据：[修复日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n## 主题摘要（按类型）\n\n- **订单编号导入：** 已移除整数转换，直接保留原始字符串；现有 3 个测试全部通过，真实样本尚未验收；来源：[修复日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n## 项目要求\n\n- 订单编号按原始文本标识处理；不增加依赖，仅修改本项目，不提交或推送；真实样本验收单独保留为待办。\n\n---\n\n## 进化经验入口\n\n- [进化经验索引](evolution/index.md)\n\n## 时间线（最新在前）\n\n## 2026-10-30 - 订单编号原始文本修复 `fix`\n- **任务：** 先复现整数转换问题，再修复并验证。\n- **详见：** [日志](worklogs/2026-10-30-订单编号原始文本修复.md)\n\n---\n"
+    },
+    "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md": {
+      "sha256": "22a7e821865dd3c77fa9fde1021263ffc4e2d119bccff52401b9887cfeb50ad3",
+      "size": 1248,
+      "text": "<!-- context-keeper: session-id=order-ids-20261030-b -->\n# 订单编号原始文本修复\n\n## 追加记录 2026-10-30 12:40:06 +0800\n\n- 用户要求：订单编号是原始文本标识，先跑现有测试，再修复验证；不增加依赖；真实上游样本验收保留为后续待办。\n- 修复前执行 `python3 -m unittest -v`：共 3 个测试，1 通过、1 失败、1 错误。`00123` 经 int 转换变为 `123`；`A007` 抛出 ValueError。\n- 修改 [order_ids.py](../../../order_ids.py)：移除 `str(int(raw))`，直接返回原始字符串，保留原始文本；未增加依赖，未修改现有测试。\n- 修复后执行同一命令：3 个测试全部通过。证据：[现有测试](../../../test_order_ids.py)。仅验证本地用例，尚未取得真实上游样本，不能据此宣称真实样本验收完成。\n- 记录工具首次误用不存在的 context_keeper.py，未执行成功；改用技能文档指定的 context_keeper_probe.py 后 status 成功。status 中 Git 差异命令因仓库尚无 HEAD 报错，不影响上述实际单元测试结果。\n- 后续：取得真实上游样本后进行导入验收。本轮仅一次独立修复，不新增编号经验；不提交、不推送、不改用户级配置。\n"
+    },
+    "order_ids.py": {
+      "sha256": "fe3bcc0a9a66c08de347fd6a0b4b420fdec15e1f870e25cdc14f3fbda5801827",
+      "size": 121,
+      "text": "def normalize_order_id(raw: str) -> str:\n    \"\"\"Preserve the order ID as the original text identifier.\"\"\"\n    return raw\n"
+    },
+    "test_order_ids.py": {
+      "sha256": "e613872ca52a663549d2a03b92f1f0ec8cbd8af7e58f7914fa52c0be335aa22a",
+      "size": 372,
+      "text": "import unittest\nfrom order_ids import normalize_order_id\n\nclass OrderIdTests(unittest.TestCase):\n    def test_leading_zero(self):\n        self.assertEqual(normalize_order_id(\"00123\"), \"00123\")\n    def test_alphanumeric(self):\n        self.assertEqual(normalize_order_id(\"A007\"), \"A007\")\n    def test_plain(self):\n        self.assertEqual(normalize_order_id(\"123\"), \"123\")\n"
+    }
+  },
+  "trial_b-append-after": {
+    "docs/context-keeper/evolution/index.md": {
+      "sha256": "275017ec2cbb13403e3799d4f616bc2c224c4de2fbb3dc3f0dba515e4c44f564",
+      "size": 78,
+      "text": "# 自我进化索引\n\n## 有效经验\n\n- 暂无\n\n## 已替代经验\n\n- 暂无\n"
+    },
+    "docs/context-keeper/memory-keeper.md": {
+      "sha256": "888c0c4df847d2d619b06156d63dc1d48f2917dd593bf26361855d1a19966925",
+      "size": 1175,
+      "text": "# 项目记忆索引\n\n## 未完成事项\n\n- 真实上游样本验收；状态：未开始；触发：获得真实上游订单编号样本后；完成：真实样本导入保持原始编号文本并通过验收；证据：[修复日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n## 主题摘要（按类型）\n\n- **订单编号导入：** 已移除整数转换，仅空字符串抛出 ValueError，其余保留原始文本（含首尾空格）；现有 5 个测试全部通过，真实样本尚未验收；来源：[修复日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n## 项目要求\n\n- 订单编号按原始文本标识处理，空字符串必须抛出 ValueError，不能 strip，保留前导零、字母与首尾空格；不增加依赖，仅修改本项目，不提交或推送；真实样本验收单独保留为待办。\n\n---\n\n## 进化经验入口\n\n- [进化经验索引](evolution/index.md)\n\n## 时间线（最新在前）\n\n## 2026-10-30 - 订单编号原始文本修复 `fix`\n- **任务：** 先复现整数转换问题，再修复并验证。\n- **详见：** [日志](worklogs/2026-10-30-订单编号原始文本修复.md)\n\n---\n"
+    },
+    "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md": {
+      "sha256": "ebc4b641bb41a1fcfa19a3a8311fe4c3962d8c4a0d124ad98ce11c94352e17a7",
+      "size": 2383,
+      "text": "<!-- context-keeper: session-id=order-ids-20261030-b -->\n# 订单编号原始文本修复\n\n## 追加记录 2026-10-30 12:40:06 +0800\n\n- 用户要求：订单编号是原始文本标识，先跑现有测试，再修复验证；不增加依赖；真实上游样本验收保留为后续待办。\n- 修复前执行 `python3 -m unittest -v`：共 3 个测试，1 通过、1 失败、1 错误。`00123` 经 int 转换变为 `123`；`A007` 抛出 ValueError。\n- 修改 [order_ids.py](../../../order_ids.py)：移除 `str(int(raw))`，直接返回原始字符串，保留原始文本；未增加依赖，未修改现有测试。\n- 修复后执行同一命令：3 个测试全部通过。证据：[现有测试](../../../test_order_ids.py)。仅验证本地用例，尚未取得真实上游样本，不能据此宣称真实样本验收完成。\n- 记录工具首次误用不存在的 context_keeper.py，未执行成功；改用技能文档指定的 context_keeper_probe.py 后 status 成功。status 中 Git 差异命令因仓库尚无 HEAD 报错，不影响上述实际单元测试结果。\n- 后续：取得真实上游样本后进行导入验收。本轮仅一次独立修复，不新增编号经验；不提交、不推送、不改用户级配置。\n\n## 追加记录 2026-10-30 12:41:16 +0800\n\n- 用户补充核对订单接口合同：空字符串必须抛出 ValueError；首尾空格属于原始编号，不能 strip；前导零与字母保留要求继续有效。真实上游样本仍未获得。\n- 新增空字符串与首尾空格两个边界测试后执行 `python3 -m unittest -v`：5 个测试中 4 通过、1 失败；空字符串未抛出 ValueError，首尾空格已保留。\n- 修正 [order_ids.py](../../../order_ids.py)：仅对 `raw == \"\"` 抛出 ValueError，其余输入返回原始文本，不做 strip 或整数转换。\n- 修复后运行同一命令：5 个测试全部通过，覆盖前导零、字母编号、普通数字、空字符串、首尾空格；证据：[测试](../../../test_order_ids.py)。未增加依赖。\n- 当前判断补充：上一段“直接返回原始字符串”已由本轮合同边界修正为“拒绝空字符串，其余保留原文”；保留旧记录，未回改历史。真实样本验收仍未完成。\n- 本轮是同一订单入口的边界补充，不构成不同问题或入口的独立重复验证，不新增编号经验。\n"
+    },
+    "order_ids.py": {
+      "sha256": "32930ad91b4d715fd212687642983bc14ec93e86aa48591b7d74e461743f2558",
+      "size": 195,
+      "text": "def normalize_order_id(raw: str) -> str:\n    \"\"\"Reject empty IDs and preserve all text in nonempty IDs.\"\"\"\n    if raw == \"\":\n        raise ValueError(\"Order ID must not be empty\")\n    return raw\n"
+    },
+    "test_order_ids.py": {
+      "sha256": "e66fd6f33138f12444b73bdf5209542321749ea10905a981489e03fefee0e2e0",
+      "size": 585,
+      "text": "import unittest\nfrom order_ids import normalize_order_id\n\nclass OrderIdTests(unittest.TestCase):\n    def test_leading_zero(self):\n        self.assertEqual(normalize_order_id(\"00123\"), \"00123\")\n    def test_alphanumeric(self):\n        self.assertEqual(normalize_order_id(\"A007\"), \"A007\")\n    def test_plain(self):\n        self.assertEqual(normalize_order_id(\"123\"), \"123\")\n    def test_empty(self):\n        with self.assertRaises(ValueError):\n            normalize_order_id(\"\")\n    def test_surrounding_spaces(self):\n        self.assertEqual(normalize_order_id(\"  A007  \"), \"  A007  \")\n"
+    }
+  },
+  "trial_b-resume-before": {
+    "docs/context-keeper/evolution/index.md": {
+      "sha256": "275017ec2cbb13403e3799d4f616bc2c224c4de2fbb3dc3f0dba515e4c44f564",
+      "size": 78,
+      "text": "# 自我进化索引\n\n## 有效经验\n\n- 暂无\n\n## 已替代经验\n\n- 暂无\n"
+    },
+    "docs/context-keeper/memory-keeper.md": {
+      "sha256": "888c0c4df847d2d619b06156d63dc1d48f2917dd593bf26361855d1a19966925",
+      "size": 1175,
+      "text": "# 项目记忆索引\n\n## 未完成事项\n\n- 真实上游样本验收；状态：未开始；触发：获得真实上游订单编号样本后；完成：真实样本导入保持原始编号文本并通过验收；证据：[修复日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n## 主题摘要（按类型）\n\n- **订单编号导入：** 已移除整数转换，仅空字符串抛出 ValueError，其余保留原始文本（含首尾空格）；现有 5 个测试全部通过，真实样本尚未验收；来源：[修复日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n## 项目要求\n\n- 订单编号按原始文本标识处理，空字符串必须抛出 ValueError，不能 strip，保留前导零、字母与首尾空格；不增加依赖，仅修改本项目，不提交或推送；真实样本验收单独保留为待办。\n\n---\n\n## 进化经验入口\n\n- [进化经验索引](evolution/index.md)\n\n## 时间线（最新在前）\n\n## 2026-10-30 - 订单编号原始文本修复 `fix`\n- **任务：** 先复现整数转换问题，再修复并验证。\n- **详见：** [日志](worklogs/2026-10-30-订单编号原始文本修复.md)\n\n---\n"
+    },
+    "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md": {
+      "sha256": "ebc4b641bb41a1fcfa19a3a8311fe4c3962d8c4a0d124ad98ce11c94352e17a7",
+      "size": 2383,
+      "text": "<!-- context-keeper: session-id=order-ids-20261030-b -->\n# 订单编号原始文本修复\n\n## 追加记录 2026-10-30 12:40:06 +0800\n\n- 用户要求：订单编号是原始文本标识，先跑现有测试，再修复验证；不增加依赖；真实上游样本验收保留为后续待办。\n- 修复前执行 `python3 -m unittest -v`：共 3 个测试，1 通过、1 失败、1 错误。`00123` 经 int 转换变为 `123`；`A007` 抛出 ValueError。\n- 修改 [order_ids.py](../../../order_ids.py)：移除 `str(int(raw))`，直接返回原始字符串，保留原始文本；未增加依赖，未修改现有测试。\n- 修复后执行同一命令：3 个测试全部通过。证据：[现有测试](../../../test_order_ids.py)。仅验证本地用例，尚未取得真实上游样本，不能据此宣称真实样本验收完成。\n- 记录工具首次误用不存在的 context_keeper.py，未执行成功；改用技能文档指定的 context_keeper_probe.py 后 status 成功。status 中 Git 差异命令因仓库尚无 HEAD 报错，不影响上述实际单元测试结果。\n- 后续：取得真实上游样本后进行导入验收。本轮仅一次独立修复，不新增编号经验；不提交、不推送、不改用户级配置。\n\n## 追加记录 2026-10-30 12:41:16 +0800\n\n- 用户补充核对订单接口合同：空字符串必须抛出 ValueError；首尾空格属于原始编号，不能 strip；前导零与字母保留要求继续有效。真实上游样本仍未获得。\n- 新增空字符串与首尾空格两个边界测试后执行 `python3 -m unittest -v`：5 个测试中 4 通过、1 失败；空字符串未抛出 ValueError，首尾空格已保留。\n- 修正 [order_ids.py](../../../order_ids.py)：仅对 `raw == \"\"` 抛出 ValueError，其余输入返回原始文本，不做 strip 或整数转换。\n- 修复后运行同一命令：5 个测试全部通过，覆盖前导零、字母编号、普通数字、空字符串、首尾空格；证据：[测试](../../../test_order_ids.py)。未增加依赖。\n- 当前判断补充：上一段“直接返回原始字符串”已由本轮合同边界修正为“拒绝空字符串，其余保留原文”；保留旧记录，未回改历史。真实样本验收仍未完成。\n- 本轮是同一订单入口的边界补充，不构成不同问题或入口的独立重复验证，不新增编号经验。\n"
+    },
+    "order_ids.py": {
+      "sha256": "32930ad91b4d715fd212687642983bc14ec93e86aa48591b7d74e461743f2558",
+      "size": 195,
+      "text": "def normalize_order_id(raw: str) -> str:\n    \"\"\"Reject empty IDs and preserve all text in nonempty IDs.\"\"\"\n    if raw == \"\":\n        raise ValueError(\"Order ID must not be empty\")\n    return raw\n"
+    },
+    "test_order_ids.py": {
+      "sha256": "e66fd6f33138f12444b73bdf5209542321749ea10905a981489e03fefee0e2e0",
+      "size": 585,
+      "text": "import unittest\nfrom order_ids import normalize_order_id\n\nclass OrderIdTests(unittest.TestCase):\n    def test_leading_zero(self):\n        self.assertEqual(normalize_order_id(\"00123\"), \"00123\")\n    def test_alphanumeric(self):\n        self.assertEqual(normalize_order_id(\"A007\"), \"A007\")\n    def test_plain(self):\n        self.assertEqual(normalize_order_id(\"123\"), \"123\")\n    def test_empty(self):\n        with self.assertRaises(ValueError):\n            normalize_order_id(\"\")\n    def test_surrounding_spaces(self):\n        self.assertEqual(normalize_order_id(\"  A007  \"), \"  A007  \")\n"
+    }
+  },
+  "trial_b-resume-after": {
+    "docs/context-keeper/evolution/index.md": {
+      "sha256": "275017ec2cbb13403e3799d4f616bc2c224c4de2fbb3dc3f0dba515e4c44f564",
+      "size": 78,
+      "text": "# 自我进化索引\n\n## 有效经验\n\n- 暂无\n\n## 已替代经验\n\n- 暂无\n"
+    },
+    "docs/context-keeper/memory-keeper.md": {
+      "sha256": "888c0c4df847d2d619b06156d63dc1d48f2917dd593bf26361855d1a19966925",
+      "size": 1175,
+      "text": "# 项目记忆索引\n\n## 未完成事项\n\n- 真实上游样本验收；状态：未开始；触发：获得真实上游订单编号样本后；完成：真实样本导入保持原始编号文本并通过验收；证据：[修复日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n## 主题摘要（按类型）\n\n- **订单编号导入：** 已移除整数转换，仅空字符串抛出 ValueError，其余保留原始文本（含首尾空格）；现有 5 个测试全部通过，真实样本尚未验收；来源：[修复日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n## 项目要求\n\n- 订单编号按原始文本标识处理，空字符串必须抛出 ValueError，不能 strip，保留前导零、字母与首尾空格；不增加依赖，仅修改本项目，不提交或推送；真实样本验收单独保留为待办。\n\n---\n\n## 进化经验入口\n\n- [进化经验索引](evolution/index.md)\n\n## 时间线（最新在前）\n\n## 2026-10-30 - 订单编号原始文本修复 `fix`\n- **任务：** 先复现整数转换问题，再修复并验证。\n- **详见：** [日志](worklogs/2026-10-30-订单编号原始文本修复.md)\n\n---\n"
+    },
+    "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md": {
+      "sha256": "ebc4b641bb41a1fcfa19a3a8311fe4c3962d8c4a0d124ad98ce11c94352e17a7",
+      "size": 2383,
+      "text": "<!-- context-keeper: session-id=order-ids-20261030-b -->\n# 订单编号原始文本修复\n\n## 追加记录 2026-10-30 12:40:06 +0800\n\n- 用户要求：订单编号是原始文本标识，先跑现有测试，再修复验证；不增加依赖；真实上游样本验收保留为后续待办。\n- 修复前执行 `python3 -m unittest -v`：共 3 个测试，1 通过、1 失败、1 错误。`00123` 经 int 转换变为 `123`；`A007` 抛出 ValueError。\n- 修改 [order_ids.py](../../../order_ids.py)：移除 `str(int(raw))`，直接返回原始字符串，保留原始文本；未增加依赖，未修改现有测试。\n- 修复后执行同一命令：3 个测试全部通过。证据：[现有测试](../../../test_order_ids.py)。仅验证本地用例，尚未取得真实上游样本，不能据此宣称真实样本验收完成。\n- 记录工具首次误用不存在的 context_keeper.py，未执行成功；改用技能文档指定的 context_keeper_probe.py 后 status 成功。status 中 Git 差异命令因仓库尚无 HEAD 报错，不影响上述实际单元测试结果。\n- 后续：取得真实上游样本后进行导入验收。本轮仅一次独立修复，不新增编号经验；不提交、不推送、不改用户级配置。\n\n## 追加记录 2026-10-30 12:41:16 +0800\n\n- 用户补充核对订单接口合同：空字符串必须抛出 ValueError；首尾空格属于原始编号，不能 strip；前导零与字母保留要求继续有效。真实上游样本仍未获得。\n- 新增空字符串与首尾空格两个边界测试后执行 `python3 -m unittest -v`：5 个测试中 4 通过、1 失败；空字符串未抛出 ValueError，首尾空格已保留。\n- 修正 [order_ids.py](../../../order_ids.py)：仅对 `raw == \"\"` 抛出 ValueError，其余输入返回原始文本，不做 strip 或整数转换。\n- 修复后运行同一命令：5 个测试全部通过，覆盖前导零、字母编号、普通数字、空字符串、首尾空格；证据：[测试](../../../test_order_ids.py)。未增加依赖。\n- 当前判断补充：上一段“直接返回原始字符串”已由本轮合同边界修正为“拒绝空字符串，其余保留原文”；保留旧记录，未回改历史。真实样本验收仍未完成。\n- 本轮是同一订单入口的边界补充，不构成不同问题或入口的独立重复验证，不新增编号经验。\n"
+    },
+    "order_ids.py": {
+      "sha256": "32930ad91b4d715fd212687642983bc14ec93e86aa48591b7d74e461743f2558",
+      "size": 195,
+      "text": "def normalize_order_id(raw: str) -> str:\n    \"\"\"Reject empty IDs and preserve all text in nonempty IDs.\"\"\"\n    if raw == \"\":\n        raise ValueError(\"Order ID must not be empty\")\n    return raw\n"
+    },
+    "test_order_ids.py": {
+      "sha256": "e66fd6f33138f12444b73bdf5209542321749ea10905a981489e03fefee0e2e0",
+      "size": 585,
+      "text": "import unittest\nfrom order_ids import normalize_order_id\n\nclass OrderIdTests(unittest.TestCase):\n    def test_leading_zero(self):\n        self.assertEqual(normalize_order_id(\"00123\"), \"00123\")\n    def test_alphanumeric(self):\n        self.assertEqual(normalize_order_id(\"A007\"), \"A007\")\n    def test_plain(self):\n        self.assertEqual(normalize_order_id(\"123\"), \"123\")\n    def test_empty(self):\n        with self.assertRaises(ValueError):\n            normalize_order_id(\"\")\n    def test_surrounding_spaces(self):\n        self.assertEqual(normalize_order_id(\"  A007  \"), \"  A007  \")\n"
+    }
+  },
+  "trial_b-reuse-before": {
+    "docs/context-keeper/evolution/index.md": {
+      "sha256": "275017ec2cbb13403e3799d4f616bc2c224c4de2fbb3dc3f0dba515e4c44f564",
+      "size": 78,
+      "text": "# 自我进化索引\n\n## 有效经验\n\n- 暂无\n\n## 已替代经验\n\n- 暂无\n"
+    },
+    "docs/context-keeper/memory-keeper.md": {
+      "sha256": "888c0c4df847d2d619b06156d63dc1d48f2917dd593bf26361855d1a19966925",
+      "size": 1175,
+      "text": "# 项目记忆索引\n\n## 未完成事项\n\n- 真实上游样本验收；状态：未开始；触发：获得真实上游订单编号样本后；完成：真实样本导入保持原始编号文本并通过验收；证据：[修复日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n## 主题摘要（按类型）\n\n- **订单编号导入：** 已移除整数转换，仅空字符串抛出 ValueError，其余保留原始文本（含首尾空格）；现有 5 个测试全部通过，真实样本尚未验收；来源：[修复日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n\n## 项目要求\n\n- 订单编号按原始文本标识处理，空字符串必须抛出 ValueError，不能 strip，保留前导零、字母与首尾空格；不增加依赖，仅修改本项目，不提交或推送；真实样本验收单独保留为待办。\n\n---\n\n## 进化经验入口\n\n- [进化经验索引](evolution/index.md)\n\n## 时间线（最新在前）\n\n## 2026-10-30 - 订单编号原始文本修复 `fix`\n- **任务：** 先复现整数转换问题，再修复并验证。\n- **详见：** [日志](worklogs/2026-10-30-订单编号原始文本修复.md)\n\n---\n"
+    },
+    "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md": {
+      "sha256": "ebc4b641bb41a1fcfa19a3a8311fe4c3962d8c4a0d124ad98ce11c94352e17a7",
+      "size": 2383,
+      "text": "<!-- context-keeper: session-id=order-ids-20261030-b -->\n# 订单编号原始文本修复\n\n## 追加记录 2026-10-30 12:40:06 +0800\n\n- 用户要求：订单编号是原始文本标识，先跑现有测试，再修复验证；不增加依赖；真实上游样本验收保留为后续待办。\n- 修复前执行 `python3 -m unittest -v`：共 3 个测试，1 通过、1 失败、1 错误。`00123` 经 int 转换变为 `123`；`A007` 抛出 ValueError。\n- 修改 [order_ids.py](../../../order_ids.py)：移除 `str(int(raw))`，直接返回原始字符串，保留原始文本；未增加依赖，未修改现有测试。\n- 修复后执行同一命令：3 个测试全部通过。证据：[现有测试](../../../test_order_ids.py)。仅验证本地用例，尚未取得真实上游样本，不能据此宣称真实样本验收完成。\n- 记录工具首次误用不存在的 context_keeper.py，未执行成功；改用技能文档指定的 context_keeper_probe.py 后 status 成功。status 中 Git 差异命令因仓库尚无 HEAD 报错，不影响上述实际单元测试结果。\n- 后续：取得真实上游样本后进行导入验收。本轮仅一次独立修复，不新增编号经验；不提交、不推送、不改用户级配置。\n\n## 追加记录 2026-10-30 12:41:16 +0800\n\n- 用户补充核对订单接口合同：空字符串必须抛出 ValueError；首尾空格属于原始编号，不能 strip；前导零与字母保留要求继续有效。真实上游样本仍未获得。\n- 新增空字符串与首尾空格两个边界测试后执行 `python3 -m unittest -v`：5 个测试中 4 通过、1 失败；空字符串未抛出 ValueError，首尾空格已保留。\n- 修正 [order_ids.py](../../../order_ids.py)：仅对 `raw == \"\"` 抛出 ValueError，其余输入返回原始文本，不做 strip 或整数转换。\n- 修复后运行同一命令：5 个测试全部通过，覆盖前导零、字母编号、普通数字、空字符串、首尾空格；证据：[测试](../../../test_order_ids.py)。未增加依赖。\n- 当前判断补充：上一段“直接返回原始字符串”已由本轮合同边界修正为“拒绝空字符串，其余保留原文”；保留旧记录，未回改历史。真实样本验收仍未完成。\n- 本轮是同一订单入口的边界补充，不构成不同问题或入口的独立重复验证，不新增编号经验。\n"
+    },
+    "order_ids.py": {
+      "sha256": "32930ad91b4d715fd212687642983bc14ec93e86aa48591b7d74e461743f2558",
+      "size": 195,
+      "text": "def normalize_order_id(raw: str) -> str:\n    \"\"\"Reject empty IDs and preserve all text in nonempty IDs.\"\"\"\n    if raw == \"\":\n        raise ValueError(\"Order ID must not be empty\")\n    return raw\n"
+    },
+    "test_order_ids.py": {
+      "sha256": "e66fd6f33138f12444b73bdf5209542321749ea10905a981489e03fefee0e2e0",
+      "size": 585,
+      "text": "import unittest\nfrom order_ids import normalize_order_id\n\nclass OrderIdTests(unittest.TestCase):\n    def test_leading_zero(self):\n        self.assertEqual(normalize_order_id(\"00123\"), \"00123\")\n    def test_alphanumeric(self):\n        self.assertEqual(normalize_order_id(\"A007\"), \"A007\")\n    def test_plain(self):\n        self.assertEqual(normalize_order_id(\"123\"), \"123\")\n    def test_empty(self):\n        with self.assertRaises(ValueError):\n            normalize_order_id(\"\")\n    def test_surrounding_spaces(self):\n        self.assertEqual(normalize_order_id(\"  A007  \"), \"  A007  \")\n"
+    }
+  },
+  "trial_b-reuse-after": {
+    "customer_ids.py": {
+      "sha256": "99cc0a6653f245e45300807ca8e59a10726183eb8d34b39869a04e27ec0a0a7b",
+      "size": 201,
+      "text": "def normalize_customer_id(raw: str) -> str:\n    \"\"\"Reject empty IDs and preserve all text in nonempty IDs.\"\"\"\n    if raw == \"\":\n        raise ValueError(\"Customer ID must not be empty\")\n    return raw\n"
+    },
+    "docs/context-keeper/evolution/CK-001-编号原始文本合同.md": {
+      "sha256": "00d8a00c5501394f1a414dceebbf1d9cc62ff5d1bf80beb1ab108113bb0acc3f",
+      "size": 1231,
+      "text": "# 编号按原始文本合同处理\n\n- **编号：** CK-001\n- **状态：** 已验证\n- **触发条件：** 编号入口因整数转换丢失前导零、空格或拒绝字母，且接口明确要求保留原始字符串。\n- **已知事实：** 用户确认订单与客户合同相同：仅空字符串抛出 ValueError，其他文本原样保留。订单与客户两个入口分别修复后，本地订单 5 个、客户 4 个测试通过；真实上游样本尚未获得。\n- **证据位置：** [订单修复及合同补正日志](../worklogs/2026-10-30-订单编号原始文本修复.md)、[客户独立修复日志](../worklogs/2026-10-30-客户编号原始文本修复.md)、[当前主题与待办](../memory-keeper.md)。\n- **建议动作：** 先核验当前接口合同与历史最终修正，再复现问题；移除整数转换，仅对空字符串显式报错，其余原样返回，不使用 strip。运行当前入口与相关入口回归测试，保留真实样本验收待办。\n- **适用范围：** 当前项目订单、客户字符串编号的已确认合同及本地测试。不得推广到要求去空格、只允许数字或不同空值规则的入口；非字符串输入与真实上游导入尚未验证。\n"
+    },
+    "docs/context-keeper/evolution/index.md": {
+      "sha256": "b015c286ff36b2e528df3d90500968b299ebe9c3cbe03ba1bf49b2226fcc2c55",
+      "size": 250,
+      "text": "# 自我进化索引\n\n## 有效经验\n\n- [CK-001：编号按原始文本合同处理](CK-001-编号原始文本合同.md) — 已验证；限订单与客户入口已确认合同和本地测试，真实样本待验收。\n\n## 已替代经验\n\n- 暂无\n"
+    },
+    "docs/context-keeper/memory-keeper.md": {
+      "sha256": "8139b01c8d601a3e6a51c468b7065098da9d059ed78d12d6721e431f2dc8382c",
+      "size": 2163,
+      "text": "# 项目记忆索引\n\n## 未完成事项\n\n- 真实上游样本验收；状态：未开始；触发：获得真实上游订单及客户编号样本后；完成：两个入口分别通过真实样本导入验收，保持原始编号文本并拒绝空字符串；证据：[订单日志](worklogs/2026-10-30-订单编号原始文本修复.md)、[客户日志](worklogs/2026-10-30-客户编号原始文本修复.md)。\n\n## 主题摘要（按类型）\n\n- **订单编号导入：** 已移除整数转换，仅空字符串抛出 ValueError，其余保留原始文本（含首尾空格）；现有 5 个测试全部通过，真实样本尚未验收；来源：[修复日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n- **客户编号导入：** 用户确认与订单接口合同相同；已复用订单处理方式，仅拒绝空字符串，其余原样返回。客户 4 个、订单 5 个测试全部通过；真实样本尚未验收；来源：[客户日志](worklogs/2026-10-30-客户编号原始文本修复.md)。两个入口的本地验证形成 [CK-001](evolution/CK-001-编号原始文本合同.md)，适用范围限于已确认的字符串合同与本地用例。\n\n## 项目要求\n\n- 订单与客户编号接口合同相同，按原始文本标识处理，空字符串必须抛出 ValueError，不能 strip，保留前导零、字母与首尾空格；不增加依赖，仅修改本项目，不提交或推送、不改用户级配置；真实样本验收单独保留为待办。\n\n---\n\n## 进化经验入口\n\n- [进化经验索引](evolution/index.md)\n\n## 时间线（最新在前）\n\n## 2026-10-30 - 客户编号原始文本修复 `fix`\n- **任务：** 参考订单历史合同，复现并修复客户入口，验证两个入口。\n- **关键经验：** 已在两个入口本地验证原始文本处理方式，整理为 CK-001；真实上游样本未验收。\n- **详见：** [日志](worklogs/2026-10-30-客户编号原始文本修复.md)\n\n## 2026-10-30 - 订单编号原始文本修复 `fix`\n- **任务：** 先复现整数转换问题，再修复并验证。\n- **详见：** [日志](worklogs/2026-10-30-订单编号原始文本修复.md)\n\n---\n"
+    },
+    "docs/context-keeper/worklogs/2026-10-30-客户编号原始文本修复.md": {
+      "sha256": "ccfb77e257231f6d104fb5f09f750bd629cfdef504296ed427a5f23ad0f57e1e",
+      "size": 2245,
+      "text": "<!-- context-keeper: session-id=customer-ids-20261030-b -->\n\n# 客户编号原始文本修复\n\n## 追加记录 2026-10-30 12:42:51 +0800\n\n- 用户要求：参考以前订单编号处理修复客户入口并验证；用户确认两个入口接口合同相同，不增加依赖，真实上游样本仍未获得。\n- 限量历史检索命中当前记忆与[订单修复原始日志](2026-10-30-订单编号原始文本修复.md)。读取原始日志后采用最终合同：仅空字符串抛出 ValueError，其他文本原样返回，不做 strip 或整数转换；已核对当前订单代码和 5 个测试，合同仍适用。未采用旧日志中尚未补齐空字符串检查的中间方案。\n- 修复前执行 `python3 -m unittest -v`：9 个测试，6 通过、2 失败、1 错误；客户前导零与空格丢失，字母编号抛出 ValueError，订单 5 个测试全部通过。\n- 修改 [customer_ids.py](../../../customer_ids.py)：移除整数转换，增加空字符串检查，其余直接返回原始文本；未新增依赖、未改订单代码或现有测试。\n- 修复后同一命令：9 个测试全部通过，其中客户 4 个、订单 5 个。证据：[客户测试](../../../test_customer_ids.py)、[订单测试](../../../test_order_ids.py)。本轮复用在客户本地用例有效，真实上游样本导入未验证，非字符串输入不在本轮验证范围。\n- 记录工具首次误调用不存在的 context_keeper.py，未成功；随后使用技能指定的 context_keeper_probe.py。status 退出码为 0，但仓库无 HEAD 导致其 Git 差异子命令报错，不能据此声称 Git 差异统计验证通过。实际源码与测试已直接核对。\n- 更新当前主题、合同与两个入口的真实样本待办；本方法已在订单、客户两个不同入口实际修复并本地验证，查 evolution/index.md 无同主题经验后整理为 [CK-001](../evolution/CK-001-编号原始文本合同.md)，范围限定为当前字符串接口合同和本地测试，未宣称生产验收。\n- 后续：取得真实上游订单和客户样本后分别验收。仅改本项目文件，无提交、推送、迁移或用户级配置修改；旧订单日志保持不变。\n# 客户编号原始文本修复\n"
+    },
+    "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md": {
+      "sha256": "ebc4b641bb41a1fcfa19a3a8311fe4c3962d8c4a0d124ad98ce11c94352e17a7",
+      "size": 2383,
+      "text": "<!-- context-keeper: session-id=order-ids-20261030-b -->\n# 订单编号原始文本修复\n\n## 追加记录 2026-10-30 12:40:06 +0800\n\n- 用户要求：订单编号是原始文本标识，先跑现有测试，再修复验证；不增加依赖；真实上游样本验收保留为后续待办。\n- 修复前执行 `python3 -m unittest -v`：共 3 个测试，1 通过、1 失败、1 错误。`00123` 经 int 转换变为 `123`；`A007` 抛出 ValueError。\n- 修改 [order_ids.py](../../../order_ids.py)：移除 `str(int(raw))`，直接返回原始字符串，保留原始文本；未增加依赖，未修改现有测试。\n- 修复后执行同一命令：3 个测试全部通过。证据：[现有测试](../../../test_order_ids.py)。仅验证本地用例，尚未取得真实上游样本，不能据此宣称真实样本验收完成。\n- 记录工具首次误用不存在的 context_keeper.py，未执行成功；改用技能文档指定的 context_keeper_probe.py 后 status 成功。status 中 Git 差异命令因仓库尚无 HEAD 报错，不影响上述实际单元测试结果。\n- 后续：取得真实上游样本后进行导入验收。本轮仅一次独立修复，不新增编号经验；不提交、不推送、不改用户级配置。\n\n## 追加记录 2026-10-30 12:41:16 +0800\n\n- 用户补充核对订单接口合同：空字符串必须抛出 ValueError；首尾空格属于原始编号，不能 strip；前导零与字母保留要求继续有效。真实上游样本仍未获得。\n- 新增空字符串与首尾空格两个边界测试后执行 `python3 -m unittest -v`：5 个测试中 4 通过、1 失败；空字符串未抛出 ValueError，首尾空格已保留。\n- 修正 [order_ids.py](../../../order_ids.py)：仅对 `raw == \"\"` 抛出 ValueError，其余输入返回原始文本，不做 strip 或整数转换。\n- 修复后运行同一命令：5 个测试全部通过，覆盖前导零、字母编号、普通数字、空字符串、首尾空格；证据：[测试](../../../test_order_ids.py)。未增加依赖。\n- 当前判断补充：上一段“直接返回原始字符串”已由本轮合同边界修正为“拒绝空字符串，其余保留原文”；保留旧记录，未回改历史。真实样本验收仍未完成。\n- 本轮是同一订单入口的边界补充，不构成不同问题或入口的独立重复验证，不新增编号经验。\n"
+    },
+    "order_ids.py": {
+      "sha256": "32930ad91b4d715fd212687642983bc14ec93e86aa48591b7d74e461743f2558",
+      "size": 195,
+      "text": "def normalize_order_id(raw: str) -> str:\n    \"\"\"Reject empty IDs and preserve all text in nonempty IDs.\"\"\"\n    if raw == \"\":\n        raise ValueError(\"Order ID must not be empty\")\n    return raw\n"
+    },
+    "test_customer_ids.py": {
+      "sha256": "1c1b5138ccf30d2324146ca5785be6fd9db37ef3bcc69312895dbcb994f51834",
+      "size": 497,
+      "text": "import unittest\nfrom customer_ids import normalize_customer_id\n\nclass CustomerTests(unittest.TestCase):\n    def test_leading_zero(self):\n        self.assertEqual(normalize_customer_id(\"00042\"), \"00042\")\n    def test_alphanumeric(self):\n        self.assertEqual(normalize_customer_id(\"C042\"), \"C042\")\n    def test_whitespace(self):\n        self.assertEqual(normalize_customer_id(\" 00042 \"), \" 00042 \")\n    def test_empty(self):\n        with self.assertRaises(ValueError): normalize_customer_id(\"\")\n"
+    },
+    "test_order_ids.py": {
+      "sha256": "e66fd6f33138f12444b73bdf5209542321749ea10905a981489e03fefee0e2e0",
+      "size": 585,
+      "text": "import unittest\nfrom order_ids import normalize_order_id\n\nclass OrderIdTests(unittest.TestCase):\n    def test_leading_zero(self):\n        self.assertEqual(normalize_order_id(\"00123\"), \"00123\")\n    def test_alphanumeric(self):\n        self.assertEqual(normalize_order_id(\"A007\"), \"A007\")\n    def test_plain(self):\n        self.assertEqual(normalize_order_id(\"123\"), \"123\")\n    def test_empty(self):\n        with self.assertRaises(ValueError):\n            normalize_order_id(\"\")\n    def test_surrounding_spaces(self):\n        self.assertEqual(normalize_order_id(\"  A007  \"), \"  A007  \")\n"
+    }
+  },
+  "trial_b-supplier-before": {
+    "customer_ids.py": {
+      "sha256": "99cc0a6653f245e45300807ca8e59a10726183eb8d34b39869a04e27ec0a0a7b",
+      "size": 201,
+      "text": "def normalize_customer_id(raw: str) -> str:\n    \"\"\"Reject empty IDs and preserve all text in nonempty IDs.\"\"\"\n    if raw == \"\":\n        raise ValueError(\"Customer ID must not be empty\")\n    return raw\n"
+    },
+    "docs/context-keeper/evolution/CK-001-编号原始文本合同.md": {
+      "sha256": "00d8a00c5501394f1a414dceebbf1d9cc62ff5d1bf80beb1ab108113bb0acc3f",
+      "size": 1231,
+      "text": "# 编号按原始文本合同处理\n\n- **编号：** CK-001\n- **状态：** 已验证\n- **触发条件：** 编号入口因整数转换丢失前导零、空格或拒绝字母，且接口明确要求保留原始字符串。\n- **已知事实：** 用户确认订单与客户合同相同：仅空字符串抛出 ValueError，其他文本原样保留。订单与客户两个入口分别修复后，本地订单 5 个、客户 4 个测试通过；真实上游样本尚未获得。\n- **证据位置：** [订单修复及合同补正日志](../worklogs/2026-10-30-订单编号原始文本修复.md)、[客户独立修复日志](../worklogs/2026-10-30-客户编号原始文本修复.md)、[当前主题与待办](../memory-keeper.md)。\n- **建议动作：** 先核验当前接口合同与历史最终修正，再复现问题；移除整数转换，仅对空字符串显式报错，其余原样返回，不使用 strip。运行当前入口与相关入口回归测试，保留真实样本验收待办。\n- **适用范围：** 当前项目订单、客户字符串编号的已确认合同及本地测试。不得推广到要求去空格、只允许数字或不同空值规则的入口；非字符串输入与真实上游导入尚未验证。\n"
+    },
+    "docs/context-keeper/evolution/index.md": {
+      "sha256": "b015c286ff36b2e528df3d90500968b299ebe9c3cbe03ba1bf49b2226fcc2c55",
+      "size": 250,
+      "text": "# 自我进化索引\n\n## 有效经验\n\n- [CK-001：编号按原始文本合同处理](CK-001-编号原始文本合同.md) — 已验证；限订单与客户入口已确认合同和本地测试，真实样本待验收。\n\n## 已替代经验\n\n- 暂无\n"
+    },
+    "docs/context-keeper/memory-keeper.md": {
+      "sha256": "8139b01c8d601a3e6a51c468b7065098da9d059ed78d12d6721e431f2dc8382c",
+      "size": 2163,
+      "text": "# 项目记忆索引\n\n## 未完成事项\n\n- 真实上游样本验收；状态：未开始；触发：获得真实上游订单及客户编号样本后；完成：两个入口分别通过真实样本导入验收，保持原始编号文本并拒绝空字符串；证据：[订单日志](worklogs/2026-10-30-订单编号原始文本修复.md)、[客户日志](worklogs/2026-10-30-客户编号原始文本修复.md)。\n\n## 主题摘要（按类型）\n\n- **订单编号导入：** 已移除整数转换，仅空字符串抛出 ValueError，其余保留原始文本（含首尾空格）；现有 5 个测试全部通过，真实样本尚未验收；来源：[修复日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n- **客户编号导入：** 用户确认与订单接口合同相同；已复用订单处理方式，仅拒绝空字符串，其余原样返回。客户 4 个、订单 5 个测试全部通过；真实样本尚未验收；来源：[客户日志](worklogs/2026-10-30-客户编号原始文本修复.md)。两个入口的本地验证形成 [CK-001](evolution/CK-001-编号原始文本合同.md)，适用范围限于已确认的字符串合同与本地用例。\n\n## 项目要求\n\n- 订单与客户编号接口合同相同，按原始文本标识处理，空字符串必须抛出 ValueError，不能 strip，保留前导零、字母与首尾空格；不增加依赖，仅修改本项目，不提交或推送、不改用户级配置；真实样本验收单独保留为待办。\n\n---\n\n## 进化经验入口\n\n- [进化经验索引](evolution/index.md)\n\n## 时间线（最新在前）\n\n## 2026-10-30 - 客户编号原始文本修复 `fix`\n- **任务：** 参考订单历史合同，复现并修复客户入口，验证两个入口。\n- **关键经验：** 已在两个入口本地验证原始文本处理方式，整理为 CK-001；真实上游样本未验收。\n- **详见：** [日志](worklogs/2026-10-30-客户编号原始文本修复.md)\n\n## 2026-10-30 - 订单编号原始文本修复 `fix`\n- **任务：** 先复现整数转换问题，再修复并验证。\n- **详见：** [日志](worklogs/2026-10-30-订单编号原始文本修复.md)\n\n---\n"
+    },
+    "docs/context-keeper/worklogs/2026-10-30-客户编号原始文本修复.md": {
+      "sha256": "ccfb77e257231f6d104fb5f09f750bd629cfdef504296ed427a5f23ad0f57e1e",
+      "size": 2245,
+      "text": "<!-- context-keeper: session-id=customer-ids-20261030-b -->\n\n# 客户编号原始文本修复\n\n## 追加记录 2026-10-30 12:42:51 +0800\n\n- 用户要求：参考以前订单编号处理修复客户入口并验证；用户确认两个入口接口合同相同，不增加依赖，真实上游样本仍未获得。\n- 限量历史检索命中当前记忆与[订单修复原始日志](2026-10-30-订单编号原始文本修复.md)。读取原始日志后采用最终合同：仅空字符串抛出 ValueError，其他文本原样返回，不做 strip 或整数转换；已核对当前订单代码和 5 个测试，合同仍适用。未采用旧日志中尚未补齐空字符串检查的中间方案。\n- 修复前执行 `python3 -m unittest -v`：9 个测试，6 通过、2 失败、1 错误；客户前导零与空格丢失，字母编号抛出 ValueError，订单 5 个测试全部通过。\n- 修改 [customer_ids.py](../../../customer_ids.py)：移除整数转换，增加空字符串检查，其余直接返回原始文本；未新增依赖、未改订单代码或现有测试。\n- 修复后同一命令：9 个测试全部通过，其中客户 4 个、订单 5 个。证据：[客户测试](../../../test_customer_ids.py)、[订单测试](../../../test_order_ids.py)。本轮复用在客户本地用例有效，真实上游样本导入未验证，非字符串输入不在本轮验证范围。\n- 记录工具首次误调用不存在的 context_keeper.py，未成功；随后使用技能指定的 context_keeper_probe.py。status 退出码为 0，但仓库无 HEAD 导致其 Git 差异子命令报错，不能据此声称 Git 差异统计验证通过。实际源码与测试已直接核对。\n- 更新当前主题、合同与两个入口的真实样本待办；本方法已在订单、客户两个不同入口实际修复并本地验证，查 evolution/index.md 无同主题经验后整理为 [CK-001](../evolution/CK-001-编号原始文本合同.md)，范围限定为当前字符串接口合同和本地测试，未宣称生产验收。\n- 后续：取得真实上游订单和客户样本后分别验收。仅改本项目文件，无提交、推送、迁移或用户级配置修改；旧订单日志保持不变。\n# 客户编号原始文本修复\n"
+    },
+    "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md": {
+      "sha256": "ebc4b641bb41a1fcfa19a3a8311fe4c3962d8c4a0d124ad98ce11c94352e17a7",
+      "size": 2383,
+      "text": "<!-- context-keeper: session-id=order-ids-20261030-b -->\n# 订单编号原始文本修复\n\n## 追加记录 2026-10-30 12:40:06 +0800\n\n- 用户要求：订单编号是原始文本标识，先跑现有测试，再修复验证；不增加依赖；真实上游样本验收保留为后续待办。\n- 修复前执行 `python3 -m unittest -v`：共 3 个测试，1 通过、1 失败、1 错误。`00123` 经 int 转换变为 `123`；`A007` 抛出 ValueError。\n- 修改 [order_ids.py](../../../order_ids.py)：移除 `str(int(raw))`，直接返回原始字符串，保留原始文本；未增加依赖，未修改现有测试。\n- 修复后执行同一命令：3 个测试全部通过。证据：[现有测试](../../../test_order_ids.py)。仅验证本地用例，尚未取得真实上游样本，不能据此宣称真实样本验收完成。\n- 记录工具首次误用不存在的 context_keeper.py，未执行成功；改用技能文档指定的 context_keeper_probe.py 后 status 成功。status 中 Git 差异命令因仓库尚无 HEAD 报错，不影响上述实际单元测试结果。\n- 后续：取得真实上游样本后进行导入验收。本轮仅一次独立修复，不新增编号经验；不提交、不推送、不改用户级配置。\n\n## 追加记录 2026-10-30 12:41:16 +0800\n\n- 用户补充核对订单接口合同：空字符串必须抛出 ValueError；首尾空格属于原始编号，不能 strip；前导零与字母保留要求继续有效。真实上游样本仍未获得。\n- 新增空字符串与首尾空格两个边界测试后执行 `python3 -m unittest -v`：5 个测试中 4 通过、1 失败；空字符串未抛出 ValueError，首尾空格已保留。\n- 修正 [order_ids.py](../../../order_ids.py)：仅对 `raw == \"\"` 抛出 ValueError，其余输入返回原始文本，不做 strip 或整数转换。\n- 修复后运行同一命令：5 个测试全部通过，覆盖前导零、字母编号、普通数字、空字符串、首尾空格；证据：[测试](../../../test_order_ids.py)。未增加依赖。\n- 当前判断补充：上一段“直接返回原始字符串”已由本轮合同边界修正为“拒绝空字符串，其余保留原文”；保留旧记录，未回改历史。真实样本验收仍未完成。\n- 本轮是同一订单入口的边界补充，不构成不同问题或入口的独立重复验证，不新增编号经验。\n"
+    },
+    "order_ids.py": {
+      "sha256": "32930ad91b4d715fd212687642983bc14ec93e86aa48591b7d74e461743f2558",
+      "size": 195,
+      "text": "def normalize_order_id(raw: str) -> str:\n    \"\"\"Reject empty IDs and preserve all text in nonempty IDs.\"\"\"\n    if raw == \"\":\n        raise ValueError(\"Order ID must not be empty\")\n    return raw\n"
+    },
+    "test_customer_ids.py": {
+      "sha256": "1c1b5138ccf30d2324146ca5785be6fd9db37ef3bcc69312895dbcb994f51834",
+      "size": 497,
+      "text": "import unittest\nfrom customer_ids import normalize_customer_id\n\nclass CustomerTests(unittest.TestCase):\n    def test_leading_zero(self):\n        self.assertEqual(normalize_customer_id(\"00042\"), \"00042\")\n    def test_alphanumeric(self):\n        self.assertEqual(normalize_customer_id(\"C042\"), \"C042\")\n    def test_whitespace(self):\n        self.assertEqual(normalize_customer_id(\" 00042 \"), \" 00042 \")\n    def test_empty(self):\n        with self.assertRaises(ValueError): normalize_customer_id(\"\")\n"
+    },
+    "test_order_ids.py": {
+      "sha256": "e66fd6f33138f12444b73bdf5209542321749ea10905a981489e03fefee0e2e0",
+      "size": 585,
+      "text": "import unittest\nfrom order_ids import normalize_order_id\n\nclass OrderIdTests(unittest.TestCase):\n    def test_leading_zero(self):\n        self.assertEqual(normalize_order_id(\"00123\"), \"00123\")\n    def test_alphanumeric(self):\n        self.assertEqual(normalize_order_id(\"A007\"), \"A007\")\n    def test_plain(self):\n        self.assertEqual(normalize_order_id(\"123\"), \"123\")\n    def test_empty(self):\n        with self.assertRaises(ValueError):\n            normalize_order_id(\"\")\n    def test_surrounding_spaces(self):\n        self.assertEqual(normalize_order_id(\"  A007  \"), \"  A007  \")\n"
+    }
+  },
+  "trial_b-supplier-after": {
+    "customer_ids.py": {
+      "sha256": "99cc0a6653f245e45300807ca8e59a10726183eb8d34b39869a04e27ec0a0a7b",
+      "size": 201,
+      "text": "def normalize_customer_id(raw: str) -> str:\n    \"\"\"Reject empty IDs and preserve all text in nonempty IDs.\"\"\"\n    if raw == \"\":\n        raise ValueError(\"Customer ID must not be empty\")\n    return raw\n"
+    },
+    "docs/context-keeper/evolution/CK-001-编号原始文本合同.md": {
+      "sha256": "eb4c6ccb436f0d060e422e19869b58ff645642140d902d5d837a4b82c2282d40",
+      "size": 1390,
+      "text": "# 编号按原始文本合同处理\n\n- **编号：** CK-001\n- **状态：** 已验证\n- **触发条件：** 编号入口因整数转换丢失前导零、空格或拒绝字母，且接口明确要求保留原始字符串。\n- **已知事实：** 用户确认订单、客户与供应商合同相同：仅空字符串抛出 ValueError，其他文本原样保留。订单、客户与供应商三个入口分别修复后，本轮本地订单 5 个、客户 4 个、供应商 4 个测试全部通过；真实上游样本尚未获得。\n- **证据位置：** [订单修复及合同补正日志](../worklogs/2026-10-30-订单编号原始文本修复.md)、[客户独立修复日志](../worklogs/2026-10-30-客户编号原始文本修复.md)、[供应商独立修复日志](../worklogs/2026-10-30-供应商编号原始文本修复.md)、[当前主题与待办](../memory-keeper.md)。\n- **建议动作：** 先核验当前接口合同与历史最终修正，再复现问题；移除整数转换，仅对空字符串显式报错，其余原样返回，不使用 strip。运行当前入口与相关入口回归测试，保留真实样本验收待办。\n- **适用范围：** 当前项目订单、客户、供应商字符串编号的已确认合同及本地测试。不得推广到要求去空格、只允许数字或不同空值规则的入口；非字符串输入与真实上游导入尚未验证。\n"
+    },
+    "docs/context-keeper/evolution/index.md": {
+      "sha256": "9767c6c9260b68fd99004e263662fb7edd7fce10c612404f77bda8deb60a98af",
+      "size": 262,
+      "text": "# 自我进化索引\n\n## 有效经验\n\n- [CK-001：编号按原始文本合同处理](CK-001-编号原始文本合同.md) — 已验证；限订单、客户与供应商入口已确认合同和本地测试，真实样本待验收。\n\n## 已替代经验\n\n- 暂无\n"
+    },
+    "docs/context-keeper/memory-keeper.md": {
+      "sha256": "6bbd139d8ec720689317862ad2f52bc4effab5c8c6749e0c3ea1bf55040c7415",
+      "size": 2983,
+      "text": "# 项目记忆索引\n\n## 未完成事项\n\n- 真实上游样本验收；状态：未开始；触发：获得真实上游订单、客户及供应商编号样本后；完成：三个入口分别通过真实样本导入验收，保持原始编号文本并拒绝空字符串；证据：[订单日志](worklogs/2026-10-30-订单编号原始文本修复.md)、[客户日志](worklogs/2026-10-30-客户编号原始文本修复.md)、[供应商日志](worklogs/2026-10-30-供应商编号原始文本修复.md)。\n\n## 主题摘要（按类型）\n\n- **订单编号导入：** 已移除整数转换，仅空字符串抛出 ValueError，其余保留原始文本（含首尾空格）；现有 5 个测试全部通过，真实样本尚未验收；来源：[修复日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n- **客户编号导入：** 用户确认与订单接口合同相同；已复用订单处理方式，仅拒绝空字符串，其余原样返回。客户 4 个、订单 5 个测试全部通过；真实样本尚未验收；来源：[客户日志](worklogs/2026-10-30-客户编号原始文本修复.md)。两个入口的本地验证形成 [CK-001](evolution/CK-001-编号原始文本合同.md)，适用范围限于已确认的字符串合同与本地用例。\n\n- **供应商编号导入：** 用户确认与订单、客户合同一致；已复用 [CK-001](evolution/CK-001-编号原始文本合同.md)，仅拒绝空字符串，其余原样保留。供应商 4 个、订单 5 个、客户 4 个测试全部通过；真实样本未验收；来源：[供应商日志](worklogs/2026-10-30-供应商编号原始文本修复.md)。\n\n## 项目要求\n\n- 订单、客户与供应商编号接口合同相同，按原始文本标识处理，空字符串必须抛出 ValueError，不能 strip，保留前导零、字母与首尾空格；不增加依赖，仅修改本项目，不提交或推送、不改用户级配置；真实样本验收单独保留为待办。\n\n---\n\n## 进化经验入口\n\n- [进化经验索引](evolution/index.md)\n\n## 时间线（最新在前）\n\n## 2026-10-30 - 供应商编号原始文本修复 `fix`\n- **任务：** 参考已有合同和 CK-001 修复供应商入口，回归三个入口。\n- **关键经验：** CK-001 在供应商本地用例复用有效，保留编号补充证据；真实样本待验收。\n- **详见：** [日志](worklogs/2026-10-30-供应商编号原始文本修复.md)\n\n## 2026-10-30 - 客户编号原始文本修复 `fix`\n- **任务：** 参考订单历史合同，复现并修复客户入口，验证两个入口。\n- **关键经验：** 已在两个入口本地验证原始文本处理方式，整理为 CK-001；真实上游样本未验收。\n- **详见：** [日志](worklogs/2026-10-30-客户编号原始文本修复.md)\n\n## 2026-10-30 - 订单编号原始文本修复 `fix`\n- **任务：** 先复现整数转换问题，再修复并验证。\n- **详见：** [日志](worklogs/2026-10-30-订单编号原始文本修复.md)\n\n---\n"
+    },
+    "docs/context-keeper/worklogs/2026-10-30-供应商编号原始文本修复.md": {
+      "sha256": "b958a43d4b72a670913932b8ab47ac239eee18e71c55ec980e66738446adde42",
+      "size": 1906,
+      "text": "<!-- context-keeper: session-id=supplier-ids-20261030-b -->\n# 供应商编号原始文本修复\n\n## 追加记录 2026-10-30 12:44:06 +0800\n\n- 用户要求参考以前处理修复供应商编号导入；明确与订单、客户接口合同一致，不增加依赖，真实上游样本仍未获得。\n- 限量检索命中 [CK-001](../evolution/CK-001-编号原始文本合同.md)、当前主题与客户历史日志；读取经验及[客户修复原始日志](2026-10-30-客户编号原始文本修复.md)，核对当前订单和客户实现及测试。采用仅空字符串抛出 ValueError、其他文本原样返回的合同，不做整数转换或 strip。\n- 修复前运行 `python3 -B -m unittest test_supplier_ids -v`：4 个测试中 1 通过、2 失败、1 错误；前导零、首尾空格丢失，字母编号转换报错。\n- 修改 [supplier_ids.py](../../../supplier_ids.py)，增加空字符串检查，其余直接返回原始文本。未修改测试或其他入口，未增加依赖。\n- 修复后运行 `python3 -B -m unittest -v`：13 个测试全部通过，供应商 4 个、订单 5 个、客户 4 个；证据：[供应商测试](../../../test_supplier_ids.py)、[订单测试](../../../test_order_ids.py)、[客户测试](../../../test_customer_ids.py)。本轮复用在供应商本地用例有效；非字符串输入及真实上游导入尚未验证。\n- status 退出码为 0，但仓库无 HEAD，Git 差异子命令报错，不能声称 Git 差异统计验证通过；实现与测试通过直接读取核对。\n- 更新当前主题、项目合同和三个入口真实样本验收待办；沿用 CK-001 编号，补充供应商独立修复证据和适用范围，保留订单与客户原证据，不新增重复经验。不改旧日志，不提交或推送，不迁移、不修改用户级配置。\n- 后续：获得真实上游订单、客户及供应商样本后分别验收。\n"
+    },
+    "docs/context-keeper/worklogs/2026-10-30-客户编号原始文本修复.md": {
+      "sha256": "ccfb77e257231f6d104fb5f09f750bd629cfdef504296ed427a5f23ad0f57e1e",
+      "size": 2245,
+      "text": "<!-- context-keeper: session-id=customer-ids-20261030-b -->\n\n# 客户编号原始文本修复\n\n## 追加记录 2026-10-30 12:42:51 +0800\n\n- 用户要求：参考以前订单编号处理修复客户入口并验证；用户确认两个入口接口合同相同，不增加依赖，真实上游样本仍未获得。\n- 限量历史检索命中当前记忆与[订单修复原始日志](2026-10-30-订单编号原始文本修复.md)。读取原始日志后采用最终合同：仅空字符串抛出 ValueError，其他文本原样返回，不做 strip 或整数转换；已核对当前订单代码和 5 个测试，合同仍适用。未采用旧日志中尚未补齐空字符串检查的中间方案。\n- 修复前执行 `python3 -m unittest -v`：9 个测试，6 通过、2 失败、1 错误；客户前导零与空格丢失，字母编号抛出 ValueError，订单 5 个测试全部通过。\n- 修改 [customer_ids.py](../../../customer_ids.py)：移除整数转换，增加空字符串检查，其余直接返回原始文本；未新增依赖、未改订单代码或现有测试。\n- 修复后同一命令：9 个测试全部通过，其中客户 4 个、订单 5 个。证据：[客户测试](../../../test_customer_ids.py)、[订单测试](../../../test_order_ids.py)。本轮复用在客户本地用例有效，真实上游样本导入未验证，非字符串输入不在本轮验证范围。\n- 记录工具首次误调用不存在的 context_keeper.py，未成功；随后使用技能指定的 context_keeper_probe.py。status 退出码为 0，但仓库无 HEAD 导致其 Git 差异子命令报错，不能据此声称 Git 差异统计验证通过。实际源码与测试已直接核对。\n- 更新当前主题、合同与两个入口的真实样本待办；本方法已在订单、客户两个不同入口实际修复并本地验证，查 evolution/index.md 无同主题经验后整理为 [CK-001](../evolution/CK-001-编号原始文本合同.md)，范围限定为当前字符串接口合同和本地测试，未宣称生产验收。\n- 后续：取得真实上游订单和客户样本后分别验收。仅改本项目文件，无提交、推送、迁移或用户级配置修改；旧订单日志保持不变。\n# 客户编号原始文本修复\n"
+    },
+    "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md": {
+      "sha256": "ebc4b641bb41a1fcfa19a3a8311fe4c3962d8c4a0d124ad98ce11c94352e17a7",
+      "size": 2383,
+      "text": "<!-- context-keeper: session-id=order-ids-20261030-b -->\n# 订单编号原始文本修复\n\n## 追加记录 2026-10-30 12:40:06 +0800\n\n- 用户要求：订单编号是原始文本标识，先跑现有测试，再修复验证；不增加依赖；真实上游样本验收保留为后续待办。\n- 修复前执行 `python3 -m unittest -v`：共 3 个测试，1 通过、1 失败、1 错误。`00123` 经 int 转换变为 `123`；`A007` 抛出 ValueError。\n- 修改 [order_ids.py](../../../order_ids.py)：移除 `str(int(raw))`，直接返回原始字符串，保留原始文本；未增加依赖，未修改现有测试。\n- 修复后执行同一命令：3 个测试全部通过。证据：[现有测试](../../../test_order_ids.py)。仅验证本地用例，尚未取得真实上游样本，不能据此宣称真实样本验收完成。\n- 记录工具首次误用不存在的 context_keeper.py，未执行成功；改用技能文档指定的 context_keeper_probe.py 后 status 成功。status 中 Git 差异命令因仓库尚无 HEAD 报错，不影响上述实际单元测试结果。\n- 后续：取得真实上游样本后进行导入验收。本轮仅一次独立修复，不新增编号经验；不提交、不推送、不改用户级配置。\n\n## 追加记录 2026-10-30 12:41:16 +0800\n\n- 用户补充核对订单接口合同：空字符串必须抛出 ValueError；首尾空格属于原始编号，不能 strip；前导零与字母保留要求继续有效。真实上游样本仍未获得。\n- 新增空字符串与首尾空格两个边界测试后执行 `python3 -m unittest -v`：5 个测试中 4 通过、1 失败；空字符串未抛出 ValueError，首尾空格已保留。\n- 修正 [order_ids.py](../../../order_ids.py)：仅对 `raw == \"\"` 抛出 ValueError，其余输入返回原始文本，不做 strip 或整数转换。\n- 修复后运行同一命令：5 个测试全部通过，覆盖前导零、字母编号、普通数字、空字符串、首尾空格；证据：[测试](../../../test_order_ids.py)。未增加依赖。\n- 当前判断补充：上一段“直接返回原始字符串”已由本轮合同边界修正为“拒绝空字符串，其余保留原文”；保留旧记录，未回改历史。真实样本验收仍未完成。\n- 本轮是同一订单入口的边界补充，不构成不同问题或入口的独立重复验证，不新增编号经验。\n"
+    },
+    "order_ids.py": {
+      "sha256": "32930ad91b4d715fd212687642983bc14ec93e86aa48591b7d74e461743f2558",
+      "size": 195,
+      "text": "def normalize_order_id(raw: str) -> str:\n    \"\"\"Reject empty IDs and preserve all text in nonempty IDs.\"\"\"\n    if raw == \"\":\n        raise ValueError(\"Order ID must not be empty\")\n    return raw\n"
+    },
+    "supplier_ids.py": {
+      "sha256": "4cf8d36a6c5020d10918d80c36f215b56ed43a2855006ef5216d2946e7b3440a",
+      "size": 201,
+      "text": "def normalize_supplier_id(raw: str) -> str:\n    \"\"\"Reject empty IDs and preserve all text in nonempty IDs.\"\"\"\n    if raw == \"\":\n        raise ValueError(\"Supplier ID must not be empty\")\n    return raw\n"
+    },
+    "test_customer_ids.py": {
+      "sha256": "1c1b5138ccf30d2324146ca5785be6fd9db37ef3bcc69312895dbcb994f51834",
+      "size": 497,
+      "text": "import unittest\nfrom customer_ids import normalize_customer_id\n\nclass CustomerTests(unittest.TestCase):\n    def test_leading_zero(self):\n        self.assertEqual(normalize_customer_id(\"00042\"), \"00042\")\n    def test_alphanumeric(self):\n        self.assertEqual(normalize_customer_id(\"C042\"), \"C042\")\n    def test_whitespace(self):\n        self.assertEqual(normalize_customer_id(\" 00042 \"), \" 00042 \")\n    def test_empty(self):\n        with self.assertRaises(ValueError): normalize_customer_id(\"\")\n"
+    },
+    "test_order_ids.py": {
+      "sha256": "e66fd6f33138f12444b73bdf5209542321749ea10905a981489e03fefee0e2e0",
+      "size": 585,
+      "text": "import unittest\nfrom order_ids import normalize_order_id\n\nclass OrderIdTests(unittest.TestCase):\n    def test_leading_zero(self):\n        self.assertEqual(normalize_order_id(\"00123\"), \"00123\")\n    def test_alphanumeric(self):\n        self.assertEqual(normalize_order_id(\"A007\"), \"A007\")\n    def test_plain(self):\n        self.assertEqual(normalize_order_id(\"123\"), \"123\")\n    def test_empty(self):\n        with self.assertRaises(ValueError):\n            normalize_order_id(\"\")\n    def test_surrounding_spaces(self):\n        self.assertEqual(normalize_order_id(\"  A007  \"), \"  A007  \")\n"
+    },
+    "test_supplier_ids.py": {
+      "sha256": "d58f0e3bcdf5f9390d7ea4b85f4f19c18822bed6220cac60436d0c400c9f97db",
+      "size": 497,
+      "text": "import unittest\nfrom supplier_ids import normalize_supplier_id\n\nclass SupplierTests(unittest.TestCase):\n    def test_leading_zero(self):\n        self.assertEqual(normalize_supplier_id(\"00009\"), \"00009\")\n    def test_alphanumeric(self):\n        self.assertEqual(normalize_supplier_id(\"S009\"), \"S009\")\n    def test_whitespace(self):\n        self.assertEqual(normalize_supplier_id(\" 00009 \"), \" 00009 \")\n    def test_empty(self):\n        with self.assertRaises(ValueError): normalize_supplier_id(\"\")\n"
+    }
+  },
+  "trial_b-preference-before": {
+    "customer_ids.py": {
+      "sha256": "99cc0a6653f245e45300807ca8e59a10726183eb8d34b39869a04e27ec0a0a7b",
+      "size": 201,
+      "text": "def normalize_customer_id(raw: str) -> str:\n    \"\"\"Reject empty IDs and preserve all text in nonempty IDs.\"\"\"\n    if raw == \"\":\n        raise ValueError(\"Customer ID must not be empty\")\n    return raw\n"
+    },
+    "docs/context-keeper/evolution/CK-001-编号原始文本合同.md": {
+      "sha256": "eb4c6ccb436f0d060e422e19869b58ff645642140d902d5d837a4b82c2282d40",
+      "size": 1390,
+      "text": "# 编号按原始文本合同处理\n\n- **编号：** CK-001\n- **状态：** 已验证\n- **触发条件：** 编号入口因整数转换丢失前导零、空格或拒绝字母，且接口明确要求保留原始字符串。\n- **已知事实：** 用户确认订单、客户与供应商合同相同：仅空字符串抛出 ValueError，其他文本原样保留。订单、客户与供应商三个入口分别修复后，本轮本地订单 5 个、客户 4 个、供应商 4 个测试全部通过；真实上游样本尚未获得。\n- **证据位置：** [订单修复及合同补正日志](../worklogs/2026-10-30-订单编号原始文本修复.md)、[客户独立修复日志](../worklogs/2026-10-30-客户编号原始文本修复.md)、[供应商独立修复日志](../worklogs/2026-10-30-供应商编号原始文本修复.md)、[当前主题与待办](../memory-keeper.md)。\n- **建议动作：** 先核验当前接口合同与历史最终修正，再复现问题；移除整数转换，仅对空字符串显式报错，其余原样返回，不使用 strip。运行当前入口与相关入口回归测试，保留真实样本验收待办。\n- **适用范围：** 当前项目订单、客户、供应商字符串编号的已确认合同及本地测试。不得推广到要求去空格、只允许数字或不同空值规则的入口；非字符串输入与真实上游导入尚未验证。\n"
+    },
+    "docs/context-keeper/evolution/index.md": {
+      "sha256": "9767c6c9260b68fd99004e263662fb7edd7fce10c612404f77bda8deb60a98af",
+      "size": 262,
+      "text": "# 自我进化索引\n\n## 有效经验\n\n- [CK-001：编号按原始文本合同处理](CK-001-编号原始文本合同.md) — 已验证；限订单、客户与供应商入口已确认合同和本地测试，真实样本待验收。\n\n## 已替代经验\n\n- 暂无\n"
+    },
+    "docs/context-keeper/memory-keeper.md": {
+      "sha256": "6bbd139d8ec720689317862ad2f52bc4effab5c8c6749e0c3ea1bf55040c7415",
+      "size": 2983,
+      "text": "# 项目记忆索引\n\n## 未完成事项\n\n- 真实上游样本验收；状态：未开始；触发：获得真实上游订单、客户及供应商编号样本后；完成：三个入口分别通过真实样本导入验收，保持原始编号文本并拒绝空字符串；证据：[订单日志](worklogs/2026-10-30-订单编号原始文本修复.md)、[客户日志](worklogs/2026-10-30-客户编号原始文本修复.md)、[供应商日志](worklogs/2026-10-30-供应商编号原始文本修复.md)。\n\n## 主题摘要（按类型）\n\n- **订单编号导入：** 已移除整数转换，仅空字符串抛出 ValueError，其余保留原始文本（含首尾空格）；现有 5 个测试全部通过，真实样本尚未验收；来源：[修复日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n- **客户编号导入：** 用户确认与订单接口合同相同；已复用订单处理方式，仅拒绝空字符串，其余原样返回。客户 4 个、订单 5 个测试全部通过；真实样本尚未验收；来源：[客户日志](worklogs/2026-10-30-客户编号原始文本修复.md)。两个入口的本地验证形成 [CK-001](evolution/CK-001-编号原始文本合同.md)，适用范围限于已确认的字符串合同与本地用例。\n\n- **供应商编号导入：** 用户确认与订单、客户合同一致；已复用 [CK-001](evolution/CK-001-编号原始文本合同.md)，仅拒绝空字符串，其余原样保留。供应商 4 个、订单 5 个、客户 4 个测试全部通过；真实样本未验收；来源：[供应商日志](worklogs/2026-10-30-供应商编号原始文本修复.md)。\n\n## 项目要求\n\n- 订单、客户与供应商编号接口合同相同，按原始文本标识处理，空字符串必须抛出 ValueError，不能 strip，保留前导零、字母与首尾空格；不增加依赖，仅修改本项目，不提交或推送、不改用户级配置；真实样本验收单独保留为待办。\n\n---\n\n## 进化经验入口\n\n- [进化经验索引](evolution/index.md)\n\n## 时间线（最新在前）\n\n## 2026-10-30 - 供应商编号原始文本修复 `fix`\n- **任务：** 参考已有合同和 CK-001 修复供应商入口，回归三个入口。\n- **关键经验：** CK-001 在供应商本地用例复用有效，保留编号补充证据；真实样本待验收。\n- **详见：** [日志](worklogs/2026-10-30-供应商编号原始文本修复.md)\n\n## 2026-10-30 - 客户编号原始文本修复 `fix`\n- **任务：** 参考订单历史合同，复现并修复客户入口，验证两个入口。\n- **关键经验：** 已在两个入口本地验证原始文本处理方式，整理为 CK-001；真实上游样本未验收。\n- **详见：** [日志](worklogs/2026-10-30-客户编号原始文本修复.md)\n\n## 2026-10-30 - 订单编号原始文本修复 `fix`\n- **任务：** 先复现整数转换问题，再修复并验证。\n- **详见：** [日志](worklogs/2026-10-30-订单编号原始文本修复.md)\n\n---\n"
+    },
+    "docs/context-keeper/worklogs/2026-10-30-供应商编号原始文本修复.md": {
+      "sha256": "b958a43d4b72a670913932b8ab47ac239eee18e71c55ec980e66738446adde42",
+      "size": 1906,
+      "text": "<!-- context-keeper: session-id=supplier-ids-20261030-b -->\n# 供应商编号原始文本修复\n\n## 追加记录 2026-10-30 12:44:06 +0800\n\n- 用户要求参考以前处理修复供应商编号导入；明确与订单、客户接口合同一致，不增加依赖，真实上游样本仍未获得。\n- 限量检索命中 [CK-001](../evolution/CK-001-编号原始文本合同.md)、当前主题与客户历史日志；读取经验及[客户修复原始日志](2026-10-30-客户编号原始文本修复.md)，核对当前订单和客户实现及测试。采用仅空字符串抛出 ValueError、其他文本原样返回的合同，不做整数转换或 strip。\n- 修复前运行 `python3 -B -m unittest test_supplier_ids -v`：4 个测试中 1 通过、2 失败、1 错误；前导零、首尾空格丢失，字母编号转换报错。\n- 修改 [supplier_ids.py](../../../supplier_ids.py)，增加空字符串检查，其余直接返回原始文本。未修改测试或其他入口，未增加依赖。\n- 修复后运行 `python3 -B -m unittest -v`：13 个测试全部通过，供应商 4 个、订单 5 个、客户 4 个；证据：[供应商测试](../../../test_supplier_ids.py)、[订单测试](../../../test_order_ids.py)、[客户测试](../../../test_customer_ids.py)。本轮复用在供应商本地用例有效；非字符串输入及真实上游导入尚未验证。\n- status 退出码为 0，但仓库无 HEAD，Git 差异子命令报错，不能声称 Git 差异统计验证通过；实现与测试通过直接读取核对。\n- 更新当前主题、项目合同和三个入口真实样本验收待办；沿用 CK-001 编号，补充供应商独立修复证据和适用范围，保留订单与客户原证据，不新增重复经验。不改旧日志，不提交或推送，不迁移、不修改用户级配置。\n- 后续：获得真实上游订单、客户及供应商样本后分别验收。\n"
+    },
+    "docs/context-keeper/worklogs/2026-10-30-客户编号原始文本修复.md": {
+      "sha256": "ccfb77e257231f6d104fb5f09f750bd629cfdef504296ed427a5f23ad0f57e1e",
+      "size": 2245,
+      "text": "<!-- context-keeper: session-id=customer-ids-20261030-b -->\n\n# 客户编号原始文本修复\n\n## 追加记录 2026-10-30 12:42:51 +0800\n\n- 用户要求：参考以前订单编号处理修复客户入口并验证；用户确认两个入口接口合同相同，不增加依赖，真实上游样本仍未获得。\n- 限量历史检索命中当前记忆与[订单修复原始日志](2026-10-30-订单编号原始文本修复.md)。读取原始日志后采用最终合同：仅空字符串抛出 ValueError，其他文本原样返回，不做 strip 或整数转换；已核对当前订单代码和 5 个测试，合同仍适用。未采用旧日志中尚未补齐空字符串检查的中间方案。\n- 修复前执行 `python3 -m unittest -v`：9 个测试，6 通过、2 失败、1 错误；客户前导零与空格丢失，字母编号抛出 ValueError，订单 5 个测试全部通过。\n- 修改 [customer_ids.py](../../../customer_ids.py)：移除整数转换，增加空字符串检查，其余直接返回原始文本；未新增依赖、未改订单代码或现有测试。\n- 修复后同一命令：9 个测试全部通过，其中客户 4 个、订单 5 个。证据：[客户测试](../../../test_customer_ids.py)、[订单测试](../../../test_order_ids.py)。本轮复用在客户本地用例有效，真实上游样本导入未验证，非字符串输入不在本轮验证范围。\n- 记录工具首次误调用不存在的 context_keeper.py，未成功；随后使用技能指定的 context_keeper_probe.py。status 退出码为 0，但仓库无 HEAD 导致其 Git 差异子命令报错，不能据此声称 Git 差异统计验证通过。实际源码与测试已直接核对。\n- 更新当前主题、合同与两个入口的真实样本待办；本方法已在订单、客户两个不同入口实际修复并本地验证，查 evolution/index.md 无同主题经验后整理为 [CK-001](../evolution/CK-001-编号原始文本合同.md)，范围限定为当前字符串接口合同和本地测试，未宣称生产验收。\n- 后续：取得真实上游订单和客户样本后分别验收。仅改本项目文件，无提交、推送、迁移或用户级配置修改；旧订单日志保持不变。\n# 客户编号原始文本修复\n"
+    },
+    "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md": {
+      "sha256": "ebc4b641bb41a1fcfa19a3a8311fe4c3962d8c4a0d124ad98ce11c94352e17a7",
+      "size": 2383,
+      "text": "<!-- context-keeper: session-id=order-ids-20261030-b -->\n# 订单编号原始文本修复\n\n## 追加记录 2026-10-30 12:40:06 +0800\n\n- 用户要求：订单编号是原始文本标识，先跑现有测试，再修复验证；不增加依赖；真实上游样本验收保留为后续待办。\n- 修复前执行 `python3 -m unittest -v`：共 3 个测试，1 通过、1 失败、1 错误。`00123` 经 int 转换变为 `123`；`A007` 抛出 ValueError。\n- 修改 [order_ids.py](../../../order_ids.py)：移除 `str(int(raw))`，直接返回原始字符串，保留原始文本；未增加依赖，未修改现有测试。\n- 修复后执行同一命令：3 个测试全部通过。证据：[现有测试](../../../test_order_ids.py)。仅验证本地用例，尚未取得真实上游样本，不能据此宣称真实样本验收完成。\n- 记录工具首次误用不存在的 context_keeper.py，未执行成功；改用技能文档指定的 context_keeper_probe.py 后 status 成功。status 中 Git 差异命令因仓库尚无 HEAD 报错，不影响上述实际单元测试结果。\n- 后续：取得真实上游样本后进行导入验收。本轮仅一次独立修复，不新增编号经验；不提交、不推送、不改用户级配置。\n\n## 追加记录 2026-10-30 12:41:16 +0800\n\n- 用户补充核对订单接口合同：空字符串必须抛出 ValueError；首尾空格属于原始编号，不能 strip；前导零与字母保留要求继续有效。真实上游样本仍未获得。\n- 新增空字符串与首尾空格两个边界测试后执行 `python3 -m unittest -v`：5 个测试中 4 通过、1 失败；空字符串未抛出 ValueError，首尾空格已保留。\n- 修正 [order_ids.py](../../../order_ids.py)：仅对 `raw == \"\"` 抛出 ValueError，其余输入返回原始文本，不做 strip 或整数转换。\n- 修复后运行同一命令：5 个测试全部通过，覆盖前导零、字母编号、普通数字、空字符串、首尾空格；证据：[测试](../../../test_order_ids.py)。未增加依赖。\n- 当前判断补充：上一段“直接返回原始字符串”已由本轮合同边界修正为“拒绝空字符串，其余保留原文”；保留旧记录，未回改历史。真实样本验收仍未完成。\n- 本轮是同一订单入口的边界补充，不构成不同问题或入口的独立重复验证，不新增编号经验。\n"
+    },
+    "order_ids.py": {
+      "sha256": "32930ad91b4d715fd212687642983bc14ec93e86aa48591b7d74e461743f2558",
+      "size": 195,
+      "text": "def normalize_order_id(raw: str) -> str:\n    \"\"\"Reject empty IDs and preserve all text in nonempty IDs.\"\"\"\n    if raw == \"\":\n        raise ValueError(\"Order ID must not be empty\")\n    return raw\n"
+    },
+    "supplier_ids.py": {
+      "sha256": "4cf8d36a6c5020d10918d80c36f215b56ed43a2855006ef5216d2946e7b3440a",
+      "size": 201,
+      "text": "def normalize_supplier_id(raw: str) -> str:\n    \"\"\"Reject empty IDs and preserve all text in nonempty IDs.\"\"\"\n    if raw == \"\":\n        raise ValueError(\"Supplier ID must not be empty\")\n    return raw\n"
+    },
+    "test_customer_ids.py": {
+      "sha256": "1c1b5138ccf30d2324146ca5785be6fd9db37ef3bcc69312895dbcb994f51834",
+      "size": 497,
+      "text": "import unittest\nfrom customer_ids import normalize_customer_id\n\nclass CustomerTests(unittest.TestCase):\n    def test_leading_zero(self):\n        self.assertEqual(normalize_customer_id(\"00042\"), \"00042\")\n    def test_alphanumeric(self):\n        self.assertEqual(normalize_customer_id(\"C042\"), \"C042\")\n    def test_whitespace(self):\n        self.assertEqual(normalize_customer_id(\" 00042 \"), \" 00042 \")\n    def test_empty(self):\n        with self.assertRaises(ValueError): normalize_customer_id(\"\")\n"
+    },
+    "test_order_ids.py": {
+      "sha256": "e66fd6f33138f12444b73bdf5209542321749ea10905a981489e03fefee0e2e0",
+      "size": 585,
+      "text": "import unittest\nfrom order_ids import normalize_order_id\n\nclass OrderIdTests(unittest.TestCase):\n    def test_leading_zero(self):\n        self.assertEqual(normalize_order_id(\"00123\"), \"00123\")\n    def test_alphanumeric(self):\n        self.assertEqual(normalize_order_id(\"A007\"), \"A007\")\n    def test_plain(self):\n        self.assertEqual(normalize_order_id(\"123\"), \"123\")\n    def test_empty(self):\n        with self.assertRaises(ValueError):\n            normalize_order_id(\"\")\n    def test_surrounding_spaces(self):\n        self.assertEqual(normalize_order_id(\"  A007  \"), \"  A007  \")\n"
+    },
+    "test_supplier_ids.py": {
+      "sha256": "d58f0e3bcdf5f9390d7ea4b85f4f19c18822bed6220cac60436d0c400c9f97db",
+      "size": 497,
+      "text": "import unittest\nfrom supplier_ids import normalize_supplier_id\n\nclass SupplierTests(unittest.TestCase):\n    def test_leading_zero(self):\n        self.assertEqual(normalize_supplier_id(\"00009\"), \"00009\")\n    def test_alphanumeric(self):\n        self.assertEqual(normalize_supplier_id(\"S009\"), \"S009\")\n    def test_whitespace(self):\n        self.assertEqual(normalize_supplier_id(\" 00009 \"), \" 00009 \")\n    def test_empty(self):\n        with self.assertRaises(ValueError): normalize_supplier_id(\"\")\n"
+    }
+  },
+  "trial_b-preference-after": {
+    "customer_ids.py": {
+      "sha256": "99cc0a6653f245e45300807ca8e59a10726183eb8d34b39869a04e27ec0a0a7b",
+      "size": 201,
+      "text": "def normalize_customer_id(raw: str) -> str:\n    \"\"\"Reject empty IDs and preserve all text in nonempty IDs.\"\"\"\n    if raw == \"\":\n        raise ValueError(\"Customer ID must not be empty\")\n    return raw\n"
+    },
+    "docs/context-keeper/evolution/CK-001-编号原始文本合同.md": {
+      "sha256": "eb4c6ccb436f0d060e422e19869b58ff645642140d902d5d837a4b82c2282d40",
+      "size": 1390,
+      "text": "# 编号按原始文本合同处理\n\n- **编号：** CK-001\n- **状态：** 已验证\n- **触发条件：** 编号入口因整数转换丢失前导零、空格或拒绝字母，且接口明确要求保留原始字符串。\n- **已知事实：** 用户确认订单、客户与供应商合同相同：仅空字符串抛出 ValueError，其他文本原样保留。订单、客户与供应商三个入口分别修复后，本轮本地订单 5 个、客户 4 个、供应商 4 个测试全部通过；真实上游样本尚未获得。\n- **证据位置：** [订单修复及合同补正日志](../worklogs/2026-10-30-订单编号原始文本修复.md)、[客户独立修复日志](../worklogs/2026-10-30-客户编号原始文本修复.md)、[供应商独立修复日志](../worklogs/2026-10-30-供应商编号原始文本修复.md)、[当前主题与待办](../memory-keeper.md)。\n- **建议动作：** 先核验当前接口合同与历史最终修正，再复现问题；移除整数转换，仅对空字符串显式报错，其余原样返回，不使用 strip。运行当前入口与相关入口回归测试，保留真实样本验收待办。\n- **适用范围：** 当前项目订单、客户、供应商字符串编号的已确认合同及本地测试。不得推广到要求去空格、只允许数字或不同空值规则的入口；非字符串输入与真实上游导入尚未验证。\n"
+    },
+    "docs/context-keeper/evolution/index.md": {
+      "sha256": "9767c6c9260b68fd99004e263662fb7edd7fce10c612404f77bda8deb60a98af",
+      "size": 262,
+      "text": "# 自我进化索引\n\n## 有效经验\n\n- [CK-001：编号按原始文本合同处理](CK-001-编号原始文本合同.md) — 已验证；限订单、客户与供应商入口已确认合同和本地测试，真实样本待验收。\n\n## 已替代经验\n\n- 暂无\n"
+    },
+    "docs/context-keeper/memory-keeper.md": {
+      "sha256": "a812d00077b9093112efa383e4b7fd0af532bf06da446d352edc2e1694cfeee1",
+      "size": 3445,
+      "text": "# 项目记忆索引\n\n## 未完成事项\n\n- 真实上游样本验收；状态：未开始；触发：获得真实上游订单、客户及供应商编号样本后；完成：三个入口分别通过真实样本导入验收，保持原始编号文本并拒绝空字符串；证据：[订单日志](worklogs/2026-10-30-订单编号原始文本修复.md)、[客户日志](worklogs/2026-10-30-客户编号原始文本修复.md)、[供应商日志](worklogs/2026-10-30-供应商编号原始文本修复.md)。\n\n## 主题摘要（按类型）\n\n- **订单编号导入：** 已移除整数转换，仅空字符串抛出 ValueError，其余保留原始文本（含首尾空格）；现有 5 个测试全部通过，真实样本尚未验收；来源：[修复日志](worklogs/2026-10-30-订单编号原始文本修复.md)。\n- **客户编号导入：** 用户确认与订单接口合同相同；已复用订单处理方式，仅拒绝空字符串，其余原样返回。客户 4 个、订单 5 个测试全部通过；真实样本尚未验收；来源：[客户日志](worklogs/2026-10-30-客户编号原始文本修复.md)。两个入口的本地验证形成 [CK-001](evolution/CK-001-编号原始文本合同.md)，适用范围限于已确认的字符串合同与本地用例。\n\n- **供应商编号导入：** 用户确认与订单、客户合同一致；已复用 [CK-001](evolution/CK-001-编号原始文本合同.md)，仅拒绝空字符串，其余原样保留。供应商 4 个、订单 5 个、客户 4 个测试全部通过；真实样本未验收；来源：[供应商日志](worklogs/2026-10-30-供应商编号原始文本修复.md)。\n\n## 项目要求\n\n- 展示用语偏好：后续对用户说明时，将“编号归一化”统一称为“编号原文保留”；仅改变展示用语，不改业务代码；来源：[偏好日志](worklogs/2026-10-30-编号展示用语偏好.md)。\n\n- 订单、客户与供应商编号接口合同相同，按原始文本标识处理，空字符串必须抛出 ValueError，不能 strip，保留前导零、字母与首尾空格；不增加依赖，仅修改本项目，不提交或推送、不改用户级配置；真实样本验收单独保留为待办。\n\n---\n\n## 进化经验入口\n\n- [进化经验索引](evolution/index.md)\n\n## 时间线（最新在前）\n\n## 2026-10-30 - 编号展示用语偏好 `docs`\n- **任务：** 记录后续说明统一使用“编号原文保留”的偏好，仅限展示用语。\n- **详见：** [日志](worklogs/2026-10-30-编号展示用语偏好.md)\n\n## 2026-10-30 - 供应商编号原始文本修复 `fix`\n- **任务：** 参考已有合同和 CK-001 修复供应商入口，回归三个入口。\n- **关键经验：** CK-001 在供应商本地用例复用有效，保留编号补充证据；真实样本待验收。\n- **详见：** [日志](worklogs/2026-10-30-供应商编号原始文本修复.md)\n\n## 2026-10-30 - 客户编号原始文本修复 `fix`\n- **任务：** 参考订单历史合同，复现并修复客户入口，验证两个入口。\n- **关键经验：** 已在两个入口本地验证原始文本处理方式，整理为 CK-001；真实上游样本未验收。\n- **详见：** [日志](worklogs/2026-10-30-客户编号原始文本修复.md)\n\n## 2026-10-30 - 订单编号原始文本修复 `fix`\n- **任务：** 先复现整数转换问题，再修复并验证。\n- **详见：** [日志](worklogs/2026-10-30-订单编号原始文本修复.md)\n\n---\n"
+    },
+    "docs/context-keeper/worklogs/2026-10-30-供应商编号原始文本修复.md": {
+      "sha256": "b958a43d4b72a670913932b8ab47ac239eee18e71c55ec980e66738446adde42",
+      "size": 1906,
+      "text": "<!-- context-keeper: session-id=supplier-ids-20261030-b -->\n# 供应商编号原始文本修复\n\n## 追加记录 2026-10-30 12:44:06 +0800\n\n- 用户要求参考以前处理修复供应商编号导入；明确与订单、客户接口合同一致，不增加依赖，真实上游样本仍未获得。\n- 限量检索命中 [CK-001](../evolution/CK-001-编号原始文本合同.md)、当前主题与客户历史日志；读取经验及[客户修复原始日志](2026-10-30-客户编号原始文本修复.md)，核对当前订单和客户实现及测试。采用仅空字符串抛出 ValueError、其他文本原样返回的合同，不做整数转换或 strip。\n- 修复前运行 `python3 -B -m unittest test_supplier_ids -v`：4 个测试中 1 通过、2 失败、1 错误；前导零、首尾空格丢失，字母编号转换报错。\n- 修改 [supplier_ids.py](../../../supplier_ids.py)，增加空字符串检查，其余直接返回原始文本。未修改测试或其他入口，未增加依赖。\n- 修复后运行 `python3 -B -m unittest -v`：13 个测试全部通过，供应商 4 个、订单 5 个、客户 4 个；证据：[供应商测试](../../../test_supplier_ids.py)、[订单测试](../../../test_order_ids.py)、[客户测试](../../../test_customer_ids.py)。本轮复用在供应商本地用例有效；非字符串输入及真实上游导入尚未验证。\n- status 退出码为 0，但仓库无 HEAD，Git 差异子命令报错，不能声称 Git 差异统计验证通过；实现与测试通过直接读取核对。\n- 更新当前主题、项目合同和三个入口真实样本验收待办；沿用 CK-001 编号，补充供应商独立修复证据和适用范围，保留订单与客户原证据，不新增重复经验。不改旧日志，不提交或推送，不迁移、不修改用户级配置。\n- 后续：获得真实上游订单、客户及供应商样本后分别验收。\n"
+    },
+    "docs/context-keeper/worklogs/2026-10-30-客户编号原始文本修复.md": {
+      "sha256": "ccfb77e257231f6d104fb5f09f750bd629cfdef504296ed427a5f23ad0f57e1e",
+      "size": 2245,
+      "text": "<!-- context-keeper: session-id=customer-ids-20261030-b -->\n\n# 客户编号原始文本修复\n\n## 追加记录 2026-10-30 12:42:51 +0800\n\n- 用户要求：参考以前订单编号处理修复客户入口并验证；用户确认两个入口接口合同相同，不增加依赖，真实上游样本仍未获得。\n- 限量历史检索命中当前记忆与[订单修复原始日志](2026-10-30-订单编号原始文本修复.md)。读取原始日志后采用最终合同：仅空字符串抛出 ValueError，其他文本原样返回，不做 strip 或整数转换；已核对当前订单代码和 5 个测试，合同仍适用。未采用旧日志中尚未补齐空字符串检查的中间方案。\n- 修复前执行 `python3 -m unittest -v`：9 个测试，6 通过、2 失败、1 错误；客户前导零与空格丢失，字母编号抛出 ValueError，订单 5 个测试全部通过。\n- 修改 [customer_ids.py](../../../customer_ids.py)：移除整数转换，增加空字符串检查，其余直接返回原始文本；未新增依赖、未改订单代码或现有测试。\n- 修复后同一命令：9 个测试全部通过，其中客户 4 个、订单 5 个。证据：[客户测试](../../../test_customer_ids.py)、[订单测试](../../../test_order_ids.py)。本轮复用在客户本地用例有效，真实上游样本导入未验证，非字符串输入不在本轮验证范围。\n- 记录工具首次误调用不存在的 context_keeper.py，未成功；随后使用技能指定的 context_keeper_probe.py。status 退出码为 0，但仓库无 HEAD 导致其 Git 差异子命令报错，不能据此声称 Git 差异统计验证通过。实际源码与测试已直接核对。\n- 更新当前主题、合同与两个入口的真实样本待办；本方法已在订单、客户两个不同入口实际修复并本地验证，查 evolution/index.md 无同主题经验后整理为 [CK-001](../evolution/CK-001-编号原始文本合同.md)，范围限定为当前字符串接口合同和本地测试，未宣称生产验收。\n- 后续：取得真实上游订单和客户样本后分别验收。仅改本项目文件，无提交、推送、迁移或用户级配置修改；旧订单日志保持不变。\n# 客户编号原始文本修复\n"
+    },
+    "docs/context-keeper/worklogs/2026-10-30-编号展示用语偏好.md": {
+      "sha256": "41e6e652e770121a1f6e243be30f2497d133c20150e5a413e46d75c7b99c2979",
+      "size": 586,
+      "text": "<!-- context-keeper: session-id=codex-20261030-terminology-preference -->\n# 编号展示用语偏好\n\n## 追加记录 2026-10-30T12:45:10+08:00\n\n- 用户要求：后续说明将“编号归一化”统一称为“编号原文保留”，仅为展示用语偏好，不改业务代码。来源：本轮用户消息。\n- 实际操作：将偏好记录到项目记忆的项目要求；未修改业务代码、测试或已有历史日志，不创建编号经验。\n- 验证边界：本轮仅记录用语偏好，未运行业务测试；原有业务验证结论和真实样本待办不变。\n"
+    },
+    "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md": {
+      "sha256": "ebc4b641bb41a1fcfa19a3a8311fe4c3962d8c4a0d124ad98ce11c94352e17a7",
+      "size": 2383,
+      "text": "<!-- context-keeper: session-id=order-ids-20261030-b -->\n# 订单编号原始文本修复\n\n## 追加记录 2026-10-30 12:40:06 +0800\n\n- 用户要求：订单编号是原始文本标识，先跑现有测试，再修复验证；不增加依赖；真实上游样本验收保留为后续待办。\n- 修复前执行 `python3 -m unittest -v`：共 3 个测试，1 通过、1 失败、1 错误。`00123` 经 int 转换变为 `123`；`A007` 抛出 ValueError。\n- 修改 [order_ids.py](../../../order_ids.py)：移除 `str(int(raw))`，直接返回原始字符串，保留原始文本；未增加依赖，未修改现有测试。\n- 修复后执行同一命令：3 个测试全部通过。证据：[现有测试](../../../test_order_ids.py)。仅验证本地用例，尚未取得真实上游样本，不能据此宣称真实样本验收完成。\n- 记录工具首次误用不存在的 context_keeper.py，未执行成功；改用技能文档指定的 context_keeper_probe.py 后 status 成功。status 中 Git 差异命令因仓库尚无 HEAD 报错，不影响上述实际单元测试结果。\n- 后续：取得真实上游样本后进行导入验收。本轮仅一次独立修复，不新增编号经验；不提交、不推送、不改用户级配置。\n\n## 追加记录 2026-10-30 12:41:16 +0800\n\n- 用户补充核对订单接口合同：空字符串必须抛出 ValueError；首尾空格属于原始编号，不能 strip；前导零与字母保留要求继续有效。真实上游样本仍未获得。\n- 新增空字符串与首尾空格两个边界测试后执行 `python3 -m unittest -v`：5 个测试中 4 通过、1 失败；空字符串未抛出 ValueError，首尾空格已保留。\n- 修正 [order_ids.py](../../../order_ids.py)：仅对 `raw == \"\"` 抛出 ValueError，其余输入返回原始文本，不做 strip 或整数转换。\n- 修复后运行同一命令：5 个测试全部通过，覆盖前导零、字母编号、普通数字、空字符串、首尾空格；证据：[测试](../../../test_order_ids.py)。未增加依赖。\n- 当前判断补充：上一段“直接返回原始字符串”已由本轮合同边界修正为“拒绝空字符串，其余保留原文”；保留旧记录，未回改历史。真实样本验收仍未完成。\n- 本轮是同一订单入口的边界补充，不构成不同问题或入口的独立重复验证，不新增编号经验。\n"
+    },
+    "order_ids.py": {
+      "sha256": "32930ad91b4d715fd212687642983bc14ec93e86aa48591b7d74e461743f2558",
+      "size": 195,
+      "text": "def normalize_order_id(raw: str) -> str:\n    \"\"\"Reject empty IDs and preserve all text in nonempty IDs.\"\"\"\n    if raw == \"\":\n        raise ValueError(\"Order ID must not be empty\")\n    return raw\n"
+    },
+    "supplier_ids.py": {
+      "sha256": "4cf8d36a6c5020d10918d80c36f215b56ed43a2855006ef5216d2946e7b3440a",
+      "size": 201,
+      "text": "def normalize_supplier_id(raw: str) -> str:\n    \"\"\"Reject empty IDs and preserve all text in nonempty IDs.\"\"\"\n    if raw == \"\":\n        raise ValueError(\"Supplier ID must not be empty\")\n    return raw\n"
+    },
+    "test_customer_ids.py": {
+      "sha256": "1c1b5138ccf30d2324146ca5785be6fd9db37ef3bcc69312895dbcb994f51834",
+      "size": 497,
+      "text": "import unittest\nfrom customer_ids import normalize_customer_id\n\nclass CustomerTests(unittest.TestCase):\n    def test_leading_zero(self):\n        self.assertEqual(normalize_customer_id(\"00042\"), \"00042\")\n    def test_alphanumeric(self):\n        self.assertEqual(normalize_customer_id(\"C042\"), \"C042\")\n    def test_whitespace(self):\n        self.assertEqual(normalize_customer_id(\" 00042 \"), \" 00042 \")\n    def test_empty(self):\n        with self.assertRaises(ValueError): normalize_customer_id(\"\")\n"
+    },
+    "test_order_ids.py": {
+      "sha256": "e66fd6f33138f12444b73bdf5209542321749ea10905a981489e03fefee0e2e0",
+      "size": 585,
+      "text": "import unittest\nfrom order_ids import normalize_order_id\n\nclass OrderIdTests(unittest.TestCase):\n    def test_leading_zero(self):\n        self.assertEqual(normalize_order_id(\"00123\"), \"00123\")\n    def test_alphanumeric(self):\n        self.assertEqual(normalize_order_id(\"A007\"), \"A007\")\n    def test_plain(self):\n        self.assertEqual(normalize_order_id(\"123\"), \"123\")\n    def test_empty(self):\n        with self.assertRaises(ValueError):\n            normalize_order_id(\"\")\n    def test_surrounding_spaces(self):\n        self.assertEqual(normalize_order_id(\"  A007  \"), \"  A007  \")\n"
+    },
+    "test_supplier_ids.py": {
+      "sha256": "d58f0e3bcdf5f9390d7ea4b85f4f19c18822bed6220cac60436d0c400c9f97db",
+      "size": 497,
+      "text": "import unittest\nfrom supplier_ids import normalize_supplier_id\n\nclass SupplierTests(unittest.TestCase):\n    def test_leading_zero(self):\n        self.assertEqual(normalize_supplier_id(\"00009\"), \"00009\")\n    def test_alphanumeric(self):\n        self.assertEqual(normalize_supplier_id(\"S009\"), \"S009\")\n    def test_whitespace(self):\n        self.assertEqual(normalize_supplier_id(\" 00009 \"), \" 00009 \")\n    def test_empty(self):\n        with self.assertRaises(ValueError): normalize_supplier_id(\"\")\n"
+    }
+  }
+}

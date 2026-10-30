@@ -1,0 +1,11 @@
+{
+  "append-diffs.patch": "eee2d3ceaa9147cd7b3b38f8638a08efaeca7fe7162ff73799632743ff683354",
+  "candidate.patch": "35c502dbf4488e23801513db29f780c0420fe3523fa20eb806675a0adc9eb65d",
+  "fixture.json": "5d828efd47dafe432804e3fadca6863dbac97f525ca0ae92a75d48d53d8ade77",
+  "observations.jsonl": "449f906d9859d61f4e5721834b56107ca4e07d7de7ce20aac8093b54ce8b2d8c",
+  "recorded-fixture-replay.json": "b416cabfc1be35aabc75c425d89ee55459bd29820c9bf4ac13e104f3cfbe22e8",
+  "report.md": "d19fe73cb74868dab5f5faf3a0e4888c9df2a206455b7f1616a35d5722c9eee5",
+  "responses.json": "e291b31ad91b4f38c4b6d3beaa0f64b7a53d52e93cbd4ee4293b4371c530e0e4",
+  "snapshots.json": "bd8c83f5bc455382d86c99e9a33e5aef3e05a1283a1a090ea873b9c1bc783e24",
+  "summary.json": "34042d2615ea5105e2edf3d99b3aa43f8ef9a46441e51e113cd3cfdc8bcf7808"
+}

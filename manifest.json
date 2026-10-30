@@ -16,7 +16,7 @@
   "files": [
     {
       "path": "SKILL.md",
-      "sha256": "aec1c1e1c6cda592f20b3938ff278fbe36953bc67c196a8b3bf9caae0a53448f"
+      "sha256": "fd11405fa039d7689d01cfc9ab195673036d0af2037f301dc66a7aef0e0ed28b"
     },
     {
       "path": "README.md",
@@ -24,7 +24,7 @@
     },
     {
       "path": "DESIGN.md",
-      "sha256": "6b4d7a857a5173b4d170dcde1adca310bbc35d487c2eb556aefd28eea5fe2a84"
+      "sha256": "6de2ce58a60fd18eaf04719da01da746bb6ff0151754ea6156df0834a9a41393"
     },
     {
       "path": "assets/context-keeper-icon.png",
@@ -44,19 +44,19 @@
     },
     {
       "path": "scripts/install.py",
-      "sha256": "a41ffca7f7749d483a4076b0ae5ed6599a39c5b980d443a0e4e90b616f994763"
+      "sha256": "73bc61dd72b54944dcdc4c47c3c863a52627a369ddf3541cb7d0984b66db31da"
     },
     {
       "path": "scripts/context_keeper_probe.py",
-      "sha256": "9878d1b0bfcf52bb3e6d905c37cc70539ed2992e15ee469ded6a50e00b24887b"
+      "sha256": "3193d4ef3267eb7ad5f1ee2155c4df745b52231955ca0f3f3d68909046cf1672"
     },
     {
       "path": "references/save.md",
-      "sha256": "1cbdcdaaa8ae1a339f73f7c0e2834b71b46dd1a9282de71d9304e0207129e781"
+      "sha256": "93440f9a3a32c6822055d73894f4e15575d8fef29380a62c75592a5dd2822df2"
     },
     {
       "path": "references/resume.md",
-      "sha256": "1eeeb3a13e5794a6eb61a612b98746bb3430109e910302e106e600d6691233c7"
+      "sha256": "4d93a106221c7fab9e7c964d5c8d491e3726263029ba655f1c0a4e13f2d63c83"
     },
     {
       "path": "references/install.md",
@@ -68,7 +68,7 @@
     },
     {
       "path": "references/search.md",
-      "sha256": "55056b0679eabb6ce94fd7e52d4bb0fda1985b7f5235c035b71069be6cb034ba"
+      "sha256": "696d1d807b164976e899a54fa406a03ac2222d5b2e4b457758008d0f638ef530"
     }
   ]
 }

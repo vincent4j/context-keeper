@@ -1,0 +1,8 @@
+{
+  ".gitignore": "__pycache__/\n",
+  "order_ids.py": "def normalize_order_id(raw: str) -> str:\n    return str(int(raw))\n",
+  "test_order_ids.py": "import unittest\nfrom order_ids import normalize_order_id\n\nclass OrderIdTests(unittest.TestCase):\n    def test_leading_zero(self):\n        self.assertEqual(normalize_order_id(\"00123\"), \"00123\")\n    def test_alphanumeric(self):\n        self.assertEqual(normalize_order_id(\"A007\"), \"A007\")\n    def test_plain(self):\n        self.assertEqual(normalize_order_id(\"123\"), \"123\")\n",
+  "common_project_rules": "# 项目约定\n\n- 用简体中文，按实际测试结果说明边界。\n- 本项目已获用户授权使用 docs/context-keeper/ 作为项目记录库；不迁移，不改用户级配置。\n- 这是独立的编号导入项目，只修改本项目文件；不提交或推送，不操作其他项目。\n\n",
+  "customer_module_added_before_reuse": "def normalize_customer_id(raw: str) -> str:\n    return str(int(raw))\n",
+  "customer_test_added_before_reuse": "import unittest\nfrom customer_ids import normalize_customer_id\n\nclass CustomerTests(unittest.TestCase):\n    def test_leading_zero(self):\n        self.assertEqual(normalize_customer_id(\"00042\"), \"00042\")\n    def test_alphanumeric(self):\n        self.assertEqual(normalize_customer_id(\"C042\"), \"C042\")\n    def test_whitespace(self):\n        self.assertEqual(normalize_customer_id(\" 00042 \"), \" 00042 \")\n    def test_empty(self):\n        with self.assertRaises(ValueError): normalize_customer_id(\"\")\n"
+}

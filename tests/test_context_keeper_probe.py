@@ -594,6 +594,43 @@ class CurrentMemoryTests(IsolatedProbeTestCase):
         self.assertLess(output.index("方案 B"), output.index("方案 A 当时有效"))
         self.assertIn("首次记录快照，不代表当前状态", output)
 
+    def test_multi_keyword_query_recalls_latest_contract_before_old_snapshot(self):
+        root, log, memory = self.context()
+        log.write_text(log.read_text().replace("修复保存输出遗漏。", "早期只保留编号，3 项测试通过。"))
+        self.add_current(memory, "- **订单导入：** 当前空字符串抛出 ValueError，首尾空格原样保留，5 项测试通过。\n  来源：[日志](worklogs/" + log.name + ")。")
+        memory.write_text(memory.read_text().replace("完成真实保存复测；状态：进行中；触发：下次保存；完成：报告通过；证据：测试输出。",
+                                                    "真实样本验收；状态：未开始；触发：获得样本；完成：核验原文；证据：日志。"))
+        for command in ("resume", "search"):
+            with self.subTest(command=command):
+                result, output = _call(command, "--root", str(root), "--query",
+                                       "订单 编号 导入 空字符串 首尾空格 验收")
+                self.assertEqual(result, 0, output)
+                self.assertIn("当前空字符串抛出 ValueError", output)
+                self.assertIn("首尾空格原样保留，5 项测试通过", output)
+                self.assertNotIn("未找到相关当前主题", output)
+                if command == "resume":
+                    self.assertIn("真实样本验收", output)
+                    self.assertLess(output.index("5 项测试通过"), output.index("3 项测试通过"))
+
+    def test_keyword_queries_preserve_regex_and_do_not_widen_zero_hits(self):
+        root, _, memory = self.context()
+        self.add_current(memory, "- 订单 order_ids.py：保留原文。\n- 客户 customer_ids.py：保留原文。\n- 误匹配 order_idsXpy：不应命中点号文件名词项。")
+        for command in ("resume", "search"):
+            for query, present, absent in (
+                ("  order_ids.py\t不存在的词  ", "订单 order_ids.py", "误匹配"),
+                (r"^- (订单|客户)\b", "客户 customer_ids.py", "误匹配"),
+                (r"订单 order_ids\.py", "订单 order_ids.py", "客户 customer_ids.py"),
+                (r"订单.*保留|客户.*保留", "客户 customer_ids.py", "误匹配"),
+                ("不存在甲 不存在乙", None, "保留原文"),
+                ("  \t  ", None, "保留原文"),
+            ):
+                with self.subTest(command=command, query=query):
+                    result, output = _call(command, "--root", str(root), "--query", query)
+                    self.assertEqual(result, 0, output)
+                    if present:
+                        self.assertIn(present, output)
+                    self.assertNotIn(absent, output)
+
     def test_search_requirement_only_section_keeps_continuation_and_cap(self):
         root, log, memory = self.context()
         with memory.open("a") as output:

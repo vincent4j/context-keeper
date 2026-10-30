@@ -1,0 +1,972 @@
+{
+  "date": "2026-10-30",
+  "timezone": "Asia/Singapore",
+  "candidate_base_commit": "eb36acaf933c5395c718b80a974021d5c2f53dfc",
+  "candidate_file_hashes": {
+    "DESIGN.md": "6de2ce58a60fd18eaf04719da01da746bb6ff0151754ea6156df0834a9a41393",
+    "SKILL.md": "fd11405fa039d7689d01cfc9ab195673036d0af2037f301dc66a7aef0e0ed28b",
+    "manifest.json": "06df11c90b97eb1b98d961f6dd06538b76ef2ed650b2b9be31cc0f1e7381f473",
+    "references/resume.md": "4d93a106221c7fab9e7c964d5c8d491e3726263029ba655f1c0a4e13f2d63c83",
+    "references/save.md": "93440f9a3a32c6822055d73894f4e15575d8fef29380a62c75592a5dd2822df2",
+    "references/search.md": "696d1d807b164976e899a54fa406a03ac2222d5b2e4b457758008d0f638ef530",
+    "scripts/context_keeper_probe.py": "3193d4ef3267eb7ad5f1ee2155c4df745b52231955ca0f3f3d68909046cf1672",
+    "scripts/install.py": "73bc61dd72b54944dcdc4c47c3c863a52627a369ddf3541cb7d0984b66db31da",
+    "tests/test_context_keeper_probe.py": "cf7b9b6aa5cb516d8ce69d79c90121f06345f914870cb3aa6ffce48226692ddb"
+  },
+  "candidate_diff_sha256": "35c502dbf4488e23801513db29f780c0420fe3523fa20eb806675a0adc9eb65d",
+  "cli": "codex-cli 0.162.0",
+  "settings": {
+    "model": "gpt-6.1-sol",
+    "model_reasoning_effort": "medium",
+    "service_tier": "default"
+  },
+  "scope": "two independent isolated Codex CLI projects; real model/tool execution; no explicit memory/experience-capture prompts; no retries or prompt tuning",
+  "turn_count": 12,
+  "distinct_thread_count": 10,
+  "timeout_seconds_per_turn": 240,
+  "runs": [
+    {
+      "variant": "trial_a",
+      "stage": "initial",
+      "returncode": 0,
+      "timedout": false,
+      "elapsed_seconds": 61.01,
+      "thread_id": "01a18b1b-3424-7483-9ad4-a33c1d13a3cd",
+      "event_types": {
+        "thread.started": 1,
+        "turn.started": 1,
+        "item.completed": 19,
+        "item.started": 16,
+        "turn.completed": 1
+      },
+      "errors": [],
+      "command_count": 14,
+      "worklogs": [
+        "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md"
+      ],
+      "experiences": [],
+      "prompt": "修复当前订单编号导入。订单编号是原始文本标识，现有 int 转换导致前导零丢失、字母编号报错，这是错误行为。请先跑现有测试确认现象，再修复并验证，不增加依赖。真实上游样本尚未获得，真实样本验收仍是后续待办。",
+      "prompt_sha256": "53deb8920c5edad18e9c3878cd8a5519e279cd073c41eef3d934864dd6a26f12",
+      "comparison": {
+        "prior_log_count": 0,
+        "prior_logs": {},
+        "new_logs": [
+          "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md"
+        ],
+        "experience_count": 0,
+        "changed_business_files": [
+          "order_ids.py"
+        ]
+      }
+    },
+    {
+      "variant": "trial_a",
+      "stage": "append",
+      "returncode": 0,
+      "timedout": false,
+      "elapsed_seconds": 42.62,
+      "thread_id": "01a18b1b-3424-7483-9ad4-a33c1d13a3cd",
+      "event_types": {
+        "thread.started": 1,
+        "turn.started": 1,
+        "item.completed": 12,
+        "item.started": 10,
+        "turn.completed": 1
+      },
+      "errors": [],
+      "command_count": 7,
+      "worklogs": [
+        "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md"
+      ],
+      "experiences": [],
+      "prompt": "补充核对了订单接口合同：空字符串必须抛出 ValueError，但首尾空格属于编号原文，不能 strip。刚才确认的前导零和字母保留要求仍有效。请在刚才的修复上补充这两个边界用例并完成修正；真实上游样本仍未获得。",
+      "prompt_sha256": "e84c1b6b596e9292f810e4f0fc4729941cf463e36c51f35e80432a49da705360",
+      "comparison": {
+        "prior_log_count": 1,
+        "prior_logs": {
+          "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md": {
+            "unchanged": false,
+            "prefix_preserved": true,
+            "added_characters": 573
+          }
+        },
+        "new_logs": [],
+        "experience_count": 0,
+        "changed_business_files": [
+          "order_ids.py",
+          "test_order_ids.py"
+        ]
+      }
+    },
+    {
+      "variant": "trial_a",
+      "stage": "resume",
+      "returncode": 0,
+      "timedout": false,
+      "elapsed_seconds": 27.77,
+      "thread_id": "01a18b1d-3093-75c3-b024-5371e40bb07e",
+      "event_types": {
+        "thread.started": 1,
+        "turn.started": 1,
+        "item.completed": 9,
+        "item.started": 7,
+        "turn.completed": 1
+      },
+      "errors": [],
+      "command_count": 7,
+      "worklogs": [
+        "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md"
+      ],
+      "experiences": [],
+      "prompt": "继续上次订单编号导入修复。现在做到哪里，空字符串与首尾空格分别怎么处理，还缺什么验收？先说明现状，这轮不要改业务代码。",
+      "prompt_sha256": "d2c2fbbea61cda4b8efd5ccd410cb0972ddf468a664e7b2fcd871e32d3e740b1",
+      "comparison": {
+        "prior_log_count": 1,
+        "prior_logs": {
+          "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md": {
+            "unchanged": true,
+            "prefix_preserved": true,
+            "added_characters": 0
+          }
+        },
+        "new_logs": [],
+        "experience_count": 0,
+        "changed_business_files": []
+      }
+    },
+    {
+      "variant": "trial_a",
+      "stage": "reuse",
+      "returncode": 0,
+      "timedout": false,
+      "elapsed_seconds": 62.4,
+      "thread_id": "01a18b1d-be01-7783-a1e7-d345e23f6a62",
+      "event_types": {
+        "thread.started": 1,
+        "turn.started": 1,
+        "item.completed": 20,
+        "item.started": 17,
+        "turn.completed": 1
+      },
+      "errors": [],
+      "command_count": 16,
+      "worklogs": [
+        "docs/context-keeper/worklogs/2026-10-30-客户编号原始文本修复.md",
+        "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md"
+      ],
+      "experiences": [
+        "docs/context-keeper/evolution/原始文本编号合同.md"
+      ],
+      "prompt": "客户编号导入也出现同类问题。请参考以前订单编号的处理修复客户入口并验证；两者接口合同相同，不增加依赖，真实上游样本仍未获得。",
+      "prompt_sha256": "8b968ecd26e76cbb238fa1a59899060dc8b68e8a47093b51364646611579d69c",
+      "comparison": {
+        "prior_log_count": 1,
+        "prior_logs": {
+          "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md": {
+            "unchanged": true,
+            "prefix_preserved": true,
+            "added_characters": 0
+          }
+        },
+        "new_logs": [
+          "docs/context-keeper/worklogs/2026-10-30-客户编号原始文本修复.md"
+        ],
+        "experience_count": 1,
+        "changed_business_files": []
+      }
+    },
+    {
+      "variant": "trial_a",
+      "stage": "supplier",
+      "returncode": 0,
+      "timedout": false,
+      "elapsed_seconds": 50.64,
+      "thread_id": "01a18b1e-e700-7470-a745-430acb4c4ed8",
+      "event_types": {
+        "thread.started": 1,
+        "turn.started": 1,
+        "item.completed": 18,
+        "item.started": 15,
+        "turn.completed": 1
+      },
+      "errors": [],
+      "command_count": 14,
+      "worklogs": [
+        "docs/context-keeper/worklogs/2026-10-30-供应商编号原始文本修复.md",
+        "docs/context-keeper/worklogs/2026-10-30-客户编号原始文本修复.md",
+        "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md"
+      ],
+      "experiences": [
+        "docs/context-keeper/evolution/原始文本编号合同.md"
+      ],
+      "prompt": "供应商编号导入也出现同类问题。请参考以前的处理修复这个入口并验证；合同与订单、客户一致，不增加依赖，真实上游样本仍未获得。",
+      "prompt_sha256": "1e9380cd89fd1ada304fd8cd962819e892b7b4679eca70ec06ebe922506a1769",
+      "comparison": {
+        "prior_log_count": 2,
+        "prior_logs": {
+          "docs/context-keeper/worklogs/2026-10-30-客户编号原始文本修复.md": {
+            "unchanged": true,
+            "prefix_preserved": true,
+            "added_characters": 0
+          },
+          "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md": {
+            "unchanged": true,
+            "prefix_preserved": true,
+            "added_characters": 0
+          }
+        },
+        "new_logs": [
+          "docs/context-keeper/worklogs/2026-10-30-供应商编号原始文本修复.md"
+        ],
+        "experience_count": 1,
+        "changed_business_files": []
+      }
+    },
+    {
+      "variant": "trial_a",
+      "stage": "preference",
+      "returncode": 0,
+      "timedout": false,
+      "elapsed_seconds": 29.37,
+      "thread_id": "01a18b1f-eab2-73c3-9e27-659c7d26d1ba",
+      "event_types": {
+        "thread.started": 1,
+        "turn.started": 1,
+        "item.completed": 11,
+        "item.started": 9,
+        "turn.completed": 1
+      },
+      "errors": [],
+      "command_count": 9,
+      "worklogs": [
+        "docs/context-keeper/worklogs/2026-10-30-供应商编号原始文本修复.md",
+        "docs/context-keeper/worklogs/2026-10-30-客户编号原始文本修复.md",
+        "docs/context-keeper/worklogs/2026-10-30-展示用语偏好.md",
+        "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md"
+      ],
+      "experiences": [
+        "docs/context-keeper/evolution/原始文本编号合同.md"
+      ],
+      "prompt": "后续对我说明时，把“编号归一化”统一称为“编号原文保留”。这只是展示用语偏好，不改业务代码。",
+      "prompt_sha256": "153e29095acdaf109db8067c18aac01ec90e66da2b011d36ea55f4d1d5d3443b",
+      "comparison": {
+        "prior_log_count": 3,
+        "prior_logs": {
+          "docs/context-keeper/worklogs/2026-10-30-供应商编号原始文本修复.md": {
+            "unchanged": true,
+            "prefix_preserved": true,
+            "added_characters": 0
+          },
+          "docs/context-keeper/worklogs/2026-10-30-客户编号原始文本修复.md": {
+            "unchanged": true,
+            "prefix_preserved": true,
+            "added_characters": 0
+          },
+          "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md": {
+            "unchanged": true,
+            "prefix_preserved": true,
+            "added_characters": 0
+          }
+        },
+        "new_logs": [
+          "docs/context-keeper/worklogs/2026-10-30-展示用语偏好.md"
+        ],
+        "experience_count": 1,
+        "changed_business_files": []
+      }
+    },
+    {
+      "variant": "trial_b",
+      "stage": "initial",
+      "returncode": 0,
+      "timedout": false,
+      "elapsed_seconds": 51.51,
+      "thread_id": "01a18b1b-3424-7453-a46e-a33589edc3af",
+      "event_types": {
+        "thread.started": 1,
+        "turn.started": 1,
+        "item.completed": 16,
+        "item.started": 12,
+        "turn.completed": 1
+      },
+      "errors": [],
+      "command_count": 11,
+      "worklogs": [
+        "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md"
+      ],
+      "experiences": [],
+      "prompt": "修复当前订单编号导入。订单编号是原始文本标识，现有 int 转换导致前导零丢失、字母编号报错，这是错误行为。请先跑现有测试确认现象，再修复并验证，不增加依赖。真实上游样本尚未获得，真实样本验收仍是后续待办。",
+      "prompt_sha256": "53deb8920c5edad18e9c3878cd8a5519e279cd073c41eef3d934864dd6a26f12",
+      "comparison": {
+        "prior_log_count": 0,
+        "prior_logs": {},
+        "new_logs": [
+          "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md"
+        ],
+        "experience_count": 0,
+        "changed_business_files": [
+          "order_ids.py"
+        ]
+      }
+    },
+    {
+      "variant": "trial_b",
+      "stage": "append",
+      "returncode": 0,
+      "timedout": false,
+      "elapsed_seconds": 35.18,
+      "thread_id": "01a18b1b-3424-7453-a46e-a33589edc3af",
+      "event_types": {
+        "thread.started": 1,
+        "turn.started": 1,
+        "item.completed": 11,
+        "item.started": 8,
+        "turn.completed": 1
+      },
+      "errors": [],
+      "command_count": 6,
+      "worklogs": [
+        "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md"
+      ],
+      "experiences": [],
+      "prompt": "补充核对了订单接口合同：空字符串必须抛出 ValueError，但首尾空格属于编号原文，不能 strip。刚才确认的前导零和字母保留要求仍有效。请在刚才的修复上补充这两个边界用例并完成修正；真实上游样本仍未获得。",
+      "prompt_sha256": "e84c1b6b596e9292f810e4f0fc4729941cf463e36c51f35e80432a49da705360",
+      "comparison": {
+        "prior_log_count": 1,
+        "prior_logs": {
+          "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md": {
+            "unchanged": false,
+            "prefix_preserved": true,
+            "added_characters": 519
+          }
+        },
+        "new_logs": [],
+        "experience_count": 0,
+        "changed_business_files": [
+          "order_ids.py",
+          "test_order_ids.py"
+        ]
+      }
+    },
+    {
+      "variant": "trial_b",
+      "stage": "resume",
+      "returncode": 0,
+      "timedout": false,
+      "elapsed_seconds": 27.75,
+      "thread_id": "01a18b1d-3093-73f2-80d1-47243ad478d3",
+      "event_types": {
+        "thread.started": 1,
+        "turn.started": 1,
+        "item.completed": 7,
+        "item.started": 5,
+        "turn.completed": 1
+      },
+      "errors": [],
+      "command_count": 5,
+      "worklogs": [
+        "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md"
+      ],
+      "experiences": [],
+      "prompt": "继续上次订单编号导入修复。现在做到哪里，空字符串与首尾空格分别怎么处理，还缺什么验收？先说明现状，这轮不要改业务代码。",
+      "prompt_sha256": "d2c2fbbea61cda4b8efd5ccd410cb0972ddf468a664e7b2fcd871e32d3e740b1",
+      "comparison": {
+        "prior_log_count": 1,
+        "prior_logs": {
+          "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md": {
+            "unchanged": true,
+            "prefix_preserved": true,
+            "added_characters": 0
+          }
+        },
+        "new_logs": [],
+        "experience_count": 0,
+        "changed_business_files": []
+      }
+    },
+    {
+      "variant": "trial_b",
+      "stage": "reuse",
+      "returncode": 0,
+      "timedout": false,
+      "elapsed_seconds": 70.99,
+      "thread_id": "01a18b1d-bdfc-7722-8173-cc071ca24631",
+      "event_types": {
+        "thread.started": 1,
+        "turn.started": 1,
+        "item.completed": 19,
+        "item.started": 16,
+        "turn.completed": 1
+      },
+      "errors": [],
+      "command_count": 14,
+      "worklogs": [
+        "docs/context-keeper/worklogs/2026-10-30-客户编号原始文本修复.md",
+        "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md"
+      ],
+      "experiences": [
+        "docs/context-keeper/evolution/CK-001-编号原始文本合同.md"
+      ],
+      "prompt": "客户编号导入也出现同类问题。请参考以前订单编号的处理修复客户入口并验证；两者接口合同相同，不增加依赖，真实上游样本仍未获得。",
+      "prompt_sha256": "8b968ecd26e76cbb238fa1a59899060dc8b68e8a47093b51364646611579d69c",
+      "comparison": {
+        "prior_log_count": 1,
+        "prior_logs": {
+          "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md": {
+            "unchanged": true,
+            "prefix_preserved": true,
+            "added_characters": 0
+          }
+        },
+        "new_logs": [
+          "docs/context-keeper/worklogs/2026-10-30-客户编号原始文本修复.md"
+        ],
+        "experience_count": 1,
+        "changed_business_files": []
+      }
+    },
+    {
+      "variant": "trial_b",
+      "stage": "supplier",
+      "returncode": 0,
+      "timedout": false,
+      "elapsed_seconds": 54.51,
+      "thread_id": "01a18b1e-e700-72b1-83dd-cc68488d296b",
+      "event_types": {
+        "thread.started": 1,
+        "turn.started": 1,
+        "item.completed": 15,
+        "item.started": 12,
+        "turn.completed": 1
+      },
+      "errors": [],
+      "command_count": 11,
+      "worklogs": [
+        "docs/context-keeper/worklogs/2026-10-30-供应商编号原始文本修复.md",
+        "docs/context-keeper/worklogs/2026-10-30-客户编号原始文本修复.md",
+        "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md"
+      ],
+      "experiences": [
+        "docs/context-keeper/evolution/CK-001-编号原始文本合同.md"
+      ],
+      "prompt": "供应商编号导入也出现同类问题。请参考以前的处理修复这个入口并验证；合同与订单、客户一致，不增加依赖，真实上游样本仍未获得。",
+      "prompt_sha256": "1e9380cd89fd1ada304fd8cd962819e892b7b4679eca70ec06ebe922506a1769",
+      "comparison": {
+        "prior_log_count": 2,
+        "prior_logs": {
+          "docs/context-keeper/worklogs/2026-10-30-客户编号原始文本修复.md": {
+            "unchanged": true,
+            "prefix_preserved": true,
+            "added_characters": 0
+          },
+          "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md": {
+            "unchanged": true,
+            "prefix_preserved": true,
+            "added_characters": 0
+          }
+        },
+        "new_logs": [
+          "docs/context-keeper/worklogs/2026-10-30-供应商编号原始文本修复.md"
+        ],
+        "experience_count": 1,
+        "changed_business_files": []
+      }
+    },
+    {
+      "variant": "trial_b",
+      "stage": "preference",
+      "returncode": 0,
+      "timedout": false,
+      "elapsed_seconds": 30.04,
+      "thread_id": "01a18b1f-eaa5-7212-84b6-b0dbee174ec2",
+      "event_types": {
+        "thread.started": 1,
+        "turn.started": 1,
+        "item.completed": 11,
+        "item.started": 9,
+        "turn.completed": 1
+      },
+      "errors": [],
+      "command_count": 9,
+      "worklogs": [
+        "docs/context-keeper/worklogs/2026-10-30-供应商编号原始文本修复.md",
+        "docs/context-keeper/worklogs/2026-10-30-客户编号原始文本修复.md",
+        "docs/context-keeper/worklogs/2026-10-30-编号展示用语偏好.md",
+        "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md"
+      ],
+      "experiences": [
+        "docs/context-keeper/evolution/CK-001-编号原始文本合同.md"
+      ],
+      "prompt": "后续对我说明时，把“编号归一化”统一称为“编号原文保留”。这只是展示用语偏好，不改业务代码。",
+      "prompt_sha256": "153e29095acdaf109db8067c18aac01ec90e66da2b011d36ea55f4d1d5d3443b",
+      "comparison": {
+        "prior_log_count": 3,
+        "prior_logs": {
+          "docs/context-keeper/worklogs/2026-10-30-供应商编号原始文本修复.md": {
+            "unchanged": true,
+            "prefix_preserved": true,
+            "added_characters": 0
+          },
+          "docs/context-keeper/worklogs/2026-10-30-客户编号原始文本修复.md": {
+            "unchanged": true,
+            "prefix_preserved": true,
+            "added_characters": 0
+          },
+          "docs/context-keeper/worklogs/2026-10-30-订单编号原始文本修复.md": {
+            "unchanged": true,
+            "prefix_preserved": true,
+            "added_characters": 0
+          }
+        },
+        "new_logs": [
+          "docs/context-keeper/worklogs/2026-10-30-编号展示用语偏好.md"
+        ],
+        "experience_count": 1,
+        "changed_business_files": []
+      }
+    }
+  ],
+  "runtime_contexts": {
+    "01a18b1d-3093-75c3-b024-5371e40bb07e": [
+      {
+        "model": "gpt-6.1-sol",
+        "effort": "medium",
+        "approval_policy": "never",
+        "sandbox_policy": {
+          "type": "danger-full-access"
+        }
+      }
+    ],
+    "01a18b1d-be01-7783-a1e7-d345e23f6a62": [
+      {
+        "model": "gpt-6.1-sol",
+        "effort": "medium",
+        "approval_policy": "never",
+        "sandbox_policy": {
+          "type": "danger-full-access"
+        }
+      }
+    ],
+    "01a18b1f-eab2-73c3-9e27-659c7d26d1ba": [
+      {
+        "model": "gpt-6.1-sol",
+        "effort": "medium",
+        "approval_policy": "never",
+        "sandbox_policy": {
+          "type": "danger-full-access"
+        }
+      }
+    ],
+    "01a18b1b-3424-7483-9ad4-a33c1d13a3cd": [
+      {
+        "model": "gpt-6.1-sol",
+        "effort": "medium",
+        "approval_policy": "never",
+        "sandbox_policy": {
+          "type": "danger-full-access"
+        }
+      },
+      {
+        "model": "gpt-6.1-sol",
+        "effort": "medium",
+        "approval_policy": "never",
+        "sandbox_policy": {
+          "type": "workspace-write",
+          "network_access": false,
+          "exclude_tmpdir_env_var": false,
+          "exclude_slash_tmp": false
+        }
+      }
+    ],
+    "01a18b1e-e700-7470-a745-430acb4c4ed8": [
+      {
+        "model": "gpt-6.1-sol",
+        "effort": "medium",
+        "approval_policy": "never",
+        "sandbox_policy": {
+          "type": "danger-full-access"
+        }
+      }
+    ],
+    "01a18b1f-eaa5-7212-84b6-b0dbee174ec2": [
+      {
+        "model": "gpt-6.1-sol",
+        "effort": "medium",
+        "approval_policy": "never",
+        "sandbox_policy": {
+          "type": "danger-full-access"
+        }
+      }
+    ],
+    "01a18b1d-bdfc-7722-8173-cc071ca24631": [
+      {
+        "model": "gpt-6.1-sol",
+        "effort": "medium",
+        "approval_policy": "never",
+        "sandbox_policy": {
+          "type": "danger-full-access"
+        }
+      }
+    ],
+    "01a18b1e-e700-72b1-83dd-cc68488d296b": [
+      {
+        "model": "gpt-6.1-sol",
+        "effort": "medium",
+        "approval_policy": "never",
+        "sandbox_policy": {
+          "type": "danger-full-access"
+        }
+      }
+    ],
+    "01a18b1b-3424-7453-a46e-a33589edc3af": [
+      {
+        "model": "gpt-6.1-sol",
+        "effort": "medium",
+        "approval_policy": "never",
+        "sandbox_policy": {
+          "type": "danger-full-access"
+        }
+      },
+      {
+        "model": "gpt-6.1-sol",
+        "effort": "medium",
+        "approval_policy": "never",
+        "sandbox_policy": {
+          "type": "workspace-write",
+          "network_access": false,
+          "exclude_tmpdir_env_var": false,
+          "exclude_slash_tmp": false
+        }
+      }
+    ],
+    "01a18b1d-3093-73f2-80d1-47243ad478d3": [
+      {
+        "model": "gpt-6.1-sol",
+        "effort": "medium",
+        "approval_policy": "never",
+        "sandbox_policy": {
+          "type": "danger-full-access"
+        }
+      }
+    ]
+  },
+  "acceptance_gates": {
+    "trial_a": {
+      "experience_counts_by_stage": [
+        0,
+        0,
+        0,
+        1,
+        1,
+        1
+      ],
+      "stable_experience_path": "docs/context-keeper/evolution/原始文本编号合同.md",
+      "auto_capture_after_independent_customer_fix": true,
+      "same_session_append_prefix_preserved": true,
+      "cross_session_prior_logs_unchanged": true,
+      "multi_keyword_resume_returns_latest_contract": true,
+      "supplier_search_read_and_adoption": true,
+      "preference_leaves_experience_files_and_index_unchanged": true,
+      "independent_business_audit": {
+        "returncode": 0,
+        "cases": {
+          "normalize_order_id": [
+            {
+              "input": "00123",
+              "result": "00123"
+            },
+            {
+              "input": "A007",
+              "result": "A007"
+            },
+            {
+              "input": "123",
+              "result": "123"
+            },
+            {
+              "input": "  A007  ",
+              "result": "  A007  "
+            },
+            {
+              "input": "   ",
+              "result": "   "
+            },
+            {
+              "input": "",
+              "raises": "ValueError"
+            }
+          ],
+          "normalize_customer_id": [
+            {
+              "input": "00123",
+              "result": "00123"
+            },
+            {
+              "input": "A007",
+              "result": "A007"
+            },
+            {
+              "input": "123",
+              "result": "123"
+            },
+            {
+              "input": "  A007  ",
+              "result": "  A007  "
+            },
+            {
+              "input": "   ",
+              "result": "   "
+            },
+            {
+              "input": "",
+              "raises": "ValueError"
+            }
+          ],
+          "normalize_supplier_id": [
+            {
+              "input": "00123",
+              "result": "00123"
+            },
+            {
+              "input": "A007",
+              "result": "A007"
+            },
+            {
+              "input": "123",
+              "result": "123"
+            },
+            {
+              "input": "  A007  ",
+              "result": "  A007  "
+            },
+            {
+              "input": "   ",
+              "result": "   "
+            },
+            {
+              "input": "",
+              "raises": "ValueError"
+            }
+          ]
+        },
+        "error": ""
+      }
+    },
+    "trial_b": {
+      "experience_counts_by_stage": [
+        0,
+        0,
+        0,
+        1,
+        1,
+        1
+      ],
+      "stable_experience_path": "docs/context-keeper/evolution/CK-001-编号原始文本合同.md",
+      "auto_capture_after_independent_customer_fix": true,
+      "same_session_append_prefix_preserved": true,
+      "cross_session_prior_logs_unchanged": true,
+      "multi_keyword_resume_returns_latest_contract": true,
+      "supplier_search_read_and_adoption": true,
+      "preference_leaves_experience_files_and_index_unchanged": true,
+      "independent_business_audit": {
+        "returncode": 0,
+        "cases": {
+          "normalize_order_id": [
+            {
+              "input": "00123",
+              "result": "00123"
+            },
+            {
+              "input": "A007",
+              "result": "A007"
+            },
+            {
+              "input": "123",
+              "result": "123"
+            },
+            {
+              "input": "  A007  ",
+              "result": "  A007  "
+            },
+            {
+              "input": "   ",
+              "result": "   "
+            },
+            {
+              "input": "",
+              "raises": "ValueError"
+            }
+          ],
+          "normalize_customer_id": [
+            {
+              "input": "00123",
+              "result": "00123"
+            },
+            {
+              "input": "A007",
+              "result": "A007"
+            },
+            {
+              "input": "123",
+              "result": "123"
+            },
+            {
+              "input": "  A007  ",
+              "result": "  A007  "
+            },
+            {
+              "input": "   ",
+              "result": "   "
+            },
+            {
+              "input": "",
+              "raises": "ValueError"
+            }
+          ],
+          "normalize_supplier_id": [
+            {
+              "input": "00123",
+              "result": "00123"
+            },
+            {
+              "input": "A007",
+              "result": "A007"
+            },
+            {
+              "input": "123",
+              "result": "123"
+            },
+            {
+              "input": "  A007  ",
+              "result": "  A007  "
+            },
+            {
+              "input": "   ",
+              "result": "   "
+            },
+            {
+              "input": "",
+              "raises": "ValueError"
+            }
+          ]
+        },
+        "error": ""
+      }
+    }
+  },
+  "protection_checks": {
+    "tested_candidate_unchanged": true,
+    "working_tree_matches_tested_candidate_files": true,
+    "user_rule_entries_unchanged": true,
+    "temporary_auth_symlinks_removed": true
+  },
+  "regression_tests": {
+    "command": "python3 -m unittest discover -s tests -q",
+    "count": 143,
+    "result": "pass",
+    "scope": "source regression suite before live testing; source fingerprints unchanged since"
+  },
+  "generic_skill_validator": {
+    "result": "inherited incompatibility; not claimed passed",
+    "baseline_and_candidate_same": "Unexpected keys description_en, description_zh, display_name, display_name_en, version; existing release frontmatter unchanged",
+    "runner": "uv run --with pyyaml --no-project python quick_validate.py; system python initially lacked PyYAML"
+  },
+  "evidence": {
+    "raw_root": "<test-root>",
+    "raw_hashes": {
+      "trial_a-initial.commands.json": "a35df5e5f43d270e0b94c8061c71a1cf9291a07d625a3c06d25d24a737e47bf9",
+      "trial_a-initial.prompt.txt": "53deb8920c5edad18e9c3878cd8a5519e279cd073c41eef3d934864dd6a26f12",
+      "trial_a-initial.final.txt": "93d5a7d0be4c90659d65d2968c817f44aa2c6fdf3994f12fbd003f83a34cf1b4",
+      "trial_a-initial.result.json": "c28109621150ee8f10eb3e1329912e6a1a13fd90e8e5e9c596024c9e4e81246b",
+      "trial_a-initial.comparison.json": "5eb6369a2a82ce6ea16405fb182f66ac602c311b1ffbd5532cc890ea2b72e976",
+      "trial_a-initial.stderr.txt": "02faf371e7faf91ddce8c1215dd20578aa361bc74032ab9f6fced520483e3ef6",
+      "trial_a-initial.events.jsonl": "9230c844aab4775a6b724bab3c291d5e8f14175c13ea9ec9030c1ebc33574f78",
+      "trial_a-append.result.json": "ad277c9c8a92eeb079f84d5c71f45ca6ef475cc2f922090d411173a03218b442",
+      "trial_a-append.comparison.json": "f854d277fbb201697ead6ed9b3a2fe2587e80e2d65d65731203158b55442dfc6",
+      "trial_a-append.prompt.txt": "e84c1b6b596e9292f810e4f0fc4729941cf463e36c51f35e80432a49da705360",
+      "trial_a-append.commands.json": "78476383c9969e0b62c20b4f2d735483946ef56423c065c9c1ad808a002956be",
+      "trial_a-append.final.txt": "854216af72500f1a1f6c5b9d47d6cd2d9204d934848ab07157e723a050f2f901",
+      "trial_a-append.stderr.txt": "e987046bc7c2fecf81f6fb5598b770316cca2fad9a3a16c70b9ac409597551b3",
+      "trial_a-append.events.jsonl": "b67e5d107d3a414d5904bfdecf4a4d993036f8d583103b9ff859cbf91c5a9e43",
+      "trial_a-resume.events.jsonl": "851e11118ac4c01732f057d12bb08d04c5da6faba1aecd4812f1798dcfc518c4",
+      "trial_a-resume.result.json": "af9583168576aaa7aaea9abd0597b91324e14f19a85e98d4d7d732b2e9912aca",
+      "trial_a-resume.stderr.txt": "11ee5d20ab3fd2d4ea22cda919c6fcc7df243965ffb488336c1b2abbd783c220",
+      "trial_a-resume.comparison.json": "f10ff72a3ad1ebd856379c61a5d272d9e9d0bad6e0be0b0ac5793f944ab6876a",
+      "trial_a-resume.prompt.txt": "d2c2fbbea61cda4b8efd5ccd410cb0972ddf468a664e7b2fcd871e32d3e740b1",
+      "trial_a-resume.final.txt": "fdfa44739c33700972909025b8c4cb82a0dabd65333469628136408fd2d5fde7",
+      "trial_a-resume.commands.json": "51dd0da3432689b3759dc936502737e4beaf13dbe215f3c392402d7d3cca2e2c",
+      "trial_a-reuse.prompt.txt": "8b968ecd26e76cbb238fa1a59899060dc8b68e8a47093b51364646611579d69c",
+      "trial_a-reuse.commands.json": "7a614b086549819c6b9e5dc20f1d36656e6fa9e1faa5c228b0c733e84d46f164",
+      "trial_a-reuse.final.txt": "b09fb5fc65b392bbbe778842ddb1a452035eaf04737dcda8522306c54ebdd17c",
+      "trial_a-reuse.comparison.json": "a1813f9630ce85a6e41768351ec7228dbdde978bc7234affba5562f7986caf2b",
+      "trial_a-reuse.result.json": "f86f3e666238466953df060f935b2dc65d135695b6b98a69f10a1b9cc2a07eb1",
+      "trial_a-reuse.stderr.txt": "fffa93e6a47241091ad411f23c3724b2426181985cac882b370290fc1009c0a6",
+      "trial_a-reuse.events.jsonl": "d25dddeb5bcc2889c1a38e27ec846672bae134e3aff4e9197cd9c46ef9ed3567",
+      "trial_a-supplier.prompt.txt": "1e9380cd89fd1ada304fd8cd962819e892b7b4679eca70ec06ebe922506a1769",
+      "trial_a-supplier.final.txt": "e904ab24b245c0b1a83693195187462a502d4a570248725f4696ef4a1571dde3",
+      "trial_a-supplier.events.jsonl": "30d2a4dce4fb5cae53747b7a1ec68114684b00ff38ed4ab630a1026b5c9d794e",
+      "trial_a-supplier.commands.json": "c8fef93a4da39101009696dc2e02c38e2ef6c298bbf530070e5903e76139ebca",
+      "trial_a-supplier.result.json": "153fca0ee497b5611dcbd9be0fff1355ae36fe2735dc90ae463b9f113cb572bd",
+      "trial_a-supplier.comparison.json": "237d0533f28df4e88fc1ff8ef4ea7843813d3c52a98a675a2a262ff9c9710c89",
+      "trial_a-supplier.stderr.txt": "e2e0a7f25ad1babb57e872e77ef2d5dda86d7f37fe89a5aa5f276d491f7c5802",
+      "trial_a-preference.result.json": "2fbacd767d8d921b483535628eb060bb3ac6a158e24ead3ed3b97ef2e0c09379",
+      "trial_a-preference.prompt.txt": "153e29095acdaf109db8067c18aac01ec90e66da2b011d36ea55f4d1d5d3443b",
+      "trial_a-preference.commands.json": "491695014cfb47c2b15720c75862fc25146ebca1820b0b614b83b2d3dd01c01c",
+      "trial_a-preference.final.txt": "b1b382223e163a16c4bbd27dd0f5b8e918f3091f816f8e7cf647200b9f792e80",
+      "trial_a-preference.stderr.txt": "5e93e694cacb10dc09a770f7bf3624f772ff719ca6f06761187ed18c4a30a16f",
+      "trial_a-preference.comparison.json": "82fa383ff7037e2936fa3eb5e6ff250309f2e785a544bc5139058bb47bc4c74f",
+      "trial_a-preference.events.jsonl": "bdbe1e35b9a116e7b3aac58b0c3ef730a61dc49b3bd5bbffdb1aaeef4dd55fc6",
+      "trial_b-initial.prompt.txt": "53deb8920c5edad18e9c3878cd8a5519e279cd073c41eef3d934864dd6a26f12",
+      "trial_b-initial.events.jsonl": "916a8c82d485e1b81a5cdc255a9a1bd8c79caf0a07cc288f3054e4df1bba6861",
+      "trial_b-initial.final.txt": "c6fce0ab1467cd5c0be40ca43ae8c0d6d426147007772a7a0f34090bcf915cf4",
+      "trial_b-initial.result.json": "8138e2e7bf24c627a56ad9e027768a45e7c5036304aea2bd700dad557bc1a140",
+      "trial_b-initial.commands.json": "6ed88190afc9557dae03ba5427d4c8463ba5d8303bc7d0fe1cd6af1e28edade9",
+      "trial_b-initial.stderr.txt": "b058a87f9ca3099f8da4624dc3c69d9ccd79c98d6ab807a2ea6fd06d666dcf5a",
+      "trial_b-initial.comparison.json": "5eb6369a2a82ce6ea16405fb182f66ac602c311b1ffbd5532cc890ea2b72e976",
+      "trial_b-append.comparison.json": "ec2ec2291772107fc85f15edf6d0c148689c8edd98d71c1188a73d098e2cb700",
+      "trial_b-append.result.json": "7ce19c92f5e834965b7f0b039c3eef8b9d15d03bab05b75ccc418ac1f734613f",
+      "trial_b-append.prompt.txt": "e84c1b6b596e9292f810e4f0fc4729941cf463e36c51f35e80432a49da705360",
+      "trial_b-append.final.txt": "79a961d42e66987f733d9f107849ff147b15882a8d704343180ecf4bbb4cf5af",
+      "trial_b-append.events.jsonl": "ea0ccc48f9b554ae2a9796bc03257e0b67cbb0f628b98b700654ef2c709ef619",
+      "trial_b-append.commands.json": "c7cc5f6f7a0dde182f83f6665b6c909b41b712fffef7642668e2e18a018e66da",
+      "trial_b-append.stderr.txt": "54f25752d1fa67bee28010ff4d5daf2e9ad77bae05804f6d46d2a918bc3a818d",
+      "trial_b-resume.result.json": "50e733c2751ae87c37001d07e8f8cb4408a67859c21507259f0a869f4192a28e",
+      "trial_b-resume.events.jsonl": "50c4c935baeda5ad41a7d5135e83a2aedaae140f3c592b19b201d1bac4e19b28",
+      "trial_b-resume.commands.json": "7e8883275d886e89cfdca3ac2b8a8d0c46eeb794545abbbbf5b1b76d2946a4a2",
+      "trial_b-resume.stderr.txt": "f5c20669d782037bff99f2ba334610ca5e7bf30a83e62fd312be777ffca09bab",
+      "trial_b-resume.final.txt": "057a4f52aac160d80634e74f64922826ed0ca7368f9bebc36197dd430fd686ea",
+      "trial_b-resume.comparison.json": "f10ff72a3ad1ebd856379c61a5d272d9e9d0bad6e0be0b0ac5793f944ab6876a",
+      "trial_b-resume.prompt.txt": "d2c2fbbea61cda4b8efd5ccd410cb0972ddf468a664e7b2fcd871e32d3e740b1",
+      "trial_b-reuse.stderr.txt": "13442c98f7bae13cb79dbc661fb2008e781774fb896dd781dd0460b69da8613a",
+      "trial_b-reuse.comparison.json": "a1813f9630ce85a6e41768351ec7228dbdde978bc7234affba5562f7986caf2b",
+      "trial_b-reuse.commands.json": "48c5fddf83f378654133581f52132220cb6c671e4ea4e7a8fcbb203c218dcf21",
+      "trial_b-reuse.events.jsonl": "190c9c38b931ade24ebbb9aa0651e59d6a8d66a7a5397b407e34ddbd9c1c0362",
+      "trial_b-reuse.result.json": "aa0b32e54163fba88ed4aadc6f1af3e86c04fdcbafb1379b6ab656d0db2e493c",
+      "trial_b-reuse.final.txt": "80c88660b70e522a3fc0356c6cc7cabc3838e880aef279d8a153d9b10a92009e",
+      "trial_b-reuse.prompt.txt": "8b968ecd26e76cbb238fa1a59899060dc8b68e8a47093b51364646611579d69c",
+      "trial_b-supplier.final.txt": "38341cb44361b478d8a4c394ad3692ec058fd722eae72533fe7a84578664a6f1",
+      "trial_b-supplier.comparison.json": "237d0533f28df4e88fc1ff8ef4ea7843813d3c52a98a675a2a262ff9c9710c89",
+      "trial_b-supplier.prompt.txt": "1e9380cd89fd1ada304fd8cd962819e892b7b4679eca70ec06ebe922506a1769",
+      "trial_b-supplier.commands.json": "aa25337913656fe62dec5f67089d6f5d1f37e5c6061211df7d4cd36dd4ed831a",
+      "trial_b-supplier.result.json": "a6537d6ecd604533eca2ecf681822a996d2d3f25a7202f11e5cb3ad0ddda6f86",
+      "trial_b-supplier.stderr.txt": "4c8711888c162c6f2133ee069925346c9315ddb94539665fe8d0fff94f263268",
+      "trial_b-supplier.events.jsonl": "438abbc99c411b8703e40def1a575b0c12ba2bedc707efce45eb7326aae62aab",
+      "trial_b-preference.result.json": "830e21b0fd157156e3b05022b9ed257508c3d53d7bf03cbaa0316ca7c9cb0fef",
+      "trial_b-preference.stderr.txt": "a28dd3b91da14b80026b1713367ddfcbfcefc354ca5d7ba55aa952591feaf0d9",
+      "trial_b-preference.comparison.json": "09a4b7c8863a20276d62196bfa7e607f73ce8b3dc853835f174425aacc9fdd7e",
+      "trial_b-preference.events.jsonl": "880f8465ae77cbe1cf0493538893c39a53a8ab4155498a7c2fd3ce3e20e183d2",
+      "trial_b-preference.final.txt": "d75a3758e8e6ec5fb93d519a30e5c833d980225ebc3b5967e2bf29c1b6b36a04",
+      "trial_b-preference.prompt.txt": "153e29095acdaf109db8067c18aac01ec90e66da2b011d36ea55f4d1d5d3443b",
+      "trial_b-preference.commands.json": "98494827f93c11affa102bb2e5da697423c9e42e5ba2fb41fad9b4c5e4a3e8b4"
+    },
+    "raw_trajectories_copied": false,
+    "redaction": "temporary root and personal home paths replaced; original hashes describe pre-redaction raw files; no reasoning, auth or configuration contents copied"
+  },
+  "limitations": [
+    "two successful independent scenarios do not prove universal automatic behavior or statistical reliability",
+    "isolated HOME/CODEX_HOME, model settings retained, no global plugins/hooks/rules; desktop/Claude/WorkBuddy not covered",
+    "real upstream sample and production acceptance still pending",
+    "recorded-fixture-replay.json is a deterministic replay, not extra model turns",
+    "fixture projects have no initial Git commit; status empty-HEAD warning not treated as Git-diff success"
+  ]
+}

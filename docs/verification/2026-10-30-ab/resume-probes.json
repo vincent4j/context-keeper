@@ -1,0 +1,34 @@
+[
+  {
+    "variant": "baseline",
+    "query": "订单 编号 导入 空字符串 首尾空格 验收",
+    "scope": "replay of actual resume-before snapshot; script diagnostic, not additional model run",
+    "returncode": 0,
+    "output": "最近工作摘要：\n\n[1] docs/context-keeper/worklogs/2026-10-30-修复订单编号原始文本导入.md\n**类型：** bugfix | 项目：编号导入\n**完成：** 移除订单编号 int 转换，增加空字符串 ValueError 校验，现有 5 项测试全部通过。\n**下一步：** 获得真实上游样本后验收。\n\n近期主题摘要：\n## 主题摘要（按类型）\n",
+    "error": ""
+  },
+  {
+    "variant": "baseline",
+    "query": "订单",
+    "scope": "replay of actual resume-before snapshot; script diagnostic, not additional model run",
+    "returncode": 0,
+    "output": "最近工作摘要：\n\n[1] docs/context-keeper/worklogs/2026-10-30-修复订单编号原始文本导入.md\n**类型：** bugfix | 项目：编号导入\n**完成：** 移除订单编号 int 转换，增加空字符串 ValueError 校验，现有 5 项测试全部通过。\n**下一步：** 获得真实上游样本后验收。\n\n相关未完成事项：\n- 真实上游样本验收；状态：未开始；触发：获得真实上游样本后；完成：验证真实样本订单编号原文得到保留；证据：[本轮日志](worklogs/2026-10-30-修复订单编号原始文本导入.md)。\n\n近期主题摘要：\n## 主题摘要（按类型）\n\n相关经验：\n- [已验证] 订单编号保留原始文本：先拒绝空字符串，再原样返回非空字符串，不做数值转换或 strip；以现有测试检查回归，获得真实样本后单独验收。（/private/var/folders/r6/qgw1rpbj2q51tgk942d0vz4w0000gn/T/ck-resume-snapshot-8wytac83/docs/context-keeper/evolution/订单编号保留原始文本.md）\n- 2026-10-30 - 修复订单编号原始文本导入 `bugfix` | **任务：** 移除 int 转换，补充空字符串拒绝与首尾空格保留边界，现有 5 项测试全部通过；未增加依赖。 | **关键经验：** 空字符串抛出 ValueError，非空订单编号保留原文，不能 strip；真实样本验收仍待完成。\n",
+    "error": ""
+  },
+  {
+    "variant": "current",
+    "query": "订单 编号 导入 空字符串 首尾空格 验收",
+    "scope": "replay of actual resume-before snapshot; script diagnostic, not additional model run",
+    "returncode": 0,
+    "output": "相关当前主题与要求：\n- 未找到相关当前主题；历史摘要不能代替当前状态。\n\n历史工作摘要（首次记录快照，不代表当前状态）：\n\n[1] docs/context-keeper/worklogs/2026-10-30-修复订单编号原始文本导入.md\n- 快速摘要缺失；以下为有限提取，不代表完整记录\n  - 目标与背景：** 用户明确订单编号是原始文本标识，要求先跑现有测试，再修复验证，不增加依赖；真实上游样本尚未获得，验收继续留待后续。\n  - 操作与方法：** 修改前执行 `python3 -m unittest -v`，3 项中普通数字通过，前导零测试失败（00123 变为 123），字母数字测试报 ValueError（A007）。将 [order_ids.py](../../../order_ids.py) 的 `str(int(raw))` 改为直接返回 raw，添加说明用途的文档字符串…\n  - 观察与当时判断：** 修复后同命令执行现有 [test_order_ids.py](../../../test_order_ids.py)，3 项全部通过，覆盖前导零、字母数字、普通数字。仅有本地单元测试证据，没有真实上游样本验收证据。\n",
+    "error": ""
+  },
+  {
+    "variant": "current",
+    "query": "订单",
+    "scope": "replay of actual resume-before snapshot; script diagnostic, not additional model run",
+    "returncode": 0,
+    "output": "相关当前主题与要求：\n[主题摘要（按类型）] - **订单编号导入修复：** 已去除 int 转换；空字符串抛出 ValueError，其余原始文本（含首尾空格、前导零、字母）原样保留。5 项单元测试全部通过；真实上游样本尚未获得、未验收。来源：[本轮日志](worklogs/2026-10-30-修复订单编号原始文本导入.md)。\n[项目要求] - 订单编号是原始文本标识；用户补充核对接口合同：空字符串必须抛出 ValueError，首尾空格属于原文，不能 strip；前导零和字母保留。不增加依赖；本地测试通过不代表真实样本验收完成。\n\n相关未完成事项：\n- 真实上游订单编号样本验收；状态：未开始；触发：获得真实上游样本后；完成：验证导入后编号与原始文本一致；证据：[本轮日志](worklogs/2026-10-30-修复订单编号原始文本导入.md)。\n\n历史工作摘要（首次记录快照，不代表当前状态）：\n\n[1] docs/context-keeper/worklogs/2026-10-30-修复订单编号原始文本导入.md\n- 快速摘要缺失；以下为有限提取，不代表完整记录\n  - 目标与背景：** 用户明确订单编号是原始文本标识，要求先跑现有测试，再修复验证，不增加依赖；真实上游样本尚未获得，验收继续留待后续。\n  - 操作与方法：** 修改前执行 `python3 -m unittest -v`，3 项中普通数字通过，前导零测试失败（00123 变为 123），字母数字测试报 ValueError（A007）。将 [order_ids.py](../../../order_ids.py) 的 `str(int(raw))` 改为直接返回 raw，添加说明用途的文档字符串…\n  - 观察与当时判断：** 修复后同命令执行现有 [test_order_ids.py](../../../test_order_ids.py)，3 项全部通过，覆盖前导零、字母数字、普通数字。仅有本地单元测试证据，没有真实上游样本验收证据。\n\n相关经验：\n- 2026-10-30 - 修复订单编号原始文本导入 `fix` | **任务：** 先运行现有测试复现，再修复并验证。\n",
+    "error": ""
+  }
+]
