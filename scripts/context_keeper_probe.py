@@ -688,7 +688,7 @@ def _current_memory_items(memory_path: Path) -> list[tuple[str, str]]:
     section = ""
     topic = ""
     current: list[str] = []
-    fence = ""
+    fence: tuple[str, int] | None = None
 
     def flush() -> None:
         if current and current[0].strip() not in ("- 无", "- 暂无"):
@@ -697,14 +697,17 @@ def _current_memory_items(memory_path: Path) -> list[tuple[str, str]]:
 
     for line in _read_text(memory_path).splitlines():
         stripped = line.strip()
-        marker = re.match(r"^(`{3,}|~{3,})", stripped)
-        if marker:
-            if not fence:
-                fence = marker.group(1)[0]
-            elif marker.group(1)[0] == fence:
-                fence = ""
-            continue
+        marker = re.match(r"^ {0,3}(`{3,}|~{3,})(.*)$", line)
         if fence:
+            # A closing fence must use the same character, be at least as
+            # long as the opener, and have no info string after it.
+            if (marker and marker.group(1)[0] == fence[0]
+                    and len(marker.group(1)) >= fence[1]
+                    and not marker.group(2).strip()):
+                fence = None
+            continue
+        if marker and not (marker.group(1)[0] == "`" and "`" in marker.group(2)):
+            fence = (marker.group(1)[0], len(marker.group(1)))
             continue
         if stripped.startswith("## ") or stripped == "---":
             flush()

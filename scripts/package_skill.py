@@ -13,6 +13,11 @@ ROOT = Path(__file__).resolve().parents[1]
 FILES = (
     "SKILL.md",
     "README.md",
+    "DESIGN.md",
+    "assets/context-keeper-icon.png",
+    "docs/verification/2026-10-29-cli/report.md",
+    "docs/verification/2026-10-29-cli/summary.json",
+    "docs/verification/2026-10-29-cli/observations.jsonl",
     "scripts/install.py",
     "scripts/context_keeper_probe.py",
     "references/save.md",

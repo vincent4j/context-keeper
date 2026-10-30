@@ -658,6 +658,31 @@ class CurrentMemoryTests(IsolatedProbeTestCase):
         _, output = _call("search", "--root", str(root), "--query", "虚构关键词")
         self.assertNotIn("[当前主题与要求]", output)
 
+    def test_nested_fence_examples_do_not_displace_real_requirements(self):
+        for opening, inner, closing in (
+            ("````markdown", "```markdown", "````"),
+            ("~~~~markdown", "~~~markdown", "~~~~"),
+            ("````markdown", "````not-a-closing-fence", "`````"),
+            ("````markdown", "~~~markdown", "````"),
+        ):
+            with self.subTest(opening=opening, inner=inner):
+                root, _, memory = self.context()
+                with memory.open("a") as output:
+                    output.write(
+                        f"\n{opening}\n{inner}\n## 项目要求\n"
+                        "- 示例中的虚构要求：自动部署生产。\n"
+                        f"{inner.split()[0]}\n{closing}\n\n## 项目要求\n"
+                        "- 真实要求：禁止自动部署。\n"
+                    )
+                self.assertEqual(PROBE._current_memory_items(memory),
+                                 [("项目要求", "- 真实要求：禁止自动部署。")])
+                for command in ("resume", "search"):
+                    result, output = _call(command, "--root", str(root),
+                                           "--query", "自动部署", "--entries", "1")
+                    self.assertEqual(result, 0, output)
+                    self.assertIn("真实要求：禁止自动部署", output)
+                    self.assertNotIn("示例中的虚构要求", output)
+
     def test_save_no_experience_does_not_replay_old_log_feedback(self):
         root, log, memory = self.context()
         before = log.read_bytes()

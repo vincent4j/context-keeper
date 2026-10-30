@@ -16,19 +16,39 @@
   "files": [
     {
       "path": "SKILL.md",
-      "sha256": "1ba25f707cf403838975c0a01401b474599de79c3dae96ee047b66c70864c61a"
+      "sha256": "aec1c1e1c6cda592f20b3938ff278fbe36953bc67c196a8b3bf9caae0a53448f"
     },
     {
       "path": "README.md",
-      "sha256": "7d3da8ccf3c67d50013bbd1133452f49a20301e6f6f64875217860516142e6a3"
+      "sha256": "5716c116ff54ad7f0296efd17d5300d84ebe6a1d5592a136ce41d88fc693b518"
+    },
+    {
+      "path": "DESIGN.md",
+      "sha256": "6b4d7a857a5173b4d170dcde1adca310bbc35d487c2eb556aefd28eea5fe2a84"
+    },
+    {
+      "path": "assets/context-keeper-icon.png",
+      "sha256": "e39d8d15f214be4c9664450b83d3c6f9b9baaca3fe8e3e0cbd03f18eeaf2286e"
+    },
+    {
+      "path": "docs/verification/2026-10-29-cli/report.md",
+      "sha256": "2729823630f4717376a3917f28f0432bd484a3ebbf55fbc227a2414b3539c941"
+    },
+    {
+      "path": "docs/verification/2026-10-29-cli/summary.json",
+      "sha256": "3a2a5087ff8efe981079069f9baa9791a50dfa961b386e368309c238c53375d3"
+    },
+    {
+      "path": "docs/verification/2026-10-29-cli/observations.jsonl",
+      "sha256": "f9c093846cc9fc4e28abddede7006a95ad6fecf5ade2a82075620a897f1d904e"
     },
     {
       "path": "scripts/install.py",
-      "sha256": "2f8d62c59d4462275d87ed6a8a7edd20ba1b5b6ca188aa4d846abe76fcacd47e"
+      "sha256": "a41ffca7f7749d483a4076b0ae5ed6599a39c5b980d443a0e4e90b616f994763"
     },
     {
       "path": "scripts/context_keeper_probe.py",
-      "sha256": "9c2731c1dc7c062dd9ea2cfabf72ae1a7052f54b7cddd25a53a9cb4ac580e567"
+      "sha256": "9878d1b0bfcf52bb3e6d905c37cc70539ed2992e15ee469ded6a50e00b24887b"
     },
     {
       "path": "references/save.md",
@@ -40,7 +60,7 @@
     },
     {
       "path": "references/install.md",
-      "sha256": "f800edc9fe561180316028fbc4b316021d509a00e4e3d09ff28a4cd5c381ff5f"
+      "sha256": "fcac9b9487e3ae799d7f150e521656a00698c824bb690f7cfaea65eb1e30c957"
     },
     {
       "path": "references/migrate.md",
