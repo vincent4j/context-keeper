@@ -20,11 +20,11 @@
     },
     {
       "path": "README.md",
-      "sha256": "5716c116ff54ad7f0296efd17d5300d84ebe6a1d5592a136ce41d88fc693b518"
+      "sha256": "8e9ccd0204178201442d8a50036aa10e2d4870354368c5ce68aa476c90371643"
     },
     {
       "path": "DESIGN.md",
-      "sha256": "e05389efc073dc0cbfe500543efe4540e44a543689e8d4a9c819cdf7b4d5dd5a"
+      "sha256": "d0b328e1f28730516a3b41b70bb607e8d612fe9b31b3a647c4ae090e7d87ced6"
     },
     {
       "path": "assets/context-keeper-icon.png",
