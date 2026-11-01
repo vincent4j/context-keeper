@@ -91,12 +91,16 @@ class InstallTests(unittest.TestCase):
                     self.assertTrue(bridge.read_text().startswith('# 用户内容\n\n不要修改。\n'))
                     written = bridge.read_text()
                     for boundary in (
+                        '先读取已安装的 context-keeper/SKILL.md', 'Skill 不可用时停止记忆操作',
                         '已有授权记录库', '无用户禁止保存/改文件', '失败也记',
-                        '工作日志只追加', '主题记忆可更新', '旧摘要只是历史线索',
-                        '续接命令通过迁移门禁后', '本轮反馈由 Agent 核对说明',
-                        '历史下一步不构成当前授权',
+                        '无项目聊天不自动保存', '不自动建库或询问', '普通新需求不检索',
+                        '工作日志只追加', '迁移须预览并获确认', '历史记录不构成当前授权',
                     ):
                         self.assertIn(boundary, written)
+                    block = written[written.index('<!-- context-keeper:start -->'):]
+                    self.assertLessEqual(len(block.rstrip('\n')), 500)
+                    self.assertNotIn('save-report', block)
+                    self.assertNotIn('段 ID', block)
                     self.assertEqual(written.count('<!-- context-keeper:start -->'), 1)
                     before = bridge.stat().st_mtime_ns
                     result = subprocess.run([part for part in cmd if part != '--approved'],env=env,text=True,capture_output=True)

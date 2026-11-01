@@ -54,19 +54,28 @@ class WorkBuddyInstallTests(unittest.TestCase):
         self.assertFalse((self.home / ".workbuddy").exists())
         self.assertFalse((self.project / "docs").exists())
 
-    def test_legacy_agm_block_adopted_without_rewrite(self):
-        # Frozen legacy contract: the deployed marker-to-marker bytes have this hash.
+    def test_legacy_agm_block_requires_approval_then_upgrades_in_place(self):
+        # Preserve the deployed bytes as a fixture; do not rehash the new template.
         import hashlib
-        block = installer.WORKBUDDY_BRIDGE.rstrip("\n").encode()
+        block = (Path(__file__).parent / 'fixtures/workbuddy_bridge_legacy.md').read_bytes().rstrip(b'\n')
         self.assertEqual(hashlib.sha256(block).hexdigest(),
                          "5d464acc40d0bf2b30fc02dcffda1fdbf1cee80c5e3e742da9e85a1c871a8315")
         for suffix in (b"", b"\n\n# existing notes\r\nkeep bytes\r\n"):
             with self.subTest(suffix=suffix):
                 self.write_bridge(block + suffix)
                 before = self.bridge.read_bytes(), self.bridge.stat().st_mtime_ns
+                preview = self.ensure()
+                self.assertTrue(json.loads(preview.stdout)['approval_required'])
+                self.assertEqual((self.bridge.read_bytes(), self.bridge.stat().st_mtime_ns), before)
                 result = self.ensure(True)
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-                self.assertEqual(json.loads(result.stdout)["action"], "unchanged")
+                self.assertEqual(json.loads(result.stdout)["action"], "updated")
+                current = installer.WORKBUDDY_BRIDGE.rstrip('\n').encode()
+                self.assertEqual(self.bridge.read_bytes(), current + suffix)
+                self.assertLessEqual(len(current.decode()), 600)
+                self.assertIn('先读取已安装的 context-keeper/SKILL.md', current.decode())
+                before = self.bridge.read_bytes(), self.bridge.stat().st_mtime_ns
+                self.assertEqual(json.loads(self.ensure().stdout)['action'], 'unchanged')
                 self.assertEqual((self.bridge.read_bytes(), self.bridge.stat().st_mtime_ns), before)
 
     def test_prepend_and_update_preserve_external_bytes(self):

@@ -429,7 +429,14 @@ class ResumeAndSearchTests(IsolatedProbeTestCase):
             worklog.write_text("<!-- context-keeper: session-id=a -->\n# 标题\n\n这里记录了集中审核的真实耗时。\n")
             result, output = _call("resume", "--root", str(root))
             self.assertEqual(result, 0)
-            self.assertIn("有限提取", output)
+            # 无当前主题：默认只给有界历史路径定位，不展开快照或有限提取
+            self.assertIn("历史来源定位", output)
+            self.assertIn("2026-09-16-缺摘要.md", output)
+            self.assertNotIn("有限提取", output)
+            self.assertNotIn("这里记录了集中审核", output)
+            result, details = _call("resume", "--root", str(root), "--details")
+            self.assertEqual(result, 0)
+            self.assertIn("有限提取", details)
 
     def test_search_falls_back_to_unindexed_plan_and_worklog(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -474,6 +481,103 @@ class ResumeAndSearchTests(IsolatedProbeTestCase):
             _call("init", "--root", str(root), "--approved")
             _, output = _call("search", "--root", str(root), "--query", "不存在的关键词")
             self.assertIn("不代表历史上从未发生", output)
+
+    def test_search_reports_scan_cap_and_full_scan_zero_hit_separately(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            _call("init", "--root", str(root), "--approved")
+            logs = root / "docs/context-keeper/worklogs"
+            (logs / "2026-09-02-无命中.md").write_text("这里没有相关内容。\n")
+            (logs / "2026-09-01-命中.md").write_text("这里包含目标关键词。\n")
+            _, capped = _call("search", "--root", str(root), "--query", "目标关键词", "--scan-worklogs", "1")
+            self.assertIn("检索不完整：达到扫描上限 1，仍有 1 个历史文件未扫描", capped)
+            self.assertNotIn("2026-09-01-命中", capped)
+            self.assertIn("不代表历史上从未发生", capped)
+            _, complete = _call("search", "--root", str(root), "--query", "目标关键词")
+            self.assertIn("2026-09-01-命中", complete)
+            self.assertNotIn("检索不完整", complete)
+            _, zero = _call("search", "--root", str(root), "--query", "完全不存在")
+            self.assertIn("不代表历史上从未发生", zero)
+            self.assertNotIn("检索不完整", zero)
+
+    def test_search_reports_coverage_limit_when_entries_cap_leaves_sources_unchecked(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            _call("init", "--root", str(root), "--approved")
+            plans = root / "docs/context-keeper/plans"
+            for index in range(2):
+                (plans / f"2026-09-1{index}-计划{index}.md").write_text(f"整体核账方案 {index}。\n")
+            _, output = _call("search", "--root", str(root), "--query", "整体核账", "--entries", "1")
+            self.assertIn("命中 1 条记录", output)
+            self.assertIn("候选/覆盖受限：已达输出上限 1 条，另有 1 个历史文件未检查", output)
+
+    def test_search_reports_unchecked_followup_sources_across_stages(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            _call("init", "--root", str(root), "--approved")
+            logs = root / "docs/context-keeper/worklogs"
+            (logs / "2026-09-01-未关联.md").write_text("这里也提到整体核账。\n")
+            memory = root / "docs/context-keeper/memory-keeper.md"
+            memory.write_text(
+                "# 索引\n\n## 未完成事项\n\n- 暂无\n\n## 主题摘要（按类型）\n- **整体核账：** 当前采用新方案。\n"
+                "\n## 进化经验入口\n\n- [进化经验索引](evolution/index.md)\n\n## 时间线（最新在前）\n\n---\n",
+                encoding="utf-8",
+            )
+            # 当前记忆恰好一条命中填满额度：后续时间线与未关联历史文件都未执行，应合并提示
+            _, output = _call("search", "--root", str(root), "--query", "整体核账", "--entries", "1")
+            self.assertIn("命中 1 条记录", output)
+            self.assertIn("候选/覆盖受限：已达输出上限 1 条，另有 1 个历史文件未检查", output)
+            self.assertNotIn("2026-09-01-未关联", output)
+
+            # 最后一份数量受限的经验命中填满总额度，同样要提示未执行的后续来源
+            evolution = root / "docs/context-keeper/evolution"
+            (evolution / "核账经验.md").write_text(_experience("核账经验", "CK-020").replace("生成耗时", "整体核账"))
+            _, output = _call("search", "--root", str(root), "--query", "整体核账|核账经验", "--entries", "1")
+            self.assertIn("[进化经验]", output)
+            self.assertIn("候选/覆盖受限：已达输出上限 1 条，另有 1 条当前记忆条目、1 个历史文件未检查", output)
+
+    def test_search_no_coverage_note_when_all_sources_examined(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            _call("init", "--root", str(root), "--approved")
+            memory = root / "docs/context-keeper/memory-keeper.md"
+            memory.write_text(
+                "# 索引\n\n## 未完成事项\n\n- 暂无\n\n## 主题摘要（按类型）\n- **整体核账：** 当前采用新方案。\n"
+                "\n## 进化经验入口\n\n- [进化经验索引](evolution/index.md)\n\n## 时间线（最新在前）\n\n---\n",
+                encoding="utf-8",
+            )
+            # 唯一来源恰好命中且再无其他来源：不得误报候选/覆盖受限
+            _, output = _call("search", "--root", str(root), "--query", "整体核账", "--entries", "1")
+            self.assertIn("命中 1 条记录", output)
+            self.assertNotIn("候选/覆盖受限", output)
+            self.assertNotIn("检索不完整", output)
+
+    def test_pending_experience_marked_and_action_not_recommended(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            _call("init", "--root", str(root), "--approved")
+            evolution = root / "docs/context-keeper/evolution"
+            (evolution / "待验证经验.md").write_text(
+                _experience("待验证经验", "CK-010", "待验证").replace("生成耗时", "共同触发词"))
+            # 缺状态字段默认按待验证处理
+            (evolution / "缺状态经验.md").write_text(
+                _experience("缺状态经验", "CK-011", "待验证").replace("- **状态：** 待验证\n", "").replace("生成耗时", "共同触发词"))
+            # 多行建议动作：查询只命中续行时也必须带统一前缀
+            (evolution / "多行经验.md").write_text(
+                _experience("多行经验", "CK-012", "待验证").replace(
+                    "- **建议动作：** 先检查已有计时", "- **建议动作：** 先核对条件。\n  然后执行旧方案。"))
+            _, searched = _call("search", "--root", str(root), "--query", "建议动作")
+            self.assertEqual(searched.count("[进化经验]"), 3)
+            self.assertIn("待验证经验（待验证，仅供核查，不作为执行建议", searched)
+            self.assertIn("缺状态经验（待验证，仅供核查，不作为执行建议", searched)
+            self.assertIn("（待验证，暂停采用，仅供核查）- **建议动作：** 先检查已有计时", searched)
+            _, continuation = _call("search", "--root", str(root), "--query", "旧方案")
+            self.assertEqual(continuation.count("[进化经验]"), 1)
+            self.assertIn("（待验证，暂停采用，仅供核查）然后执行旧方案。", continuation)
+            _, resumed = _call("resume", "--root", str(root), "--query", "共同触发词")
+            self.assertIn("待验证·仅供核查，不作为执行建议", resumed)
+            # resume 概要不输出待验证经验的建议动作
+            self.assertNotIn("先检查已有计时", resumed)
 
 
 class RawHistoryTests(IsolatedProbeTestCase):
@@ -591,8 +695,13 @@ class CurrentMemoryTests(IsolatedProbeTestCase):
         self.assertIn("等待权限", output)
         self.assertIn("来源：", output)
         self.assertNotIn("其他主题0", output)
-        self.assertLess(output.index("方案 B"), output.index("方案 A 当时有效"))
-        self.assertIn("首次记录快照，不代表当前状态", output)
+        # 默认有当前主题时不展开无关历史快照，主题自带来源定位即可
+        self.assertNotIn("方案 A 当时有效", output)
+        self.assertNotIn("首次记录快照", output)
+        result, details = _call("resume", "--root", str(root), "--query", "接口", "--details")
+        self.assertEqual(result, 0, details)
+        self.assertIn("首次记录快照，不代表当前状态", details)
+        self.assertLess(details.index("方案 B"), details.index("方案 A 当时有效"))
 
     def test_multi_keyword_query_recalls_latest_contract_before_old_snapshot(self):
         root, log, memory = self.context()
@@ -610,7 +719,11 @@ class CurrentMemoryTests(IsolatedProbeTestCase):
                 self.assertNotIn("未找到相关当前主题", output)
                 if command == "resume":
                     self.assertIn("真实样本验收", output)
-                    self.assertLess(output.index("5 项测试通过"), output.index("3 项测试通过"))
+                    # 默认不展开旧日志快照，只保留当前主题
+                    self.assertNotIn("3 项测试通过", output)
+                    _, details = _call("resume", "--root", str(root), "--query",
+                                       "订单 编号 导入 空字符串 首尾空格 验收", "--details")
+                    self.assertLess(details.index("5 项测试通过"), details.index("3 项测试通过"))
 
     def test_keyword_queries_preserve_regex_and_do_not_widen_zero_hits(self):
         root, _, memory = self.context()

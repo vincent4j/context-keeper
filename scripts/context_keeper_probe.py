@@ -507,6 +507,11 @@ def _file_hits(path: Path, pattern: re.Pattern[str], limit: int) -> list[str]:
     return [_clip(line, 180) for line in _read_text(path).splitlines() if pattern.search(line)][:limit]
 
 
+def _mark_pending_hit(line: str) -> str:
+    """待验证经验的命中片段统一加前缀，多行建议动作的续行也不例外。"""
+    return f"（待验证，暂停采用，仅供核查）{line}"
+
+
 def _linked_records(text: str, base: Path) -> set[str]:
     """提取文本中的本地 Markdown 链接目标并解析为绝对路径，用于跨源去重。"""
     resolved: set[str] = set()
@@ -1026,26 +1031,41 @@ def cmd_resume(args: argparse.Namespace) -> int:
         print("\n迁移保留的历史待办（尚未复核，不代表当前状态或授权）：")
         print("\n".join(historical_pending))
 
-    print("\n历史工作摘要（首次记录快照，不代表当前状态）：")
+    # 读取合同按深度分层：默认只到当前认识（L1），历史快照属事实依据（L2），
+    # 仅显式 --details/--full 展开；无当前主题时只给有界路径定位，不冒充最新状态。
     worklogs = _worklog_files(root, args.worklogs, store_dir)
-    if not worklogs:
-        print("- 未找到工作日志")
-    for idx, path in enumerate(worklogs, 1):
-        print(f"\n[{idx}] {_rel(root, path)}")
-        summary = _quick_summary(path, full=args.full, details=args.details)
-        if summary:
-            print("\n".join(summary))
+    if args.details or args.full:
+        print("\n历史工作摘要（首次记录快照，不代表当前状态）：")
+        if not worklogs:
+            print("- 未找到工作日志")
+        for idx, path in enumerate(worklogs, 1):
+            print(f"\n[{idx}] {_rel(root, path)}")
+            summary = _quick_summary(path, full=args.full, details=args.details)
+            if summary:
+                print("\n".join(summary))
+            else:
+                print("- 快速摘要缺失；以下为有限提取，不代表完整记录")
+                for item in _fallback_summary(path):
+                    print(f"  - {item}")
+    elif not themes:
+        print("\n未找到当前主题；仅提供有界历史来源定位（非当前状态，--details/--full 可展开摘要）：")
+        if worklogs:
+            for idx, path in enumerate(worklogs, 1):
+                print(f"[{idx}] {_rel(root, path)}")
         else:
-            print("- 快速摘要缺失；以下为有限提取，不代表完整记录")
-            for item in _fallback_summary(path):
-                print(f"  - {item}")
+            print("- 未找到工作日志")
 
     evolution = []
     if pattern:
         for scope, path in _evolution_files(root, None, store_dir):
-            if _evolution_status(path) != "已替代" and _file_hits(path, pattern, 1):
+            status = _evolution_status(path)
+            if status != "已替代" and _file_hits(path, pattern, 1):
                 title = next((line[2:] for line in _read_text(path).splitlines() if line.startswith("# ")), path.stem)
-                evolution.append((_field_map(path).get("类型"), f"- [{_evolution_status(path)}] {title}：{_field_map(path).get('建议动作', '')}（{path}）"))
+                if status == "待验证":
+                    # 待验证经验仅供核查，建议动作不作为有效推荐输出。
+                    evolution.append((_field_map(path).get("类型"), f"- [待验证·仅供核查，不作为执行建议] {title}（{path}）"))
+                else:
+                    evolution.append((_field_map(path).get("类型"), f"- [{status}] {title}：{_field_map(path).get('建议动作', '')}（{path}）"))
             if len(evolution) >= min(3, args.entries):
                 break
     entries = _all_memory_entries(root, store_dir)
@@ -1058,11 +1078,12 @@ def cmd_resume(args: argparse.Namespace) -> int:
     else:
         selected = candidates[:args.entries]
     if selected:
-        print("\n相关经验：" if pattern else "\n近期经验：")
+        print("\n相关时间线与经验候选（历史定位，不代表当前状态或建议）：" if pattern
+              else "\n近期时间线候选（历史定位，不代表当前状态或建议）：")
         for _, line in selected:
             print(line)
     elif not memory_paths:
-        print("\n近期经验：未找到 memory-keeper.md")
+        print("\n时间线与经验候选：未找到 memory-keeper.md")
     return 0
 
 
@@ -1073,9 +1094,13 @@ def cmd_search(args: argparse.Namespace) -> int:
     results: list[tuple[str, str, list[str]]] = []
     seen: set[object] = set()
     linked_records: set[str] = set()
+    coverage_notes: list[str] = []
+    evolution_limit = min(args.evolution_entries, args.entries)
     evolution_count = 0
-    for scope, path in _evolution_files(root, args.user_evolution_dir, store_dir):
-        if evolution_count >= min(args.evolution_entries, args.entries):
+    evolution_sources = _evolution_files(root, args.user_evolution_dir, store_dir)
+    for position, (scope, path) in enumerate(evolution_sources):
+        if evolution_count >= evolution_limit:
+            coverage_notes.append(f"候选/覆盖受限：经验候选已达上限 {evolution_limit} 条，另有 {len(evolution_sources) - position} 份经验未检查")
             break
         status = _evolution_status(path)
         if status == "已替代":
@@ -1088,48 +1113,65 @@ def cmd_search(args: argparse.Namespace) -> int:
         if not hits:
             continue
         title = next((line.lstrip("# ") for line in _read_text(path).splitlines() if line.startswith("# ")), path.stem)
-        suffix = f"{status}；{'项目' if scope == 'project' else '用户级'}"
+        scope_label = '项目' if scope == 'project' else '用户级'
+        if status == "待验证":
+            suffix = f"待验证，仅供核查，不作为执行建议；{scope_label}"
+            hits = [_mark_pending_hit(line) for line in hits]
+        else:
+            suffix = f"{status}；{scope_label}"
         results.append(("evolution", f"{title}（{suffix}；{_rel(root, path)}）", hits))
         seen.add(str(path))
         linked_records |= _linked_records(_read_text(path), path.parent)
         evolution_count += 1
 
+    # 各阶段记录未检视条数：候选列表/记忆内容/路径元数据均已知，不为提示读经验或历史正文。
+    current_items = [(memory_path, section, text)
+                     for memory_path in _memory_paths(root, store_dir)
+                     for section, text in _current_memory_items(memory_path)]
+    current_unchecked = len(current_items)
     if len(results) < args.entries:
-        for memory_path in _memory_paths(root, store_dir):
-            for section, text in _current_memory_items(memory_path):
-                if not (pattern.search(text) or pattern.search(section)):
-                    continue
-                key = (section, text)
-                if key not in seen:
-                    results.append(("current", f"{section}（{_rel(root, memory_path)}）", [_bounded_memory_item(text, pattern)]))
-                    seen.add(key)
-                    linked_records |= _linked_records(text, memory_path.parent)
-                if len(results) >= args.entries:
-                    break
+        for position, (memory_path, section, text) in enumerate(current_items):
+            if not (pattern.search(text) or pattern.search(section)):
+                continue
+            key = (section, text)
+            if key not in seen:
+                results.append(("current", f"{section}（{_rel(root, memory_path)}）", [_bounded_memory_item(text, pattern)]))
+                seen.add(key)
+                linked_records |= _linked_records(text, memory_path.parent)
             if len(results) >= args.entries:
+                current_unchecked = len(current_items) - position - 1
                 break
+        else:
+            current_unchecked = 0
 
+    entry_sources = [(memory_path, entry)
+                     for memory_path in _memory_paths(root, store_dir)
+                     for entry in _memory_entries(memory_path)]
+    entries_unchecked = len(entry_sources)
     if len(results) < args.entries:
-        for memory_path in _memory_paths(root, store_dir):
-            for entry in _memory_entries(memory_path):
-                hits = [_clip(line, 180) for line in entry if pattern.search(line)][: args.hit_lines]
-                key = "\n".join(entry)
-                if hits and key not in seen:
-                    results.append(("memory", entry[0].lstrip("# ").strip(), hits))
-                    seen.add(key)
-                    linked_records |= _linked_records(key, memory_path.parent)
-                if len(results) >= args.entries:
-                    break
+        for position, (memory_path, entry) in enumerate(entry_sources):
+            hits = [_clip(line, 180) for line in entry if pattern.search(line)][: args.hit_lines]
+            key = "\n".join(entry)
+            if hits and key not in seen:
+                results.append(("memory", entry[0].lstrip("# ").strip(), hits))
+                seen.add(key)
+                linked_records |= _linked_records(key, memory_path.parent)
             if len(results) >= args.entries:
+                entries_unchecked = len(entry_sources) - position - 1
                 break
+        else:
+            entries_unchecked = 0
 
+    historical_files = [("plan", path) for path in _plan_files(root, store_dir)]
+    historical_files.extend(("worklog", path) for path in _worklog_files(root, None, store_dir))
+    historical_files.sort(key=lambda item: (item[1].name, str(item[1])), reverse=True)
+    historical_unchecked = len(historical_files)
+    scanned = 0
     if len(results) < args.entries:
-        scanned = 0
-        historical_files = [("plan", path) for path in _plan_files(root, store_dir)]
-        historical_files.extend(("worklog", path) for path in _worklog_files(root, None, store_dir))
-        historical_files.sort(key=lambda item: (item[1].name, str(item[1])), reverse=True)
-        for source_kind, path in historical_files:
+        for position, (source_kind, path) in enumerate(historical_files):
             if scanned >= args.scan_worklogs:
+                coverage_notes.append(f"检索不完整：达到扫描上限 {args.scan_worklogs}，仍有 {len(historical_files) - position} 个历史文件未扫描")
+                historical_unchecked = len(historical_files) - position
                 break
             scanned += 1
             resolved = str(path.resolve())
@@ -1140,10 +1182,26 @@ def cmd_search(args: argparse.Namespace) -> int:
                 results.append((source_kind, _rel(root, path), hits))
                 seen.add(resolved)
             if len(results) >= args.entries:
+                historical_unchecked = len(historical_files) - position - 1
                 break
+        else:
+            historical_unchecked = 0
+
+    # 输出上限已满时合并提示未执行的后续来源；全部检视完则不提示，避免无剩余误报。
+    if len(results) >= args.entries:
+        unchecked_groups = [part for part in (
+            f"{current_unchecked} 条当前记忆条目" if current_unchecked else "",
+            f"{entries_unchecked} 条时间线条目" if entries_unchecked else "",
+            f"{historical_unchecked} 个历史文件" if historical_unchecked else "",
+        ) if part]
+        if unchecked_groups:
+            coverage_notes.append(
+                f"候选/覆盖受限：已达输出上限 {args.entries} 条，另有 " + "、".join(unchecked_groups) + "未检查")
 
     if not results:
         print("当前检索未找到证据；这不代表历史上从未发生。")
+        for note in coverage_notes:
+            print(note)
         return 0
     print(f"命中 {len(results)} 条记录（当前记忆与历史证据）：")
     labels = {"current": "当前主题与要求", "evolution": "进化经验", "memory": "历史索引", "plan": "需求与计划", "worklog": "工作日志"}
@@ -1151,6 +1209,8 @@ def cmd_search(args: argparse.Namespace) -> int:
         print(f"\n{idx}. [{labels[kind]}] {title}")
         for line in hits:
             print(f"- {line}")
+    for note in coverage_notes:
+        print(f"\n{note}")
     print("\n当前记忆与历史记录已分别标注；引用事实需核对来源，采用前核验当前适用性。")
     return 0
 
