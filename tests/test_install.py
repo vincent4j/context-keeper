@@ -282,16 +282,20 @@ class InstallTests(unittest.TestCase):
             payload = json.loads(result.stdout)
             self.assertEqual(payload["scope"], "user")
             self.assertEqual(len(payload["installed"]), 7)
-            self.assertEqual(len(payload["bridges"]), 3)
+            self.assertEqual(len(payload["bridges"]), 6)
             self.assertTrue((home / ".agents" / "skills" / "context-keeper").is_symlink())
             self.assertTrue((home / ".codex" / "skills" / "context-keeper").is_symlink())
             self.assertTrue((home / ".claude" / "skills" / "context-keeper").is_symlink())
-            self.assertTrue((home / ".cursor" / "skills" / "context-keeper").is_symlink())
             self.assertTrue((home / ".workbuddy" / "skills" / "context-keeper").is_symlink())
-            self.assertTrue((home / ".hermes" / "skills" / "context-keeper").is_symlink())
+            self.assertTrue((home / ".zcode" / "skills" / "context-keeper").is_symlink())
+            self.assertTrue((home / ".dsh" / "skills" / "context-keeper").is_symlink())
             self.assertTrue((home / ".config" / "opencode" / "skills" / "context-keeper").is_symlink())
             self.assertTrue((home / ".codex" / "AGENTS.md").is_file())
             self.assertTrue((home / ".claude" / "CLAUDE.md").is_file())
+            self.assertTrue((home / ".workbuddy" / "MEMORY.md").is_file())
+            self.assertTrue((home / ".zcode" / "AGENTS.md").is_file())
+            self.assertTrue((home / ".dsh" / "AGENTS.md").is_file())
+            self.assertTrue((home / ".config" / "opencode" / "AGENTS.md").is_file())
 
     def test_uninstall_removes_only_managed_files_and_blocks(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -375,11 +379,11 @@ class InstallTests(unittest.TestCase):
     def test_uninstall_preserves_other_source_and_copied_directory(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             home = Path(temp_dir) / "home"
-            root = home / ".cursor/skills"
+            root = home / ".zcode/skills"
             root.mkdir(parents=True)
             target = root / "context-keeper"
             target.symlink_to(home / "other-source")
-            command = ["python3", str(INSTALLER), "--cursor", "--uninstall", "--approved"]
+            command = ["python3", str(INSTALLER), "--zcode", "--uninstall", "--approved"]
             env = dict(os.environ, HOME=str(home))
             result = subprocess.run(command, env=env, text=True, capture_output=True)
             self.assertEqual(result.returncode, 2)
@@ -437,9 +441,9 @@ class InstallTests(unittest.TestCase):
             project = Path(temp_dir) / "project"
             project.mkdir()
             shared = project / ".agents/skills/context-keeper"
-            subprocess.run(["python3", str(INSTALLER), "--project", str(project), "--hermes", "--approved"], check=True, capture_output=True)
+            subprocess.run(["python3", str(INSTALLER), "--project", str(project), "--zcode", "--approved"], check=True, capture_output=True)
             result = subprocess.run(
-                ["python3", str(INSTALLER), "--project", str(project), "--openclaw", "--uninstall", "--approved"],
+                ["python3", str(INSTALLER), "--project", str(project), "--dsh", "--uninstall", "--approved"],
                 text=True, capture_output=True,
             )
             self.assertEqual(result.returncode, 2)
@@ -451,7 +455,7 @@ class InstallTests(unittest.TestCase):
             project = Path(temp_dir) / "project"
             project.mkdir()
             result = subprocess.run(
-                ["python3", str(INSTALLER), "--project", str(project), "--openclaw", "--uninstall", "--approved"],
+                ["python3", str(INSTALLER), "--project", str(project), "--dsh", "--uninstall", "--approved"],
                 text=True, capture_output=True,
             )
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -465,16 +469,89 @@ class InstallTests(unittest.TestCase):
             self.assertIn("显式选择目标 Agent", result.stdout)
             self.assertFalse((home / ".agents").exists())
 
-    def test_bridge_only_rejects_unverified_agent_automation(self):
+    def test_bridge_only_writes_native_agent_rules(self):
         with tempfile.TemporaryDirectory() as temp_dir:
+            project = Path(temp_dir) / "project"
+            project.mkdir()
             result = subprocess.run(
-                ["python3", str(INSTALLER), "--project", temp_dir, "--cursor", "--bridge-only", "--approved"],
-                text=True,
-                capture_output=True,
+                ["python3", str(INSTALLER), "--project", str(project), "--zcode", "--dsh", "--opencode", "--bridge-only", "--approved"],
+                text=True, capture_output=True,
             )
-            self.assertEqual(result.returncode, 2)
-            self.assertIn("自动入口尚未完成运行时验证", result.stdout)
-            self.assertFalse((Path(temp_dir) / "AGENTS.md").exists())
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertEqual(payload["installed"], [])
+            # 共用根 AGENTS.md 只写一次
+            self.assertEqual([Path(entry["file"]).name for entry in payload["bridges"]], ["AGENTS.md"])
+            written = (project / "AGENTS.md").read_text(encoding="utf-8")
+            self.assertEqual(written.count("<!-- context-keeper:start -->"), 1)
+            self.assertFalse((project / ".zcode" / "skills" / "context-keeper").exists())
+
+    def test_user_bridge_only_writes_opencode_nested_entry(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            home = Path(temp_dir) / "home"
+            env = dict(os.environ, HOME=str(home))
+            result = subprocess.run(
+                ["python3", str(INSTALLER), "--opencode", "--bridge-only", "--approved"],
+                env=env, text=True, capture_output=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            bridge = home / ".config" / "opencode" / "AGENTS.md"
+            self.assertTrue(bridge.is_file())
+            self.assertIn("<!-- context-keeper:start -->", bridge.read_text(encoding="utf-8"))
+
+    def test_first_use_native_agents_project_and_user(self):
+        spec = {
+            "zcode": (".zcode", ".zcode", ".zcode/AGENTS.md"),
+            "dsh": (".dsh", ".dsh", ".dsh/AGENTS.md"),
+            "opencode": (".config/opencode", ".opencode", ".config/opencode/AGENTS.md"),
+        }
+        for agent, (user_folder, project_folder, user_bridge) in spec.items():
+            for scope in ("user", "project"):
+                with self.subTest(agent=agent, scope=scope), tempfile.TemporaryDirectory() as temp_dir:
+                    root = Path(temp_dir)
+                    home = root / "home"
+                    home.mkdir()
+                    project = root / "project"
+                    project.mkdir()
+                    base = home if scope == "user" else project
+                    folder = user_folder if scope == "user" else project_folder
+                    skill = base / folder / "skills/context-keeper"
+                    skill.parent.mkdir(parents=True)
+                    skill.symlink_to(INSTALLER.parents[1])
+                    bridge = (home / user_bridge) if scope == "user" else project / "AGENTS.md"
+                    bridge.parent.mkdir(parents=True, exist_ok=True)
+                    bridge.write_text("# 用户内容\n", encoding="utf-8")
+                    cmd = ["python3", str(skill / "scripts/install.py"), "--ensure-bridge", "--approved",
+                           "--" + agent, "--skill-dir", str(skill), "--root", str(project)]
+                    env = dict(os.environ, HOME=str(home))
+                    result = subprocess.run(cmd, env=env, text=True, capture_output=True)
+                    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                    self.assertEqual(json.loads(result.stdout)["scope"], scope)
+                    written = bridge.read_text(encoding="utf-8")
+                    self.assertTrue(written.startswith("# 用户内容\n"))
+                    self.assertEqual(written.count("<!-- context-keeper:start -->"), 1)
+                    before = bridge.stat().st_mtime_ns
+                    result = subprocess.run([part for part in cmd if part != "--approved"], env=env, text=True, capture_output=True)
+                    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                    self.assertEqual(json.loads(result.stdout)["action"], "unchanged")
+                    self.assertEqual(bridge.stat().st_mtime_ns, before)
+
+    def test_partial_uninstall_keeps_shared_agents_md_block(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = Path(temp_dir) / "project"
+            project.mkdir()
+            subprocess.run(["python3", str(INSTALLER), "--project", str(project), "--all", "--approved"],
+                           check=True, capture_output=True)
+            result = subprocess.run(
+                ["python3", str(INSTALLER), "--project", str(project), "--opencode", "--uninstall", "--approved"],
+                text=True, capture_output=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertEqual(payload["bridges"][0]["action"], "kept_shared")
+            self.assertIn("<!-- context-keeper:start -->", (project / "AGENTS.md").read_text(encoding="utf-8"))
+            self.assertFalse((project / ".opencode" / "skills" / "context-keeper").exists())
+            self.assertTrue((project / ".zcode" / "skills" / "context-keeper").is_symlink())
 
     def test_install_refuses_to_delete_managed_copy_with_possible_local_changes(self):
         with tempfile.TemporaryDirectory() as temp_dir:

@@ -51,7 +51,7 @@ Context Keeper 帮 AI 保存项目进度、找回历史事实，更让它在使�
 | ⚡ **会多花 Token 吗？** | 普通新需求不查历史；需要时只读少量相关记录，同一问题不反复查。不全量加载聊天，也不承诺零 Token 成本。 |
 | 📝 **需要自己维护吗？** | 保存记录、整理经验由 AI 执行。你不需要手写日志、整理文件或维护一套知识库。 |
 | 🔎 **会不会编造“以前的经验”？** | 历史结论必须有记录支撑。与你记得的不一致时展示原文，没找到就说明没找到；推断不能冒充事实。 |
-| 🤖 **我的 Agent 能用吗？** | 提供 Codex、Claude Code、Cursor、WorkBuddy、Hermes、OpenCode 和 OpenClaw 的原生 Skill 目录安装。Codex、Claude Code 与 WorkBuddy 目前写入自动入口（WorkBuddy 的 `--workbuddy` ensure 桥接已通过安装器接管验证，真机新会话验收待做）；其余四个等待真实运行时验收后再启用自动规则。 |
+| 🤖 **我的 Agent 能用吗？** | 提供 Codex、Claude Code、WorkBuddy、ZCode、DeepSeek Harness 和 OpenCode 的原生 Skill 目录安装，六家均写入自动入口。Codex 已做运行时验收，Claude Code 已做部分运行时验收，WorkBuddy 安装器接管已验证（真机新会话验收待做），ZCode、DeepSeek Harness 和 OpenCode 待真实运行时验收。 |
 
 ---
 
@@ -115,17 +115,16 @@ Context Keeper 帮 AI 保存项目进度、找回历史事实，更让它在使�
 
 ### Agent 支持范围
 
-| Agent | 安装目录 | 自动入口 | 当前验证 |
+| Agent | 安装目录（默认用户级） | 自动入口 | 当前验证 |
 |---|---|---|---|
-| Codex | `.agents/skills`、`.codex/skills` | 支持 | 已做运行时验收 |
-| Claude Code | `.claude/skills` | 支持 | 已做部分运行时验收 |
-| Cursor | `.cursor/skills` | 未写入 | 安装器已覆盖，待客户端验收 |
-| WorkBuddy | `.workbuddy/skills` | 支持（`--workbuddy` ensure，写入项目 `.workbuddy/memory/MEMORY.md` 顶部桥接块，接管既有块） | 安装器接管已验证（幂等 unchanged、无重复块）；真机新会话验收待做 |
-| Hermes | `.hermes/skills`（用户级）或 `.agents/skills`（项目级） | 未写入 | 安装器已覆盖，待客户端验收 |
-| OpenCode | `.config/opencode/skills`（用户级）或 `.opencode/skills`（项目级） | 未写入 | 安装器已覆盖，待客户端验收 |
-| OpenClaw | `.agents/skills` | 未写入 | 安装器已覆盖，待客户端验收 |
+| Codex | `~/.agents/skills`、`~/.codex/skills` | 支持 | 已做运行时验收 |
+| Claude Code | `~/.claude/skills` | 支持 | 已做部分运行时验收 |
+| WorkBuddy | `~/.workbuddy/skills` | 支持（`--workbuddy` ensure，写入项目 `.workbuddy/memory/MEMORY.md` 顶部桥接块，接管既有块） | 安装器接管已验证（幂等 unchanged、无重复块）；真机新会话验收待做 |
+| ZCode | `~/.zcode/skills`、`~/.agents/skills` | 支持（用户级 `~/.zcode/AGENTS.md`；项目级与其他原生 Agent 共用根 `AGENTS.md`） | 入口写入已覆盖，待客户端运行时验收 |
+| DeepSeek Harness | `~/.dsh/skills`、`~/.agents/skills` | 支持（用户级 `~/.dsh/AGENTS.md`；项目级与其他原生 Agent 共用根 `AGENTS.md`） | 入口写入已覆盖，待客户端运行时验收 |
+| OpenCode | `~/.config/opencode/skills` | 支持（用户级 `~/.config/opencode/AGENTS.md`；项目级与其他原生 Agent 共用根 `AGENTS.md`） | 入口写入已覆盖，待客户端运行时验收 |
 
-`--all` 让上述全部目录复用同一份源码。共享目录只处理一次；发现同名配置已指向其他位置时，安装器会停止，不会替换它。
+`--all` 让上述全部目录复用同一份源码。默认安装到用户级，对当前用户的所有项目生效；需要按项目隔离时用 `--project <repo>` 做项目级安装。共享目录只处理一次；项目级入口中 Codex、ZCode、DeepSeek Harness 与 OpenCode 共用根 `AGENTS.md` 的同一受控区块，只写一次。发现同名配置已指向其他位置时，安装器会停止，不会替换它。
 
 ---
 

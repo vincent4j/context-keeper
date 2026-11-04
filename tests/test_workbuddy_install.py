@@ -125,13 +125,6 @@ class WorkBuddyInstallTests(unittest.TestCase):
         self.assertTrue(self.bridge.read_bytes().endswith(b"# retained\r\n"))
         self.assertNotIn(installer.WORKBUDDY_BRIDGE_START, self.bridge.read_text())
 
-    def test_unsupported_agents_still_rejected(self):
-        for agent in ("cursor", "hermes", "opencode", "openclaw"):
-            with self.subTest(agent=agent):
-                self.assertEqual(self.run_install("--ensure-bridge", "--" + agent).returncode, 2)
-                self.assertEqual(self.run_install("--bridge-only", "--" + agent).returncode, 2)
-        self.assertFalse(self.bridge.exists())
-
     def test_user_alias_uses_user_entry_and_unknown_scope_is_rejected(self):
         self.alias.unlink()
         result = self.ensure(True)

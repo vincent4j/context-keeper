@@ -24,13 +24,13 @@ Git 源码仓库是唯一真实副本；各宿主 Skill 目录都从源码加载
 
 常驻入口只保留触发条件、授权与关键安全边界；触发后先读本 Skill，再按操作路由读取必要 reference。记录格式、整理方法、读取顺序和校验细节以本 Skill 及 references 为准，不复制进 Agent 规则文件。找不到本 Skill 时停止记忆操作并说明，不凭入口摘要直接执行。
 
-当前宿主是 Codex、Claude Code 或 WorkBuddy 时，本会话首次调用本 Skill 先运行只读预览，说明将写入的文件和范围，等待确认后再加 `--approved` 执行；未确认则继续原操作。`<skill-dir>` 用当前实际加载目录，`<repo>` 为当前项目，按宿主选 `--codex`、`--claude` 或 `--workbuddy`（只选一个）：
+当前宿主是 Codex、Claude Code、WorkBuddy、ZCode、DeepSeek Harness 或 OpenCode 时，本会话首次调用本 Skill 先运行只读预览，说明将写入的文件和范围，等待确认后再加 `--approved` 执行；未确认则继续原操作。`<skill-dir>` 用当前实际加载目录，`<repo>` 为当前项目，按宿主选 `--codex`、`--claude`、`--workbuddy`、`--zcode`、`--dsh` 或 `--opencode`（只选一个）：
 
 ```bash
 python3 <skill-dir>/scripts/install.py --ensure-bridge --skill-dir <skill-dir> --root <repo> --codex
 ```
 
-返回 `created/appended/prepended/updated` 时简短告知后继续原操作；`unchanged` 静默继续；同一会话复用结果不重复检查。失败时如实说明，按需读 [安装说明](references/install.md)，不擅自扩大为全局安装；不把配置成功说成模型行为已验证。WorkBuddy 项目入口为 `.workbuddy/memory/MEMORY.md` 顶部受控块，兼容既有 AGM 块；配置接管不代表 WorkBuddy 新会话已完成运行时验收。其余四个宿主只依赖原生 Skill 发现机制，不写未验证的自动入口。
+返回 `created/appended/prepended/updated` 时简短告知后继续原操作；`unchanged` 静默继续；同一会话复用结果不重复检查。失败时如实说明，按需读 [安装说明](references/install.md)，不擅自扩大为全局安装；不把配置成功说成模型行为已验证。WorkBuddy 项目入口为 `.workbuddy/memory/MEMORY.md` 顶部受控块，兼容既有 AGM 块；配置接管不代表 WorkBuddy 新会话已完成运行时验收。Codex、ZCode、DeepSeek Harness 与 OpenCode 在项目级共用根 `AGENTS.md` 的同一受控区块，用户级各写自己的规则文件；ZCode、DeepSeek Harness 与 OpenCode 的入口写入尚未完成真机运行时验收。
 
 ## 事实边界
 

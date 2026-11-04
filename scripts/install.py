@@ -47,21 +47,19 @@ def _skill_roots(agent: str, home: Path, project: Path | None) -> list[Path]:
         roots = {
             "codex": [project / ".agents/skills", project / ".codex/skills"],
             "claude": [project / ".claude/skills"],
-            "cursor": [project / ".cursor/skills"],
             "workbuddy": [project / ".workbuddy/skills"],
-            "hermes": [project / ".agents/skills"],
+            "zcode": [project / ".zcode/skills", project / ".agents/skills"],
+            "dsh": [project / ".dsh/skills", project / ".agents/skills"],
             "opencode": [project / ".opencode/skills"],
-            "openclaw": [project / ".agents/skills"],
         }
     else:
         roots = {
             "codex": [home / ".agents/skills", home / ".codex/skills"],
             "claude": [home / ".claude/skills"],
-            "cursor": [home / ".cursor/skills"],
             "workbuddy": [home / ".workbuddy/skills"],
-            "hermes": [home / ".hermes/skills"],
+            "zcode": [home / ".zcode/skills", home / ".agents/skills"],
+            "dsh": [home / ".dsh/skills", home / ".agents/skills"],
             "opencode": [home / ".config/opencode/skills"],
-            "openclaw": [home / ".agents/skills"],
         }
     return roots[agent]
 
@@ -147,8 +145,10 @@ def _bridge_spec(agent: str) -> tuple[str, str, str]:
 def _bridge_path(agent: str, base: Path, *, user: bool = False) -> Path:
     if agent == "workbuddy":
         return base / (".workbuddy/MEMORY.md" if user else ".workbuddy/memory/MEMORY.md")
-    return base / ({"codex": ".codex/AGENTS.md", "claude": ".claude/CLAUDE.md"}[agent]
-                   if user else {"codex": "AGENTS.md", "claude": "CLAUDE.md"}[agent])
+    # 用户级入口与 mem-sharing agents.json 合同一致；项目级原生 Agent 共用根 AGENTS.md。
+    user_paths = {"codex": ".codex/AGENTS.md", "claude": ".claude/CLAUDE.md", "zcode": ".zcode/AGENTS.md",
+                  "dsh": ".dsh/AGENTS.md", "opencode": ".config/opencode/AGENTS.md"}
+    return base / user_paths[agent] if user else base / ("CLAUDE.md" if agent == "claude" else "AGENTS.md")
 
 
 def _upsert_bridge(path: Path, agent: str = "codex") -> str:
@@ -200,24 +200,28 @@ def _bridge_is_current(path: Path, agent: str = "codex") -> bool:
 
 
 def _ensure_bridge(args: argparse.Namespace) -> int:
-    agents = ("codex", "claude", "cursor", "workbuddy", "hermes", "opencode", "openclaw")
+    agents = ("codex", "claude", "workbuddy", "zcode", "dsh", "opencode")
     selected_agents = [agent for agent in agents if getattr(args, agent)]
     if args.all or len(selected_agents) != 1 or args.uninstall or args.project or args.codex_dir or args.claude_dir:
         raise RuntimeError("首次入口配置只接受一个当前 Agent，不混用安装、卸载或项目级选项。")
     agent = selected_agents[0]
-    if agent not in ("codex", "claude", "workbuddy"):
-        raise RuntimeError(f"{agent} 当前只安装原生 Skill 目录；自动入口尚未完成运行时验证，停止写入规则文件。")
     home = _home()
     roots = {"codex": (".agents", ".codex"), "claude": (".claude", ".agents"),
-             "workbuddy": (".workbuddy",)}[agent]
+             "workbuddy": (".workbuddy",), "zcode": (".zcode", ".agents"),
+             "dsh": (".dsh", ".agents"),
+             "opencode": (".opencode", ".config/opencode")}[agent]
     loaded = Path(os.path.abspath(Path(args.skill_dir).expanduser()))
     if loaded.resolve() != SOURCE.resolve():
         raise RuntimeError("传入的 Skill 路径与正在运行的安装器不一致，停止配置。")
 
     def location(path: Path):
-        if path.name != "context-keeper" or path.parent.name != "skills" or path.parent.parent.name not in roots:
+        if path.name != "context-keeper" or path.parent.name != "skills":
             return None
-        base = path.parent.parent.parent
+        node = path.parent.parent
+        nested = node.name == "opencode" and node.parent.name == ".config"
+        if not nested and node.name not in roots:
+            return None
+        base = node.parent.parent if nested else node.parent
         return ("user", home) if base.resolve() == home else ("project", base)
 
     selected = location(loaded)
@@ -286,11 +290,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--all", action="store_true", help="安装到所有已支持的 Agent")
     parser.add_argument("--codex", action="store_true", help="安装到 Codex")
     parser.add_argument("--claude", action="store_true", help="安装到 Claude Code")
-    parser.add_argument("--cursor", action="store_true", help="安装到 Cursor")
     parser.add_argument("--workbuddy", action="store_true", help="安装到 WorkBuddy")
-    parser.add_argument("--hermes", action="store_true", help="安装到 Hermes")
+    parser.add_argument("--zcode", action="store_true", help="安装到 ZCode")
+    parser.add_argument("--dsh", action="store_true", help="安装到 DeepSeek Harness")
     parser.add_argument("--opencode", action="store_true", help="安装到 OpenCode")
-    parser.add_argument("--openclaw", action="store_true", help="安装到 OpenClaw")
     parser.add_argument("--project", help="项目级安装到指定仓库；省略时为用户级")
     parser.add_argument("--uninstall", action="store_true", help="移除 Skill 和自身入口区块")
     parser.add_argument("--bridge-only", action="store_true", help="只配置自动入口，不安装 Skill")
@@ -304,7 +307,7 @@ def main(argv: list[str] | None = None) -> int:
     _require_source_checkout()
     if args.ensure_bridge:
         return _ensure_bridge(args)
-    agents = ("codex", "claude", "cursor", "workbuddy", "hermes", "opencode", "openclaw")
+    agents = ("codex", "claude", "workbuddy", "zcode", "dsh", "opencode")
     explicit = args.all or any(getattr(args, agent) for agent in agents)
     if args.all:
         for agent in agents:
@@ -313,17 +316,17 @@ def main(argv: list[str] | None = None) -> int:
         raise RuntimeError("请显式选择目标 Agent（例如 --codex），或使用 --all；安装器不会根据目录或命令猜测宿主。")
 
     selected_agents = [agent for agent in agents if getattr(args, agent)]
-    unsupported_bridges = [agent for agent in selected_agents if agent not in ("codex", "claude", "workbuddy")]
-    if args.bridge_only and unsupported_bridges:
-        raise RuntimeError("Cursor、Hermes、OpenCode 和 OpenClaw 当前只安装 Skill 目录；自动入口尚未完成运行时验证。")
 
     project = Path(args.project).expanduser().resolve() if args.project else None
     home = _home()
     installed: list[str] = []
     removed: list[dict[str, str]] = []
     bridges: list[dict[str, str]] = []
-    bridge_paths = {agent: _bridge_path(agent, project or home, user=project is None)
-                    for agent in ("codex", "claude", "workbuddy")}
+    bridge_paths = {agent: _bridge_path(agent, project or home, user=project is None) for agent in agents}
+    # 原生 Agent 项目级共用根 AGENTS.md：每个规则文件只写一次。
+    bridge_owners: dict[Path, str] = {}
+    for agent in selected_agents:
+        bridge_owners.setdefault(bridge_paths[agent], agent)
     roots_by_agent = {
         agent: ([Path(args.codex_dir)] if agent == "codex" and args.codex_dir else
                 [Path(args.claude_dir)] if agent == "claude" and args.claude_dir else
@@ -350,18 +353,17 @@ def main(argv: list[str] | None = None) -> int:
     elif not args.bridge_only:
         for skill_root in selected_roots:
             _check_install_target(skill_root)
-    for agent in selected_agents:
-        if agent in bridge_paths:
-            _check_bridge(bridge_paths[agent], agent)
+    for bridge, agent in bridge_owners.items():
+        _check_bridge(bridge, agent)
 
     if not args.approved:
         print(json.dumps({
             "approval_required": True,
             "operation": "卸载" if args.uninstall else "安装",
             "skill_entries": [str(root.expanduser() / "context-keeper") for root in selected_roots] if not args.bridge_only else [],
-            "rule_files": [str(bridge_paths[agent]) for agent in selected_agents if agent in bridge_paths],
+            "rule_files": [str(bridge) for bridge in bridge_owners],
             "effect": "仅移除当前源码创建的入口和自身规则区块" if args.uninstall else
-                      "新增或复用 Skill 入口，并在 Codex/Claude Code/WorkBuddy 规则文件中新增或更新自身区块",
+                      "新增或复用 Skill 入口，并在所选 Agent 的规则文件中新增或更新自身区块",
         }, ensure_ascii=False, indent=2))
         return 0
 
@@ -369,10 +371,12 @@ def main(argv: list[str] | None = None) -> int:
         for skill_root in selected_roots:
             skill, action = _remove_skill(skill_root)
             removed.append({"path": skill, "action": action})
-        for agent in selected_agents:
-            if agent in bridge_paths:
-                bridge = bridge_paths[agent]
-                bridges.append({"file": str(bridge), "action": _remove_bridge(bridge, agent)})
+        for bridge, agent in bridge_owners.items():
+            # 共用规则文件仍被未选择的 Agent 使用时保留区块，不替它们拆除入口。
+            if any(bridge_paths[other] == bridge for other in agents if other not in selected_agents):
+                bridges.append({"file": str(bridge), "action": "kept_shared"})
+                continue
+            bridges.append({"file": str(bridge), "action": _remove_bridge(bridge, agent)})
     else:
         created: list[Path] = []
         saved_bridges: list[tuple[Path, bytes | None]] = []
@@ -384,11 +388,9 @@ def main(argv: list[str] | None = None) -> int:
                     if not existed:
                         created.append(target)
                     installed.append(str(_link_skill(skill_root)))
-            for agent in selected_agents:
-                if agent in bridge_paths:
-                    bridge = bridge_paths[agent]
-                    saved_bridges.append((bridge, bridge.read_bytes() if bridge.exists() else None))
-                    bridges.append({"file": str(bridge), "action": _upsert_bridge(bridge, agent)})
+            for bridge, agent in bridge_owners.items():
+                saved_bridges.append((bridge, bridge.read_bytes() if bridge.exists() else None))
+                bridges.append({"file": str(bridge), "action": _upsert_bridge(bridge, agent)})
         except (RuntimeError, OSError):
             try:
                 for bridge, original in reversed(saved_bridges):
@@ -407,7 +409,7 @@ def main(argv: list[str] | None = None) -> int:
         "installed": installed,
         "removed": removed,
         "bridges": bridges,
-        "configured_agents": [name for name, enabled in (("Codex", args.codex), ("Claude Code", args.claude), ("Cursor", args.cursor), ("WorkBuddy", args.workbuddy), ("Hermes", args.hermes), ("OpenCode", args.opencode), ("OpenClaw", args.openclaw)) if enabled],
+        "configured_agents": [name for name, enabled in (("Codex", args.codex), ("Claude Code", args.claude), ("WorkBuddy", args.workbuddy), ("ZCode", args.zcode), ("DeepSeek Harness", args.dsh), ("OpenCode", args.opencode)) if enabled],
     }, ensure_ascii=False, indent=2))
     return 0
 

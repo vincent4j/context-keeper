@@ -24,7 +24,7 @@ python3 <source-dir>/scripts/install.py --all
 python3 <skill-dir>/scripts/install.py --ensure-bridge --skill-dir <skill-dir> --root <repo> --codex
 ```
 
-当前宿主是 Claude Code 时使用 `--claude`，WorkBuddy 使用 `--workbuddy`。得到用户确认后再加 `--approved` 写入。Cursor、Hermes、OpenCode 和 OpenClaw 当前只安装原生 Skill 目录，不写自动入口规则。
+当前宿主是 Claude Code 时使用 `--claude`，WorkBuddy 使用 `--workbuddy`，ZCode 使用 `--zcode`，DeepSeek Harness 使用 `--dsh`，OpenCode 使用 `--opencode`。得到用户确认后再加 `--approved` 写入。项目级 Codex、ZCode、DeepSeek Harness 与 OpenCode 共用根 `AGENTS.md` 的同一受控区块，只写一次；卸载时该区块仍被其他 Agent 使用则保留（`kept_shared`）。
 
 - 用户级安装对应用户级规则；项目级安装对应安装项目的规则，不以当前工作目录猜安装范围。
 - 目标 Agent 必须显式选择，安装器不会根据 PATH、用户目录或项目文件猜测宿主。
@@ -46,7 +46,7 @@ python3 <skill-dir>/scripts/install.py --ensure-bridge --skill-dir <skill-dir> -
 python3 scripts/install.py --all
 ```
 
-也可指定 `--codex`、`--claude`、`--cursor`、`--workbuddy`、`--hermes`、`--opencode` 或 `--openclaw`。用户级入口写入 Codex、Claude Code 和 WorkBuddy 的用户规则文件（WorkBuddy 为 `~/.workbuddy/MEMORY.md`），项目历史仍存放在各项目自己的记录目录，不跨项目自动混合。
+也可指定 `--codex`、`--claude`、`--workbuddy`、`--zcode`、`--dsh` 或 `--opencode`。默认为用户级安装，对当前用户的所有项目生效。用户级入口写入各 Agent 自己的用户规则文件（Codex `~/.codex/AGENTS.md`、Claude Code `~/.claude/CLAUDE.md`、WorkBuddy `~/.workbuddy/MEMORY.md`、ZCode `~/.zcode/AGENTS.md`、DeepSeek Harness `~/.dsh/AGENTS.md`、OpenCode `~/.config/opencode/AGENTS.md`），项目历史仍存放在各项目自己的记录目录，不跨项目自动混合。
 
 ## 项目级
 
@@ -80,19 +80,20 @@ python3 scripts/install.py --all --uninstall
 - 自动入口写到哪里。
 - 哪些 Agent 已验证，哪些没有验证。
 
-| Agent | 用户级目录 | 项目级目录 | 自动入口 |
+| Agent | 用户级目录 | 项目级目录 | 自动入口（用户级规则文件 / 项目级规则文件） |
 |---|---|---|---|
-| Codex | `~/.agents/skills`、`~/.codex/skills` | `.agents/skills`、`.codex/skills` | 支持 |
-| Claude Code | `~/.claude/skills` | `.claude/skills` | 支持 |
-| Cursor | `~/.cursor/skills` | `.cursor/skills` | 未启用 |
-| WorkBuddy | `~/.workbuddy/skills` | `.workbuddy/skills` | 支持配置，待新会话运行时验收 |
-| Hermes | `~/.hermes/skills` | `.agents/skills` | 未启用 |
-| OpenCode | `~/.config/opencode/skills` | `.opencode/skills` | 未启用 |
-| OpenClaw | `~/.agents/skills` | `.agents/skills` | 未启用 |
+| Codex | `~/.agents/skills`、`~/.codex/skills` | `.agents/skills`、`.codex/skills` | `~/.codex/AGENTS.md` / `AGENTS.md` |
+| Claude Code | `~/.claude/skills` | `.claude/skills` | `~/.claude/CLAUDE.md` / `CLAUDE.md` |
+| WorkBuddy | `~/.workbuddy/skills` | `.workbuddy/skills` | `~/.workbuddy/MEMORY.md` / `.workbuddy/memory/MEMORY.md` |
+| ZCode | `~/.zcode/skills`、`~/.agents/skills` | `.zcode/skills`、`.agents/skills` | `~/.zcode/AGENTS.md` / `AGENTS.md` |
+| DeepSeek Harness | `~/.dsh/skills`、`~/.agents/skills` | `.dsh/skills`、`.agents/skills` | `~/.dsh/AGENTS.md` / `AGENTS.md` |
+| OpenCode | `~/.config/opencode/skills` | `.opencode/skills` | `~/.config/opencode/AGENTS.md` / `AGENTS.md` |
+
+六家自动入口均由安装器写入。运行时验收状态：Codex 已通过，Claude Code 部分通过，WorkBuddy 安装器接管已验证（真机新会话待做），ZCode、DeepSeek Harness 和 OpenCode 待客户端运行时验收。项目级 `AGENTS.md` 的同一受控区块由 Codex、ZCode、DeepSeek Harness 与 OpenCode 共用；单独卸载其中一家时区块保留，四家全部卸载才移除。
 
 这些目录的安装验证只证明 Skill 文件可被对应宿主发现；自动入口和真实触发必须分别在该宿主的新任务中验收。安装器会拒绝替换同名的其他来源配置，也不会猜测该为哪个 Agent 写入规则。
 
-入口规则只保留触发条件、授权边界、日志只追加和迁移确认等关键底线，并要求触发后先读取已安装的 Context Keeper Skill；Skill 不可用时停止记忆操作并说明。记录格式、经验整理、续接顺序和报告校验等细节由 Skill 与 references 按需承载，不嵌入项目历史。Codex/Claude 共用入口控制在 500 字符以内，WorkBuddy 含宿主说明控制在 600 字符以内。重复安装更新受控区块，不重复追加；卸载只移除受控区块；不会覆盖受控区块之外的用户内容。
+入口规则只保留触发条件、授权边界、日志只追加和迁移确认等关键底线，并要求触发后先读取已安装的 Context Keeper Skill；Skill 不可用时停止记忆操作并说明。记录格式、经验整理、续接顺序和报告校验等细节由 Skill 与 references 按需承载，不嵌入项目历史。Codex、ZCode、DeepSeek Harness、OpenCode 共用的 AGENTS.md 入口与 Claude 入口控制在 500 字符以内，WorkBuddy 含宿主说明控制在 600 字符以内。重复安装更新受控区块，不重复追加；卸载只移除受控区块（共用且仍被其他 Agent 使用时保留）；不会覆盖受控区块之外的用户内容。
 
 安装输出 `configured_agents` 只证明文件与入口配置成功；不能证明 Agent 在新任务中实际触发。运行时验收需观察真实工具调用、产物和用户可见反馈，分别记录各 Agent 的结果。
 
