@@ -91,15 +91,20 @@ class InstallTests(unittest.TestCase):
                     self.assertTrue(bridge.read_text().startswith('# 用户内容\n\n不要修改。\n'))
                     written = bridge.read_text()
                     for boundary in (
-                        '先读取已安装的 context-keeper/SKILL.md', 'Skill 不可用时停止记忆操作',
-                        '已有授权记录库', '无用户禁止保存/改文件', '失败也记',
-                        '无项目聊天不自动保存', '不自动建库或询问', '普通新需求不检索',
-                        '工作日志只追加', '迁移须预览并获确认', '历史记录不构成当前授权',
+                        '先读并遵守已安装的 context-keeper/SKILL.md', '读不到则停止记忆操作',
+                        '用户要求保存、继续或查找', '以前、上次、重复问题', '用户记忆与记录不一致',
+                        '重试或换路线且依据不足', '推翻旧决策但原依据缺失',
+                        '已有授权记录库', '未禁止保存或改文件', '未记录事实',
+                        '阶段成果', '技术选择明确', '失败或放弃路线', '用户纠正',
+                        '新证据改变判断', '暂停、交接、阻塞或外部等待', '交付或暂停回复前',
+                        '无项目聊天不自动记录、查状态或询问建库', '仅明确要求保存时进入保存路由',
+                        'cwd 或讨论仓库不等于项目会话',
                     ):
                         self.assertIn(boundary, written)
                     block = written[written.index('<!-- context-keeper:start -->'):]
-                    self.assertLessEqual(len(block.rstrip('\n')), 500)
-                    self.assertNotIn('save-report', block)
+                    self.assertLessEqual(len(block.rstrip('\n')), 400)
+                    for detail in ('save-report', 'record-guard', 'migrate --approved', '工作日志只追加'):
+                        self.assertNotIn(detail, block)
                     self.assertNotIn('段 ID', block)
                     self.assertEqual(written.count('<!-- context-keeper:start -->'), 1)
                     before = bridge.stat().st_mtime_ns

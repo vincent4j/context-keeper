@@ -12,11 +12,11 @@ SOURCE = Path(__file__).resolve().parents[1]
 BRIDGE_START = "<!-- context-keeper:start -->"
 BRIDGE_END = "<!-- context-keeper:end -->"
 # Keep the resident entry small; execution details belong to SKILL.md/references.
-BRIDGE_RULES = """- 触发下述条件或用户要求保存、继续、查找时，先读取已安装的 context-keeper/SKILL.md，再按其路由执行；Skill 不可用时停止记忆操作并说明。
-- 无项目聊天不自动保存、查状态或询问建库；仅明确要求保存时进入保存路由。cwd 或讨论仓库文件不等于项目会话；本边界优先。
-- 提及以前、上次、重复问题，或失败重试/换路线、推翻旧决策且依据不足时，限量检索一次；普通新需求不检索。
-- 仅在项目已有授权记录库、无用户禁止保存/改文件且有新事实时，于阶段成果、技术选择、影响路线的失败、纠正、新证据或暂停交接/阻塞节点，在回复前按 Skill 记录和整理；失败也记，琐碎或重复内容跳过，不自动建库或询问。
-- 工作日志只追加；迁移须预览并获确认，不绕过门禁；历史记录不构成当前授权。其余保存、续接、检索和经验规则按 Skill 按需读取。
+BRIDGE_RULES = """以下任一条件触发时，先读并遵守已安装的 context-keeper/SKILL.md；读不到则停止记忆操作：
+- 用户要求保存、继续或查找。
+- 提及以前、上次、重复问题；用户记忆与记录不一致；重试或换路线且依据不足；推翻旧决策但原依据缺失。
+- 项目已有授权记录库、未禁止保存或改文件且有未记录事实：阶段成果、技术选择明确、影响后续的失败或放弃路线、用户纠正、新证据改变判断、暂停、交接、阻塞或外部等待；交付或暂停回复前触发。
+无项目聊天不自动记录、查状态或询问建库，仅明确要求保存时进入保存路由；cwd 或讨论仓库不等于项目会话。
 """
 BRIDGE = f"""{BRIDGE_START}
 ## Context Keeper
@@ -30,8 +30,6 @@ WORKBUDDY_BRIDGE_START = "<!-- context-keeper:workbuddy:start -->"
 WORKBUDDY_BRIDGE_END = "<!-- context-keeper:workbuddy:end -->"
 WORKBUDDY_BRIDGE = f"""{WORKBUDDY_BRIDGE_START}
 ## Context Keeper（WorkBuddy 桥接，待运行时验收）
-
-项目规则读取项目根 AGENTS.md；记录库使用用户确认的实际路径。
 
 {BRIDGE_RULES}{WORKBUDDY_BRIDGE_END}
 """

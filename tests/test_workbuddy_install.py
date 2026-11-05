@@ -72,8 +72,8 @@ class WorkBuddyInstallTests(unittest.TestCase):
                 self.assertEqual(json.loads(result.stdout)["action"], "updated")
                 current = installer.WORKBUDDY_BRIDGE.rstrip('\n').encode()
                 self.assertEqual(self.bridge.read_bytes(), current + suffix)
-                self.assertLessEqual(len(current.decode()), 600)
-                self.assertIn('先读取已安装的 context-keeper/SKILL.md', current.decode())
+                self.assertLessEqual(len(current.decode()), 450)
+                self.assertIn('先读并遵守已安装的 context-keeper/SKILL.md', current.decode())
                 before = self.bridge.read_bytes(), self.bridge.stat().st_mtime_ns
                 self.assertEqual(json.loads(self.ensure().stdout)['action'], 'unchanged')
                 self.assertEqual((self.bridge.read_bytes(), self.bridge.stat().st_mtime_ns), before)

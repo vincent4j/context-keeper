@@ -16,7 +16,7 @@
   "files": [
     {
       "path": "SKILL.md",
-      "sha256": "d23e6e89c1f4e37d43303c1b9184c1d5605165d33e9ec53a92948a586713b44c"
+      "sha256": "da39191e61bb95a2b248806d8331b8fe9705fe74e47db3b8b3a0047ecf63bc80"
     },
     {
       "path": "README.md",
@@ -44,7 +44,7 @@
     },
     {
       "path": "scripts/install.py",
-      "sha256": "3016f15b87d36bab86fec8a38c62f5812c2d5ddcbe8c91882fd9990f73b1e093"
+      "sha256": "f03838d7cd23ee0bd058e7dd052b51c27156dc691e3a21d2c9f196d595c3154d"
     },
     {
       "path": "scripts/context_keeper_probe.py",
@@ -60,7 +60,7 @@
     },
     {
       "path": "references/install.md",
-      "sha256": "b64980d40e3dd8fc65bec1840411bcc71ff8ab7e1549cc8e0e6f76fe13e98700"
+      "sha256": "3ab5ac2949cb5d64c93c84e20839a05b6a5e05c937029fc5a15e7033adfdf99e"
     },
     {
       "path": "references/migrate.md",

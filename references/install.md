@@ -93,7 +93,7 @@ python3 scripts/install.py --all --uninstall
 
 这些目录的安装验证只证明 Skill 文件可被对应宿主发现；自动入口和真实触发必须分别在该宿主的新任务中验收。安装器会拒绝替换同名的其他来源配置，也不会猜测该为哪个 Agent 写入规则。
 
-入口规则只保留触发条件、授权边界、日志只追加和迁移确认等关键底线，并要求触发后先读取已安装的 Context Keeper Skill；Skill 不可用时停止记忆操作并说明。记录格式、经验整理、续接顺序和报告校验等细节由 Skill 与 references 按需承载，不嵌入项目历史。Codex、ZCode、DeepSeek Harness、OpenCode 共用的 AGENTS.md 入口与 Claude 入口控制在 500 字符以内，WorkBuddy 含宿主说明控制在 600 字符以内。重复安装更新受控区块，不重复追加；卸载只移除受控区块（共用且仍被其他 Agent 使用时保留）；不会覆盖受控区块之外的用户内容。
+入口规则保留完整触发条件、Skill 读取入口及无项目聊天边界；读不到 Skill 就停止记忆操作。授权、日志只追加、迁移确认、记录格式、经验整理、续接顺序和报告校验均由 Skill 与 references 按需承载，不嵌入项目历史。Codex、ZCode、DeepSeek Harness、OpenCode 共用的 AGENTS.md 入口与 Claude 入口控制在 400 字符以内，WorkBuddy 含宿主标题控制在 450 字符以内。重复安装更新受控区块，不重复追加；卸载只移除受控区块（共用且仍被其他 Agent 使用时保留）；不会覆盖受控区块之外的用户内容。
 
 安装输出 `configured_agents` 只证明文件与入口配置成功；不能证明 Agent 在新任务中实际触发。运行时验收需观察真实工具调用、产物和用户可见反馈，分别记录各 Agent 的结果。
 
