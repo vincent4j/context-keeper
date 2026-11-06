@@ -16,15 +16,15 @@
   "files": [
     {
       "path": "SKILL.md",
-      "sha256": "1a523e518d1a9bb9891d2f3897cc43104541b20137504e9297be7b9d47351448"
+      "sha256": "8a4570883902502a894f85a68d50a65f19459338caf98129ef6affdf1a39335e"
     },
     {
       "path": "README.md",
-      "sha256": "20b8aa6730a9f7617fde15d8a4b09483a71a50faf507b608d9acb14cc26f62c2"
+      "sha256": "b8d344768bec2cea1afa9b58e90e098a91908f6a0bea3f72326f5d09137b8f26"
     },
     {
       "path": "DESIGN.md",
-      "sha256": "03e6c33e318bec8414b56b797ac2d3016f211ca968e162bc861c2b38cab1a044"
+      "sha256": "ff0fbcb8a1173406f707cfeaaefb9cead9ec8cec8487c8c80f631f60d1a9f43b"
     },
     {
       "path": "assets/context-keeper-icon.png",
@@ -44,27 +44,23 @@
     },
     {
       "path": "scripts/install.py",
-      "sha256": "5c5edd0b4d181a8212804e05cbf08f3b915df91dbf1a2f62f79b7b739a8a17b0"
+      "sha256": "f43eaa7eec2be130d45a20825be189df8e890b33c20d4d1e24f2dc1ca4c5b373"
     },
     {
       "path": "scripts/context_keeper_probe.py",
-      "sha256": "b1cd03ef26c80b664d70935c04bc44ff0fbaa67826494f68c034fe0abb13bc07"
-    },
-    {
-      "path": "scripts/preflight_memory.py",
-      "sha256": "fc2aa709d95fefe9abdaded165c6fe7b35b849b0fdcf43b442c7779e70798fc2"
+      "sha256": "6ea1f81146aa3f532b82912cbbb3594646e2b76b214d0c7b9c20170aa44e846b"
     },
     {
       "path": "references/save.md",
-      "sha256": "d3de1675b8aa7ef126c1195c64b281a335c7dc21c63e7179553ad4274bf6678a"
+      "sha256": "cbb168443037dace1e74fbfab7cd562d09ad6c48b8ae6ced390490a0c71ab2c9"
     },
     {
       "path": "references/resume.md",
-      "sha256": "8fce45c586772a5733e8e2ac80b0f2ef85bcd916570f2ca98fdb212a4156b9e8"
+      "sha256": "10416d215658f191fab8e6ac843eb4b3e447aea73630a18908510e31f5d26fe5"
     },
     {
       "path": "references/install.md",
-      "sha256": "c32fa5ae7ad01041c18c9bb36dc978074a50f0453ca5f88b241ee7afc0610cd1"
+      "sha256": "f495ef2f7e367a426981cffedc5f487d8d8c3b48a2d303284913941fdc86c0ea"
     },
     {
       "path": "references/migrate.md",
@@ -72,7 +68,7 @@
     },
     {
       "path": "references/search.md",
-      "sha256": "99685af710cee13b2e80957362d73a25777f28efa6054b1fccdd352b29ed259f"
+      "sha256": "efcd8259896c721340c7dc22bc34c608f8ba73ca7f4d2eea5de1c13bf6c2e9f5"
     }
   ]
 }

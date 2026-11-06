@@ -106,6 +106,7 @@ class InstallTests(unittest.TestCase):
                     for detail in ('save-report', 'record-guard', 'migrate --approved', '工作日志只追加'):
                         self.assertNotIn(detail, block)
                     self.assertNotIn('段 ID', block)
+                    self.assertNotIn('指定宿主卸载', block)
                     self.assertEqual(written.count('<!-- context-keeper:start -->'), 1)
                     before = bridge.stat().st_mtime_ns
                     result = subprocess.run([part for part in cmd if part != '--approved'],env=env,text=True,capture_output=True)

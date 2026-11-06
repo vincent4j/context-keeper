@@ -15,7 +15,7 @@ BRIDGE_START = "<!-- context-keeper:start -->"
 BRIDGE_END = "<!-- context-keeper:end -->"
 # Keep the resident entry small; execution details belong to SKILL.md/references.
 BRIDGE_RULES = """以下任一条件触发时，先读并遵守已安装的 context-keeper/SKILL.md；读不到则停止记忆操作：
-- 用户要求保存、继续或查找；或明确要求从指定宿主卸载 Context Keeper。
+- 用户要求保存、继续或查找。
 - 提及以前、上次、重复问题；用户记忆与记录不一致；重试或换路线且依据不足；推翻旧决策但原依据缺失。
 - 项目已有授权记录库、未禁止保存或改文件且有未记录事实：阶段成果、技术选择明确、影响后续的失败或放弃路线、用户纠正、新证据改变判断、暂停、交接、阻塞或外部等待；交付或暂停回复前触发。
 无项目聊天不自动记录、查状态或询问建库，仅明确要求保存时进入保存路由；cwd 或讨论仓库不等于项目会话。

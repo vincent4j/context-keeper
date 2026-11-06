@@ -1,6 +1,6 @@
 ---
 name: context-keeper
-description: 续接项目进度，复核跨会话证据，查找历史事实并沉淀经验；明确卸载指定宿主的 Context Keeper 时查询适用的操作前经验。
+description: 续接项目进度，查找历史事实；写入经验前检索并合并相关经验。
 version: "1.0.0"
 display_name: "上下文守望者"
 display_name_en: "Context Keeper"
@@ -64,8 +64,7 @@ python3 <skill-dir>/scripts/install.py --ensure-bridge --skill-dir <skill-dir> -
 
 - 保存（包括阶段记录及用户纠正后的自动沉淀）：本会话首次保存先运行 `status`，再读 [references/save.md](references/save.md)；同仓库同主题连续保存按快速路径复用已验证状态。
 - 继续：按 [references/resume.md](references/resume.md) 执行 `resume --query '<当前关键词>'` 并按当前状态优先规则读取；命令通过迁移门禁后再核对当前主题和必要日志片段。
-- 续接的当前主题有未核对的相关会话来源时，用 `resume --query '<具体对象>' --review-evidence` 限量展开证据；按观察与条件判断关系，查询只读，修订沿用阶段保存。
-- 明确卸载本 Skill：按 [安装说明](references/install.md) 先运行卸载预检。通过后在已有授权项目里调用一次 `preflight_memory.py`，核对命中来源后再处理本次操作。
+- 写入经验前：按 [保存说明](references/save.md) 提炼候选，再运行 `search --for-write --query '<主题和对象>'` 查当前项目已有经验；读回相关条目与依据后决定补证据、修范围、降级或新建。语义判断由 Agent 完成。
 - 查找：从当前上下文提取关键词运行 `search`，再读 [references/search.md](references/search.md)。
 - 安装、卸载、用户级或项目级入口：读 [references/install.md](references/install.md)。
 

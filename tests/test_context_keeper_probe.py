@@ -1003,75 +1003,133 @@ class SaveReportTests(IsolatedProbeTestCase):
             self.assertEqual(result, 0, output)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
-class ReviewEvidenceTests(IsolatedProbeTestCase):
+class WriteTimeSearchTests(IsolatedProbeTestCase):
     def setUp(self):
         super().setUp()
-        self.root = self.test_home / 'project'
-        self.store = self.root / 'docs/context-keeper'
-        self.logs = self.store / 'worklogs'
-        self.logs.mkdir(parents=True)
-        self.first = self.logs / 'a.md'
-        self.second = self.logs / 'b.md'
-        self.first.write_text('<!-- context-keeper: session-id=a -->\n# 上传 413\n## 追加记录 2026-11-01\n2 MB 返回 200。\n')
-        self.second.write_text('<!-- context-keeper: session-id=b -->\n# 上传 413\n## 追加记录 2026-11-02\n25 MB 上游仍返回 413。\n')
-        self.memory = self.store / 'memory-keeper.md'
-        self.memory.write_text('''# 记忆
-## 当前主题
-- 上传 413 已处理，来源：[A](worklogs/a.md)。
-## 时间线（最新在前）
-## 2026-11-02 - 上传 413 `bugfix`
-- 任务：上传 413 复查。
-- 详见：[B](worklogs/b.md)。
-''')
+        self.root = self.test_home / "project"
+        self.worklog = _write_valid_context(self.root, evolution=True)
+        self.evolution = self.root / "docs/context-keeper/evolution"
+        self.experience = self.evolution / "耗时分析.md"
 
-    def review(self, query='上传 413'):
-        return _call('resume', '--root', str(self.root), '--query', query, '--review-evidence')
+    def search(self, query="耗时", *extra):
+        return _call("search", "--root", str(self.root), "--query", query, "--for-write", *extra)
 
     def snapshot(self):
-        return {str(p): p.read_bytes() for p in self.root.rglob('*') if p.is_file()}
+        return {str(path): path.read_bytes() for path in self.root.rglob("*") if path.is_file()}
 
-    def test_two_sessions_and_repeat_are_read_only(self):
+    def test_for_write_returns_scope_evidence_and_leaves_files_unchanged(self):
         before = self.snapshot()
-        code, output = self.review()
+        code, output = self.search()
         self.assertEqual(code, 0)
-        self.assertIn('会话 a', output)
-        self.assertIn('会话 b', output)
-        self.assertIn('2 MB', output)
-        self.assertIn('25 MB', output)
-        self.assertIn('仅活动索引', output)
-        self.assertEqual(self.review(), (code, output))
+        self.assertIn("只读候选", output)
+        self.assertIn("CK-001", output)
+        self.assertIn("docs/context-keeper/evolution/耗时分析.md", output)
+        self.assertIn("证据位置：worklogs/2026-08-17-test.md", output)
+        self.assertIn("适用范围：当前生产流程", output)
+        self.assertEqual(self.search(), (code, output))
         self.assertEqual(self.snapshot(), before)
 
-    def test_same_file_append_is_visible(self):
-        self.review()
-        with self.first.open('a') as stream:
-            stream.write('\n## 追加记录 2026-11-03\n新的反证需要暂停原建议。\n')
-        self.assertIn('新的反证', self.review()[1])
-
-    def test_generic_query_is_rejected(self):
-        for query in ('继续', '失败', '.*'):
-            self.assertEqual(self.review(query)[0], 2)
-
-    def test_external_source_is_not_opened(self):
-        outside = self.test_home / 'outside.md'
-        outside.write_text('SECRET-SENTINEL')
-        self.second.unlink()
-        self.second.symlink_to(outside)
-        self.assertNotIn('SECRET-SENTINEL', self.review()[1])
-
-    def test_default_resume_preserves_current_state(self):
-        code, output = _call('resume', '--root', str(self.root), '--query', '上传 413')
+    def test_for_write_never_reads_user_experiences_or_log_bodies(self):
+        original = PROBE._read_text
+        memory = self.root / "docs/context-keeper/memory-keeper.md"
+        def read_project_experience(path):
+            self.assertNotIn(path, (self.worklog, memory))
+            return original(path)
+        with patch.object(PROBE, "_user_evolution_dir", side_effect=AssertionError("user memory accessed")), \
+             patch.object(PROBE, "_read_text", side_effect=read_project_experience):
+            self.assertEqual(self.search()[0], 0)
+            code, output = self.search("日志独有词")
         self.assertEqual(code, 0)
-        self.assertIn('上传 413 已处理', output)
-        self.assertNotIn('同主题证据复核', output)
+        self.assertIn("当前查询未找到", output)
 
-    def test_large_tail_is_bounded_and_recent(self):
-        with self.second.open('a') as stream:
-            stream.write('x' * 12000 + '\n## 追加记录 2026-11-03\n最近验证得到新结论。\n')
-        output = self.review()[1]
-        self.assertIn('最近验证', output)
-        self.assertLess(len(output), 4000)
+    def test_replaced_experience_is_visible_for_comparison_only(self):
+        old = self.evolution / "旧规则.md"
+        old.write_text(_experience("旧规则", "CK-OLD", "已替代") +
+                       "- **替代为：** [当前经验](耗时分析.md)\n")
+        code, output = self.search("旧规则")
+        self.assertEqual(code, 0)
+        self.assertIn("CK-OLD", output)
+        self.assertIn("替代为：", output)
+        self.assertIn("沿替代链接核对当前条目", output)
+        self.assertNotIn("建议动作：先检查已有计时", output)
+        _, normal = _call("search", "--root", str(self.root), "--query", "旧规则")
+        self.assertNotIn("CK-OLD", normal)
+        self.assertNotIn("仅供写入前对照", normal)
+
+    def test_pending_experience_can_be_compared_without_recommending_action(self):
+        self.experience.write_text(_experience(status="待验证"))
+        _, output = self.search()
+        self.assertIn("待验证；项目；仅供写入前对照", output)
+        self.assertNotIn("建议动作：", output)
+
+    def test_output_cap_reports_unchecked_experiences(self):
+        for number in range(4):
+            (self.evolution / f"耗时-{number}.md").write_text(_experience(identifier=f"CK-{number + 10}"))
+        _, output = self.search("耗时", "--entries", "1", "--evolution-entries", "1")
+        self.assertIn("1 个只读候选", output)
+        self.assertIn("候选/覆盖受限", output)
+        self.assertIn("未检查", output)
+
+    def test_normal_search_still_reads_logs(self):
+        with self.worklog.open("a") as stream:
+            stream.write("\n日志独有词\n")
+        _, output = _call("search", "--root", str(self.root), "--query", "日志独有词")
+        self.assertIn("工作日志", output)
+        self.assertIn("日志独有词", output)
+        _, output = self.search("日志独有词")
+        self.assertIn("当前查询未找到", output)
+
+    def test_project_lookup_ignores_external_symlink(self):
+        outside = self.test_home / "outside.md"
+        outside.write_text(_experience("外部主题", "CK-OUTSIDE"))
+        (self.evolution / "外部.md").symlink_to(outside)
+        original = PROBE._read_text
+        def read_project_only(path):
+            self.assertNotEqual(path, outside)
+            return original(path)
+        with patch.object(PROBE, "_read_text", side_effect=read_project_only):
+            _, output = self.search("外部主题")
+        self.assertNotIn("CK-OUTSIDE", output)
+        self.assertIn("当前查询未找到", output)
+
+    def test_explicit_store_dir_is_used(self):
+        custom = self.root / "notes/project-history"
+        (custom / "evolution").mkdir(parents=True)
+        (custom / "evolution/custom.md").write_text(_experience("自定义记录库", "CK-CUSTOM"))
+        _, output = self.search("自定义记录库", "--store-dir", str(custom))
+        self.assertIn("CK-CUSTOM", output)
+        self.assertIn("notes/project-history/evolution/custom.md", output)
+
+    def test_project_lookup_ignores_external_evolution_directory(self):
+        outside = self.test_home / "outside-evolution"
+        self.evolution.rename(outside)
+        self.evolution.symlink_to(outside, target_is_directory=True)
+        original = PROBE._read_text
+        def read_project_only(path):
+            self.assertFalse(path.resolve().is_relative_to(outside))
+            return original(path)
+        with patch.object(PROBE, "_read_text", side_effect=read_project_only):
+            code, output = self.search()
+        self.assertEqual(code, 0)
+        self.assertIn("当前查询未找到", output)
+        self.assertNotIn("CK-001", output)
+
+    def test_project_lookup_ignores_external_index_symlink(self):
+        outside = self.test_home / "outside-index.md"
+        outside.write_text("- [外部索引独有词](耗时分析.md)\n")
+        index = self.evolution / "index.md"
+        index.unlink()
+        index.symlink_to(outside)
+        original = PROBE._read_text
+        def read_project_only(path):
+            self.assertNotEqual(path.resolve(), outside.resolve())
+            return original(path)
+        with patch.object(PROBE, "_read_text", side_effect=read_project_only):
+            code, output = self.search("外部索引独有词")
+        self.assertEqual(code, 0)
+        self.assertIn("当前查询未找到", output)
+        self.assertNotIn("CK-001", output)
+
+
+if __name__ == "__main__":
+    unittest.main()
