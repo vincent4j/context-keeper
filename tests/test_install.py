@@ -241,7 +241,8 @@ class InstallTests(unittest.TestCase):
 
     def test_source_does_not_name_external_skill(self):
         source = INSTALLER.parents[1]
-        forbidden = "p" + "rd"
+        forbidden = "p" + "rd-distill"
+        # Project PRD links are documentation, not a dependency on another skill.
         checked = [source / "SKILL.md", source / "README.md"]
         checked.extend((source / "references").glob("*.md"))
         checked.extend((source / "scripts").glob("*.py"))

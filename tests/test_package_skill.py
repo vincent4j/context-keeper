@@ -65,10 +65,10 @@ class PackageTests(unittest.TestCase):
                 archive.extractall(package)
             self.assertEqual((package / "assets/context-keeper-icon.png").read_bytes(),
                              (ROOT / "assets/context-keeper-icon.png").read_bytes())
-            self.assertTrue((package / "DESIGN.md").is_file())
-            # Check the linked design/report documents too, so bundling a document
+            self.assertTrue((package / "docs/prd/architecture.md").is_file())
+            # Check the linked PRD documents too, so bundling a document
             # cannot merely move the broken-link problem one level deeper.
-            for name in ("README.md", "DESIGN.md", "docs/verification/2026-10-29-cli/report.md"):
+            for name in ("README.md", *(name for name in PACKAGER.FILES if name.startswith("docs/prd/"))):
                 document = package / name
                 text = document.read_text()
                 links = re.findall(r"\]\(([^)]+)\)", text)
