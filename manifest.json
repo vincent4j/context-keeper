@@ -1,7 +1,7 @@
 {
   "type": "skill",
   "code": "context-keeper",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "name": "Context Keeper",
   "description": "续接项目进度、查找历史事实，并在有证据时沉淀可复用经验。",
   "runtimeTargets": [
@@ -16,7 +16,7 @@
   "files": [
     {
       "path": "SKILL.md",
-      "sha256": "8a4570883902502a894f85a68d50a65f19459338caf98129ef6affdf1a39335e"
+      "sha256": "3fb1188db4af29a7e2fa061a8e62adea2318bb28c8eb010cc902e6338196f150"
     },
     {
       "path": "README.md",
