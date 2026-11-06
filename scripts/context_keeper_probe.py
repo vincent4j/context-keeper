@@ -999,9 +999,84 @@ def cmd_record_guard(args: argparse.Namespace) -> int:
     return 0
 
 
+def _review_log_excerpt(path: Path) -> list[str]:
+    """Read only the tail; keep the most recent append heading and its outcome."""
+    with path.open("rb") as handle:
+        size = handle.seek(0, os.SEEK_END)
+        offset = max(0, size - 8192)
+        handle.seek(offset)
+        lines = handle.read(8192).decode("utf-8", errors="replace").splitlines()
+    if offset and lines:
+        lines = lines[1:]  # The first line can start in the middle of a record.
+    start = next((i for i in reversed(range(len(lines)))
+                  if re.match(r"^##\s+追加记录(?:\s|$)", lines[i])), 0)
+    body = [line.strip() for line in lines[start:] if line.strip() and not SESSION_RE.search(line)]
+    selected = body if len(body) <= 6 else [*body[:2], "…", *body[-4:]]
+    return [_clip(line, 240) for line in selected]
+
+
+def _review_evidence(layout: Layout, query: str | None) -> int:
+    generic = {"继续", "继续项目", "继续这个项目", "上次", "之前", "项目", "问题", "工作",
+               "任务", "配置", "失败", "修复", "排查", "验证", "continue", "resume", "project"}
+    terms = [word for word in (query or "").casefold().split()
+             if len(word) >= 2 and word not in generic and any(c.isalnum() for c in word)]
+    if not terms or re.search(r"[\\|()\[\]{}^$*+?]", query or ""):
+        print("请用具体对象、模块或错误码复核，例如 --query '上传 413'；不使用通配正则。")
+        return 2
+    print("同主题证据复核（只读候选；请核对观察、来源与适用条件）：")
+    memory = layout.memory
+    if (not memory.is_file() or memory.is_symlink() or layout.worklogs.is_symlink()
+            or memory.stat().st_size > 256 * 1024):
+        print("- 缺少可安全读取的项目索引，或索引超过 256 KiB；本次未展开日志。")
+        return 0
+
+    def matches(text: str) -> bool:
+        return all(term in text.casefold() for term in terms)
+
+    themes = [text for section, text in _current_memory_items(memory) if matches(section + " " + text)]
+    entries = ["\n".join(entry) for entry in _memory_entries(memory)]
+    candidates: dict[Path, str] = {}
+    # Anchor on the current claim, then consider other sources in timeline order.
+    groups = [("当前主题", themes[:1]), ("时间线", [e for e in entries if matches(e)]),
+              ("当前主题", themes[1:])]
+    for label, items in groups:
+        for item in items:
+            for target in sorted(_linked_records(item, memory.parent)):
+                path = Path(target)
+                if path.suffix == ".md" and path.is_relative_to(layout.worklogs) and path.is_file():
+                    candidates.setdefault(path, label)
+    inspected = []
+    for path in list(candidates)[:5]:
+        try:
+            with path.open("rb") as handle:
+                marker = SESSION_RE.search(handle.read(1200).decode("utf-8", errors="replace"))
+        except OSError:
+            continue
+        inspected.append((path, marker.group(1) if marker else None))
+    selected = inspected[:1]
+    if len(inspected) > 1:
+        old_session = selected[0][1]
+        selected.append(next((item for item in inspected[1:] if old_session and item[1]
+                              and item[1] != old_session), inspected[1]))
+    for path, session in selected:
+        print(f"- {candidates[path]} · {_rel(layout.root, path)} · 会话 {session or '未知'}")
+        try:
+            excerpt = _review_log_excerpt(path)
+        except OSError:
+            excerpt = []
+        print("\n".join(f"  {line}" for line in excerpt) or "  未取得完整可读行，请按来源核实。")
+    if not selected:
+        print("- 当前主题和活动时间线内没有找到匹配的项目日志来源。")
+    print("范围：仅活动索引；最多核对 5 个候选标识、展开 2 份日志各末尾 8 KiB 的有限片段。"
+          "两份记录不等于两次独立验证，未展示部分和归档仍可能有证据。")
+    return 0
+
+
 def cmd_resume(args: argparse.Namespace) -> int:
     root = Path(args.root).resolve()
     store_dir = getattr(args, "store_dir", None)
+    if args.review_evidence:
+        return _review_evidence(_layout(root, store_dir), args.query)
     pattern = _compile_query_pattern(args.query) if args.query else None
     memory_paths = _memory_paths(root, store_dir)
     themes = [item for path in memory_paths for item in _theme_summary(path, pattern, args.entries)]
@@ -1990,6 +2065,7 @@ def build_parser() -> argparse.ArgumentParser:
     resume.add_argument("--kind", choices=["feature", "bugfix", "refactor", "research", "config"])
     resume.add_argument("--details", action="store_true")
     resume.add_argument("--full", action="store_true")
+    resume.add_argument("--review-evidence", action="store_true", help="按具体主题只读复核最多两份工作日志的近期证据")
     resume.set_defaults(func=cmd_resume)
     search = sub.add_parser("search", help="分层查找历史证据和进化经验")
     search.add_argument("--root", default=".")

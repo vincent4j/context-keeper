@@ -1005,3 +1005,73 @@ class SaveReportTests(IsolatedProbeTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ReviewEvidenceTests(IsolatedProbeTestCase):
+    def setUp(self):
+        super().setUp()
+        self.root = self.test_home / 'project'
+        self.store = self.root / 'docs/context-keeper'
+        self.logs = self.store / 'worklogs'
+        self.logs.mkdir(parents=True)
+        self.first = self.logs / 'a.md'
+        self.second = self.logs / 'b.md'
+        self.first.write_text('<!-- context-keeper: session-id=a -->\n# 上传 413\n## 追加记录 2026-11-01\n2 MB 返回 200。\n')
+        self.second.write_text('<!-- context-keeper: session-id=b -->\n# 上传 413\n## 追加记录 2026-11-02\n25 MB 上游仍返回 413。\n')
+        self.memory = self.store / 'memory-keeper.md'
+        self.memory.write_text('''# 记忆
+## 当前主题
+- 上传 413 已处理，来源：[A](worklogs/a.md)。
+## 时间线（最新在前）
+## 2026-11-02 - 上传 413 `bugfix`
+- 任务：上传 413 复查。
+- 详见：[B](worklogs/b.md)。
+''')
+
+    def review(self, query='上传 413'):
+        return _call('resume', '--root', str(self.root), '--query', query, '--review-evidence')
+
+    def snapshot(self):
+        return {str(p): p.read_bytes() for p in self.root.rglob('*') if p.is_file()}
+
+    def test_two_sessions_and_repeat_are_read_only(self):
+        before = self.snapshot()
+        code, output = self.review()
+        self.assertEqual(code, 0)
+        self.assertIn('会话 a', output)
+        self.assertIn('会话 b', output)
+        self.assertIn('2 MB', output)
+        self.assertIn('25 MB', output)
+        self.assertIn('仅活动索引', output)
+        self.assertEqual(self.review(), (code, output))
+        self.assertEqual(self.snapshot(), before)
+
+    def test_same_file_append_is_visible(self):
+        self.review()
+        with self.first.open('a') as stream:
+            stream.write('\n## 追加记录 2026-11-03\n新的反证需要暂停原建议。\n')
+        self.assertIn('新的反证', self.review()[1])
+
+    def test_generic_query_is_rejected(self):
+        for query in ('继续', '失败', '.*'):
+            self.assertEqual(self.review(query)[0], 2)
+
+    def test_external_source_is_not_opened(self):
+        outside = self.test_home / 'outside.md'
+        outside.write_text('SECRET-SENTINEL')
+        self.second.unlink()
+        self.second.symlink_to(outside)
+        self.assertNotIn('SECRET-SENTINEL', self.review()[1])
+
+    def test_default_resume_preserves_current_state(self):
+        code, output = _call('resume', '--root', str(self.root), '--query', '上传 413')
+        self.assertEqual(code, 0)
+        self.assertIn('上传 413 已处理', output)
+        self.assertNotIn('同主题证据复核', output)
+
+    def test_large_tail_is_bounded_and_recent(self):
+        with self.second.open('a') as stream:
+            stream.write('x' * 12000 + '\n## 追加记录 2026-11-03\n最近验证得到新结论。\n')
+        output = self.review()[1]
+        self.assertIn('最近验证', output)
+        self.assertLess(len(output), 4000)

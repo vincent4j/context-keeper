@@ -9,11 +9,13 @@ from pathlib import Path, PurePosixPath
 
 
 SOURCE = Path(__file__).resolve().parents[1]
+AGENT_NAMES = {"codex": "Codex", "claude": "Claude Code", "workbuddy": "WorkBuddy",
+               "zcode": "ZCode", "dsh": "DeepSeek Harness", "opencode": "OpenCode"}
 BRIDGE_START = "<!-- context-keeper:start -->"
 BRIDGE_END = "<!-- context-keeper:end -->"
 # Keep the resident entry small; execution details belong to SKILL.md/references.
 BRIDGE_RULES = """以下任一条件触发时，先读并遵守已安装的 context-keeper/SKILL.md；读不到则停止记忆操作：
-- 用户要求保存、继续或查找。
+- 用户要求保存、继续或查找；或明确要求从指定宿主卸载 Context Keeper。
 - 提及以前、上次、重复问题；用户记忆与记录不一致；重试或换路线且依据不足；推翻旧决策但原依据缺失。
 - 项目已有授权记录库、未禁止保存或改文件且有未记录事实：阶段成果、技术选择明确、影响后续的失败或放弃路线、用户纠正、新证据改变判断、暂停、交接、阻塞或外部等待；交付或暂停回复前触发。
 无项目聊天不自动记录、查状态或询问建库，仅明确要求保存时进入保存路由；cwd 或讨论仓库不等于项目会话。
@@ -198,7 +200,7 @@ def _bridge_is_current(path: Path, agent: str = "codex") -> bool:
 
 
 def _ensure_bridge(args: argparse.Namespace) -> int:
-    agents = ("codex", "claude", "workbuddy", "zcode", "dsh", "opencode")
+    agents = tuple(AGENT_NAMES)
     selected_agents = [agent for agent in agents if getattr(args, agent)]
     if args.all or len(selected_agents) != 1 or args.uninstall or args.project or args.codex_dir or args.claude_dir:
         raise RuntimeError("首次入口配置只接受一个当前 Agent，不混用安装、卸载或项目级选项。")
@@ -305,7 +307,7 @@ def main(argv: list[str] | None = None) -> int:
     _require_source_checkout()
     if args.ensure_bridge:
         return _ensure_bridge(args)
-    agents = ("codex", "claude", "workbuddy", "zcode", "dsh", "opencode")
+    agents = tuple(AGENT_NAMES)
     explicit = args.all or any(getattr(args, agent) for agent in agents)
     if args.all:
         for agent in agents:
@@ -340,13 +342,17 @@ def main(argv: list[str] | None = None) -> int:
                 selected_roots.append(skill_root)
                 seen_roots.add(resolved)
 
+    other_agents = set(agents) - set(selected_agents)
+    other_rule_files = {bridge_paths[agent] for agent in other_agents}
     if args.uninstall:
         for skill_root in selected_roots:
-            consumers = {agent for agent, roots in roots_by_agent.items()
-                         if any(root.expanduser().resolve() == skill_root.expanduser().resolve() for root in roots)}
+            resolved = skill_root.expanduser().resolve()
+            other_consumers = sorted(AGENT_NAMES[agent] for agent in other_agents
+                                     if any(root.expanduser().resolve() == resolved for root in roots_by_agent[agent]))
             target = skill_root.expanduser() / "context-keeper"
-            if consumers - set(selected_agents) and (target.exists() or target.is_symlink()):
-                raise RuntimeError(f"安装位置由多个 Agent 共用，拒绝单独卸载：{skill_root}；请使用 --all --uninstall")
+            if other_consumers and (target.exists() or target.is_symlink()):
+                raise RuntimeError(f"安装位置由多个 Agent 共用，已停止卸载：{target}。"
+                                   f"按路径配置，{'、'.join(other_consumers)} 也可能使用该入口。尚未删除任何入口。")
             _check_remove_target(skill_root)
     elif not args.bridge_only:
         for skill_root in selected_roots:
@@ -355,14 +361,17 @@ def main(argv: list[str] | None = None) -> int:
         _check_bridge(bridge, agent)
 
     if not args.approved:
-        print(json.dumps({
+        preview = {
             "approval_required": True,
             "operation": "卸载" if args.uninstall else "安装",
             "skill_entries": [str(root.expanduser() / "context-keeper") for root in selected_roots] if not args.bridge_only else [],
             "rule_files": [str(bridge) for bridge in bridge_owners],
             "effect": "仅移除当前源码创建的入口和自身规则区块" if args.uninstall else
                       "新增或复用 Skill 入口，并在所选 Agent 的规则文件中新增或更新自身区块",
-        }, ensure_ascii=False, indent=2))
+        }
+        if args.uninstall:
+            preview["kept_shared_rule_files"] = [str(path) for path in bridge_owners if path in other_rule_files]
+        print(json.dumps(preview, ensure_ascii=False, indent=2))
         return 0
 
     if args.uninstall:
@@ -371,7 +380,7 @@ def main(argv: list[str] | None = None) -> int:
             removed.append({"path": skill, "action": action})
         for bridge, agent in bridge_owners.items():
             # 共用规则文件仍被未选择的 Agent 使用时保留区块，不替它们拆除入口。
-            if any(bridge_paths[other] == bridge for other in agents if other not in selected_agents):
+            if bridge in other_rule_files:
                 bridges.append({"file": str(bridge), "action": "kept_shared"})
                 continue
             bridges.append({"file": str(bridge), "action": _remove_bridge(bridge, agent)})

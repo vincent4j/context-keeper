@@ -1,6 +1,6 @@
 ---
 name: context-keeper
-description: 续接项目进度，查找历史事实，自动沉淀经验，让 AI 在使用中持续自我进化。
+description: 续接项目进度，复核跨会话证据，查找历史事实并沉淀经验；明确卸载指定宿主的 Context Keeper 时查询适用的操作前经验。
 version: "1.0.0"
 display_name: "上下文守望者"
 display_name_en: "Context Keeper"
@@ -21,6 +21,8 @@ Git 源码仓库是唯一真实副本；各宿主 Skill 目录都从源码加载
 先按宿主上下文和用户说明判断是否属于项目。无项目聊天默认不启动自动保存，不运行 `status`、`init`、建库预览或记录创建，不询问是否建库；仅用户明确要求保存时进入保存路由。临时工作目录、当前 cwd、讨论或编辑仓库文件都不自动把聊天变成项目会话；没有 `.git` 不能单独作为判据。本边界优先于纠正、失败后新结果等自动沉淀触发，不因问答长短或已有记录库而改变。历史查询可按用户请求执行，但不因此发起保存或建库。
 
 ## 首次使用：补齐自动入口
+
+本次明确要求卸载 Context Keeper 时，直接按 `references/install.md` 的卸载路由处理，跳过首次入口补齐。
 
 常驻入口保留完整触发条件、Skill 读取入口与无项目聊天边界；触发后先读本 Skill，再按操作路由读取必要 reference。记录格式、整理方法、读取顺序和校验细节以本 Skill 及 references 为准，不复制进 Agent 规则文件。找不到本 Skill 时停止记忆操作并说明，不凭入口摘要直接执行。
 
@@ -62,6 +64,8 @@ python3 <skill-dir>/scripts/install.py --ensure-bridge --skill-dir <skill-dir> -
 
 - 保存（包括阶段记录及用户纠正后的自动沉淀）：本会话首次保存先运行 `status`，再读 [references/save.md](references/save.md)；同仓库同主题连续保存按快速路径复用已验证状态。
 - 继续：按 [references/resume.md](references/resume.md) 执行 `resume --query '<当前关键词>'` 并按当前状态优先规则读取；命令通过迁移门禁后再核对当前主题和必要日志片段。
+- 续接的当前主题有未核对的相关会话来源时，用 `resume --query '<具体对象>' --review-evidence` 限量展开证据；按观察与条件判断关系，查询只读，修订沿用阶段保存。
+- 明确卸载本 Skill：按 [安装说明](references/install.md) 先运行卸载预检。通过后在已有授权项目里调用一次 `preflight_memory.py`，核对命中来源后再处理本次操作。
 - 查找：从当前上下文提取关键词运行 `search`，再读 [references/search.md](references/search.md)。
 - 安装、卸载、用户级或项目级入口：读 [references/install.md](references/install.md)。
 

@@ -64,7 +64,11 @@ Skill 已通过统一安装或其他方式可用，只需启用 Codex、Claude C
 python3 scripts/install.py --codex --claude --bridge-only
 ```
 
-卸载时只删除 Context Keeper Skill 和自己的受控入口区块，保留用户其他内容：
+卸载时按用户指定的宿主和范围预检。用户只选择一家时使用对应宿主参数，项目级同时传 `--project <repo>`；用户明确选择所有宿主时使用 `--all`。
+
+预检未通过就报告原因，按输出说明共享入口和可能共用的宿主。预检通过且当前项目已有授权记录库时，按 [操作前经验](search.md) 用确定的动作、宿主、范围调用一次 `preflight_memory.py`，核对命中来源。用户级卸载也只查询明确的当前项目；无项目时跳过该查询。已有执行授权时沿用，无授权时展示预检结果按原流程确认。执行前重跑安装器检查当前文件状态。
+
+卸载时只删除 Context Keeper Skill 和自己的受控入口区块，保留用户其他内容。下面展示已明确选择所有宿主时的预检命令。
 
 ```bash
 python3 scripts/install.py --all --uninstall

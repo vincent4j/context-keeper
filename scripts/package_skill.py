@@ -20,6 +20,7 @@ FILES = (
     "docs/verification/2026-10-29-cli/observations.jsonl",
     "scripts/install.py",
     "scripts/context_keeper_probe.py",
+    "scripts/preflight_memory.py",
     "references/save.md",
     "references/resume.md",
     "references/install.md",

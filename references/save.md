@@ -154,6 +154,12 @@ python3 <skill-dir>/scripts/context_keeper_probe.py compact --root <repo> --appr
 
 项目经验默认留项目。只有用户明确确认跨项目复用后，才运行 promote-evolution --approved；不因整理自行扩大适用范围。
 
+### 操作前经验标记
+
+经验已验证、来源直接支持对应宿主与安装范围，且能增加项目特有检查时，可添加可选字段 `- **操作前提示：** uninstall-skill | opencode | project`。三部分分别是操作、宿主和范围。本版操作支持 `uninstall-skill`，宿主支持六家标识，范围为 `project` 或 `user`。由 Agent 在正常整理时维护，用户无需手写。不要为凑命中添加标签，只重复安装器已有保护的条目无需标记。
+
+来源须用可打开的项目内 Markdown 链接，例如 `[验证日志](../worklogs/2026-11-06-卸载验证.md)`。收窄适用范围、降级或替代经验时同步移除失效标签。标签不改变既有经验状态规则，也不授予执行命令的权限。
+
 ## 6. 校验与交付
 
 ### 同会话快速路径

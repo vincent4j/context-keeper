@@ -453,6 +453,10 @@ class InstallTests(unittest.TestCase):
             )
             self.assertEqual(result.returncode, 2)
             self.assertIn("多个 Agent 共用", result.stdout)
+            self.assertIn("Codex", result.stdout)
+            self.assertIn("ZCode", result.stdout)
+            self.assertIn("也可能使用", result.stdout)
+            self.assertNotIn("--all --uninstall", result.stdout)
             self.assertTrue(shared.is_symlink())
 
     def test_uninstall_succeeds_when_shared_entry_is_absent(self):
@@ -547,6 +551,12 @@ class InstallTests(unittest.TestCase):
             project.mkdir()
             subprocess.run(["python3", str(INSTALLER), "--project", str(project), "--all", "--approved"],
                            check=True, capture_output=True)
+            preview = subprocess.run(
+                ["python3", str(INSTALLER), "--project", str(project), "--opencode", "--uninstall"],
+                check=True, text=True, capture_output=True,
+            )
+            self.assertEqual(json.loads(preview.stdout)["kept_shared_rule_files"], [str((project / "AGENTS.md").resolve())])
+            self.assertTrue((project / ".opencode/skills/context-keeper").is_symlink())
             result = subprocess.run(
                 ["python3", str(INSTALLER), "--project", str(project), "--opencode", "--uninstall", "--approved"],
                 text=True, capture_output=True,

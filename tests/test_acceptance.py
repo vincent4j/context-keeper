@@ -260,7 +260,9 @@ class AcceptanceTests(IsolatedProbeTestCase):
             (history/'b-target.jsonl').write_text('\n'.join(json.dumps(x,ensure_ascii=False) for x in [
                 {'type':'session_meta','payload':{'cwd':str(root)}},
                 {'type':'response_item','payload':{'type':'message','role':'user','content':'后面的命中'}}]))
-            _,out=_call('history-search','--root',str(root),'--agent','codex','--codex-history',str(history),'--query','后面的命中','--scan-files','1')
+            # Directory order differs across filesystems; fix the fixture's candidate order.
+            with patch.object(PROBE.os, 'walk', return_value=[(str(history), [], ['a-unrelated.jsonl', 'b-target.jsonl'])]):
+                _,out=_call('history-search','--root',str(root),'--agent','codex','--codex-history',str(history),'--query','后面的命中','--scan-files','1')
             self.assertIn('检索不完整：预算耗尽（候选文件）',out)
             self.assertNotIn('后面的命中',out)
             _,out=_call('history-search','--root',str(root),'--agent','codex','--codex-history',str(history),'--query','后面的命中','--scan-files','2','--max-bytes','64')
