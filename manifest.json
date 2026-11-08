@@ -16,11 +16,11 @@
   "files": [
     {
       "path": "SKILL.md",
-      "sha256": "3fb1188db4af29a7e2fa061a8e62adea2318bb28c8eb010cc902e6338196f150"
+      "sha256": "d846ae26ba8ff321589aa89b63ef179d154dd9533229ccf47ae206a70c8ed4e5"
     },
     {
       "path": "README.md",
-      "sha256": "d9eb160bd266b49b8fec44e4257a9324b94f241d1be9b0b2e3656ec89178b352"
+      "sha256": "1af3511b932acd08df8d86224a95d712ccb79131b1fae1719a8c4c17edcdb54a"
     },
     {
       "path": "docs/prd/README.md",
@@ -40,7 +40,7 @@
     },
     {
       "path": "docs/prd/memory-reliability.md",
-      "sha256": "dc1629b2137bac7f2ec53a22a6401cd4390157097039565a3bef02b940179c61"
+      "sha256": "0ba65a0766990d3cb5034114ba9bbcbcc1c2a67ead16f41b627b3d6865e18b7f"
     },
     {
       "path": "docs/prd/contracts/README.md",
