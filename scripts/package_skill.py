@@ -17,6 +17,7 @@ FILES = (
     "docs/prd/product.md",
     "docs/prd/architecture.md",
     "docs/prd/acceptance.md",
+    "docs/prd/memory-reliability.md",
     "docs/prd/contracts/README.md",
     "assets/context-keeper-icon.png",
     "scripts/install.py",

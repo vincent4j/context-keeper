@@ -15,6 +15,8 @@
 | 历史检索 | 项目隔离、部分索引及原文预算可见；零命中与截断分别说明 | tests/test_acceptance.py |
 | 历史保护 | 同会话同题日志追加、跨会话新建；更正追加不覆盖；指纹检查不能冒充文件系统拦截 | tests/test_context_keeper_probe.py |
 | 经验治理 | 同主题保留编号；来源和索引一致；待验证不推荐、已替代不作当前建议；范围内反证降级 | tests/test_acceptance.py |
+| 评估证据与预算口径 | 实际search候选完整提示行才确认触达；文档/help不计，无法归属的复合输出待人工核对；各会话预算同源生成AGENTS/protocol/scoring | tests/test_evaluation_contract.py |
+| 文件内匹配截断 | 经验正文、索引回退及历史文件实际片段有省略时提示；恰好上限/零命中不误报；待验证标记不变 | tests/test_match_truncation.py |
 | 写入前对照 | 仅项目经验、只读、默认三候选；已替代可定位；外部文件、索引及目录符号链接不越界 | tests/test_context_keeper_probe.py |
 | 安装和卸载 | 仅管理自身内容、幂等、归属保护、共享入口删除前阻断，预览和执行保留项一致 | tests/test_install.py、tests/test_workbuddy_install.py |
 | 发现与迁移 | 自定义记录位置；旧结构阻断、批准后迁移、冲突不覆盖、失败回滚 | tests/test_discovery.py、tests/test_migration.py |

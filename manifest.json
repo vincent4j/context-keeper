@@ -24,7 +24,7 @@
     },
     {
       "path": "docs/prd/README.md",
-      "sha256": "4add58f080fcb7716fcde1c7803c097056d4edeeadb04a566bd7e9b02c217319"
+      "sha256": "7468a220fbe6859977bc25c804d8644d5b5bca98eb9344d02f03406970d28183"
     },
     {
       "path": "docs/prd/product.md",
@@ -36,7 +36,11 @@
     },
     {
       "path": "docs/prd/acceptance.md",
-      "sha256": "ea29b2268a5a380d2102499d90cb15f7c4d9cb323f25a39af15dfc52725d1b51"
+      "sha256": "a87f9c8be8178c6ec1811af0f1664f89d1576c8b74d037ab0a038a92cdbbf5de"
+    },
+    {
+      "path": "docs/prd/memory-reliability.md",
+      "sha256": "dc1629b2137bac7f2ec53a22a6401cd4390157097039565a3bef02b940179c61"
     },
     {
       "path": "docs/prd/contracts/README.md",
@@ -52,7 +56,7 @@
     },
     {
       "path": "scripts/context_keeper_probe.py",
-      "sha256": "6ea1f81146aa3f532b82912cbbb3594646e2b76b214d0c7b9c20170aa44e846b"
+      "sha256": "c61f337d4c724151451a8aff8ad0d6cf97e1584f0e57af28613dc72d15b4625a"
     },
     {
       "path": "references/save.md",
@@ -60,7 +64,7 @@
     },
     {
       "path": "references/resume.md",
-      "sha256": "10416d215658f191fab8e6ac843eb4b3e447aea73630a18908510e31f5d26fe5"
+      "sha256": "e6532429821ed6e8a2e50b2f45876c603eb9b63e5369454e5444bed9b9c2f5ad"
     },
     {
       "path": "references/install.md",
@@ -72,7 +76,7 @@
     },
     {
       "path": "references/search.md",
-      "sha256": "efcd8259896c721340c7dc22bc34c608f8ba73ca7f4d2eea5de1c13bf6c2e9f5"
+      "sha256": "5775265b333e3b368d118009b6682981c31e95ae736ae761680c34dd0b02d811"
     }
   ]
 }

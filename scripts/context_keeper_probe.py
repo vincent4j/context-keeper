@@ -503,8 +503,28 @@ def _compile_query_pattern(query: str) -> re.Pattern[str]:
     return re.compile("|".join(re.escape(term) for term in terms), re.IGNORECASE)
 
 
+def _bounded_hits(matches, limit: int) -> tuple[list[str], bool]:
+    if limit <= 0:
+        return list(matches)[:limit], False
+    hits = []
+    for line in matches:
+        if len(hits) == limit:
+            return hits, True
+        hits.append(line)
+    return hits, False
+
+
+def _file_hit_result(path: Path, pattern: re.Pattern[str], limit: int) -> tuple[list[str], bool]:
+    return _bounded_hits((_clip(line, 180) for line in _read_text(path).splitlines()
+                          if pattern.search(line)), limit)
+
+
 def _file_hits(path: Path, pattern: re.Pattern[str], limit: int) -> list[str]:
-    return [_clip(line, 180) for line in _read_text(path).splitlines() if pattern.search(line)][:limit]
+    return _file_hit_result(path, pattern, limit)[0]
+
+
+def _match_limit_notice(limit: int) -> str:
+    return f"文件内匹配展示受限：仅展示前{limit}条，仍有匹配行未展示；本片段不代表完整结论。"
 
 
 def _mark_pending_hit(line: str) -> str:
@@ -1114,12 +1134,13 @@ def cmd_search(args: argparse.Namespace) -> int:
         status = _evolution_status(path)
         if status == "已替代" and not args.for_write:
             continue
-        hits = _file_hits(path, pattern, args.hit_lines)
+        hits, truncated = _file_hit_result(path, pattern, args.hit_lines)
         index_path = path.parent / "index.md"
         index_in_scope = not args.for_write or index_path.resolve().is_relative_to(path.parent)
         if not hits and index_in_scope and index_path.is_file():
-            hits = [_clip(line, 180) for line in _read_text(index_path).splitlines()
-                    if path.name in line and pattern.search(line)][:args.hit_lines]
+            hits, truncated = _bounded_hits(
+                (_clip(line, 180) for line in _read_text(index_path).splitlines()
+                 if path.name in line and pattern.search(line)), args.hit_lines)
         if not hits:
             continue
         title = next((line.lstrip("# ") for line in _read_text(path).splitlines() if line.startswith("# ")), path.stem)
@@ -1137,6 +1158,8 @@ def cmd_search(args: argparse.Namespace) -> int:
                     if fields.get(key)]
             if status == "已替代":
                 hits.append("已替代条目仅作历史对照；沿替代链接核对当前条目，不采用旧建议。")
+        if truncated and not args.for_write:
+            hits.append(_match_limit_notice(args.hit_lines))
         results.append(("evolution", f"{title}（{suffix}；{_rel(root, path)}）", hits))
         seen.add(str(path))
         linked_records |= _linked_records(_read_text(path), path.parent)
@@ -1207,8 +1230,10 @@ def cmd_search(args: argparse.Namespace) -> int:
             resolved = str(path.resolve())
             if resolved in linked_records:
                 continue
-            hits = _file_hits(path, pattern, args.hit_lines)
+            hits, truncated = _file_hit_result(path, pattern, args.hit_lines)
             if hits and resolved not in seen:
+                if truncated:
+                    hits.append(_match_limit_notice(args.hit_lines))
                 results.append((source_kind, _rel(root, path), hits))
                 seen.add(resolved)
             if len(results) >= args.entries:
