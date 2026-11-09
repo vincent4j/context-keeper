@@ -34,7 +34,7 @@ Windows 执行命令时，先确认实际可执行的 Python 3；用本机可用
 python3 <skill-dir>/scripts/install.py --ensure-bridge --skill-dir <skill-dir> --root <repo> --codex
 ```
 
-返回 `created/appended/prepended/updated` 时简短告知后继续原操作；`unchanged` 静默继续；同一会话复用结果不重复检查。失败时如实说明，按需读 [安装说明](references/install.md)，不擅自扩大为全局安装；不把配置成功说成模型行为已验证。WorkBuddy 项目规则读取项目根 `AGENTS.md`，记录库使用用户确认的实际路径。WorkBuddy 项目入口为 `.workbuddy/memory/MEMORY.md` 顶部受控块，兼容既有 AGM 块；配置接管不代表 WorkBuddy 新会话已完成运行时验收。Codex、ZCode、DeepSeek Harness 与 OpenCode 在项目级共用根 `AGENTS.md` 的同一受控区块，用户级各写自己的规则文件；ZCode 已在 Windows 受控新会话中验证 Skill 读取、续接和查找；DeepSeek Harness 与 OpenCode 的入口写入尚未完成真机运行时验收。各宿主的验证范围见 [验收边界](docs/prd/acceptance.md)。
+返回 `created/appended/prepended/updated` 时简短告知后继续原操作；`unchanged` 静默继续；同一会话复用结果不重复检查。失败时如实说明，按需读 [安装说明](references/install.md)，不擅自扩大为全局安装；不把配置成功说成模型行为已验证。WorkBuddy 项目规则读取项目根 `AGENTS.md`，记录库使用用户确认的实际路径。WorkBuddy 项目入口为 `.workbuddy/memory/MEMORY.md` 顶部受控块，兼容既有 AGM 块；配置接管不代表 WorkBuddy 新会话已完成运行时验收。Codex、ZCode、DeepSeek Harness 与 OpenCode 在项目级共用根 `AGENTS.md` 的同一受控区块，用户级各写自己的规则文件；ZCode 已在 Windows 受控新会话中验证 Skill 读取、续接和查找；DeepSeek Harness 与 OpenCode 的入口写入尚未完成真机运行时验收。各宿主的验证范围见 [验收边界](docs/acceptance.md)。
 
 ## 事实边界
 

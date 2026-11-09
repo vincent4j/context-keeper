@@ -11,4 +11,4 @@ python3 tests/evaluations/memory_baseline.py --output /新的绝对输出目录
 python3 -m unittest discover -s tests
 ```
 
-真实文件系统回归使用临时合成内容。macOS的保护测试会真实调用sandbox-exec；不支持seatbelt的平台会按已有平台条件单列skip。不得用这些帮助函数的通过结果宣称真实CLI/provider、认证刷新、跨宿主或业务端到端验收完成。历史真实模型编排与运行证据保存在仓库外归档；本目录不依赖该归档即可运行合成回归。验证范围见[记忆可靠性PRD](../../docs/prd/memory-reliability.md)。
+真实文件系统回归使用临时合成内容。macOS的保护测试会真实调用sandbox-exec；不支持seatbelt的平台会按已有平台条件单列skip。不得用这些帮助函数的通过结果宣称真实CLI/provider、认证刷新、跨宿主或业务端到端验收完成。历史真实模型编排与运行证据保存在仓库外归档；本目录不依赖该归档即可运行合成回归。验证范围见[记忆可靠性说明](../../docs/memory-reliability.md)。

@@ -1,6 +1,6 @@
-# 记录与检索架构 PRD
+# 记录与检索架构文档
 
-本文描述当前记录模型、读取合同与设计取舍；用户流程见 [产品 PRD](product.md)，验收标准见 [验收 PRD](acceptance.md)。具体执行步骤以 [SKILL](../../SKILL.md) 和 [references](../../references/save.md) 为准。
+本文描述当前记录模型、读取合同与设计取舍；用户流程见 [产品文档](product.md)，验收标准见 [验收文档](acceptance.md)。具体执行步骤以 [SKILL](../SKILL.md) 和 [references](../references/save.md) 为准。
 
 ## 1. 项目目标与设计取舍
 
@@ -18,7 +18,7 @@ Context Keeper 用有限上下文保存项目进度、追溯历史事实、复�
 | 文档 | 职责 |
 | --- | --- |
 | `README.md` | 说明项目价值、使用方法和支持范围，概括设计理念。 |
-| `docs/prd/architecture.md` | 解释核心原则、数据职责、生命周期、设计取舍与验收边界。 |
+| `docs/architecture.md` | 解释核心原则、数据职责、生命周期、设计取舍与验收边界。 |
 | `SKILL.md` | 向 Agent 提供执行所必需的触发条件、操作路由和完成门禁。 |
 | `references/` | 给出保存、续接、检索、安装和迁移的具体步骤。 |
 

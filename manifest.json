@@ -16,35 +16,31 @@
   "files": [
     {
       "path": "SKILL.md",
-      "sha256": "83801cddf303809b714c18336477a65f1abcc24b9620b82185f973e0f4e61fbd"
+      "sha256": "c455d44cd098a21b4af91b2175a8c6855a65472b3bbe1b42406c7f852428de87"
     },
     {
       "path": "README.md",
-      "sha256": "f2a87816e89fd1968bff3f7b118321c972d30c1cddfd58d2e92096404a748927"
+      "sha256": "fc161f7aa0309d089af27148181143361106e9d59b8439559ca1e14585c55627"
     },
     {
-      "path": "docs/prd/README.md",
-      "sha256": "5180035a4d56e0227cbb52104b8bb5ddee263849f88059cbf3b3eeb6225d4b31"
+      "path": "docs/README.md",
+      "sha256": "b01f7e933600a3aeffdbb5f8dcfdd81ced3d7c732b82de852133b8eccdae77e4"
     },
     {
-      "path": "docs/prd/product.md",
-      "sha256": "c671e8d65c57fbd1a8d68da3c1f2726bbfe60db4a8ff1d515e96937613f7ddae"
+      "path": "docs/product.md",
+      "sha256": "9bc79bbd49c54f091dc900041a218a9f975361718d7b53c47cf59781e7fd57e9"
     },
     {
-      "path": "docs/prd/architecture.md",
-      "sha256": "cbae3384ba3e33c8d5669b2492fc22fed3174f54997e85cc84da8114192f2e9f"
+      "path": "docs/architecture.md",
+      "sha256": "638baf6f97d193d9bd66b73cb7af67c31e4d64ccf21216604cfabda565342a3a"
     },
     {
-      "path": "docs/prd/acceptance.md",
-      "sha256": "242dc5588e6998869767662d485ec469694a609cbc66da1cbc2c523b38de952e"
+      "path": "docs/acceptance.md",
+      "sha256": "d9305354f49e5dbc2ebac59803d2f7749b402642de9070b919f7ffd3d058bac3"
     },
     {
-      "path": "docs/prd/memory-reliability.md",
-      "sha256": "0ba65a0766990d3cb5034114ba9bbcbcc1c2a67ead16f41b627b3d6865e18b7f"
-    },
-    {
-      "path": "docs/prd/contracts/README.md",
-      "sha256": "d74676f8d930ba49770e36d9dccb28164194ed032def494982dec3e27f3331b9"
+      "path": "docs/memory-reliability.md",
+      "sha256": "6f5fe0c53a1242e20c97e84b304ca0ac11f6438f023878437fe5c04eeab11f1a"
     },
     {
       "path": "assets/context-keeper-icon.png",
@@ -68,7 +64,7 @@
     },
     {
       "path": "references/install.md",
-      "sha256": "fb78bdfb053b7a529867f09d5e674b21d95a2d36fe7a54b5a28a4c61f2f9f977"
+      "sha256": "493a0411153cae3411937f0762cd8a2ab7269ac16ca626006ec92dab5968206b"
     },
     {
       "path": "references/migrate.md",

@@ -1,8 +1,8 @@
-# 产品与工作流 PRD
+# 产品与工作流文档
 
 ## 目标与用户价值
 
-Context Keeper 为编程 Agent 提供项目记忆：跨会话续接进度、追溯历史事实、复用有依据的经验。以 Markdown、有限检索和宿主 Agent 的判断工作，保持独立运行，不依赖 PRD Distill 或外部记忆服务。
+Context Keeper 为编程 Agent 提供项目记忆：跨会话续接进度、追溯历史事实、复用有依据的经验。以 Markdown、有限检索和宿主 Agent 的判断工作，保持独立运行，不依赖外部文档整理工具或记忆服务。
 
 ## 用户入口
 
@@ -30,7 +30,7 @@ Context Keeper 为编程 Agent 提供项目记忆：跨会话续接进度、追�
 
 ## 安装与卸载
 
-支持 Codex、Claude Code、WorkBuddy、ZCode、DeepSeek Harness、OpenCode 的入口配置。macOS/Linux 通过目录符号链接、Windows 通过目录联接加载同一份源码；入口配置与真实宿主验证分开报告，Windows 已验证范围见 [验收 PRD](acceptance.md)。源码是唯一可编辑来源，安装器校验归属，拒绝覆盖不明同名目录。首次入口补齐先只读预览，确认后写入；未确认可继续原操作。重复安装保持幂等，受控块外内容不变。
+支持 Codex、Claude Code、WorkBuddy、ZCode、DeepSeek Harness、OpenCode 的入口配置。macOS/Linux 通过目录符号链接、Windows 通过目录联接加载同一份源码；入口配置与真实宿主验证分开报告，Windows 已验证范围见 [验收文档](acceptance.md)。源码是唯一可编辑来源，安装器校验归属，拒绝覆盖不明同名目录。首次入口补齐先只读预览，确认后写入；未确认可继续原操作。重复安装保持幂等，受控块外内容不变。
 
 项目级 Codex、ZCode、DeepSeek Harness 和 OpenCode 共用根 AGENTS.md 区块；部分 Skill 路径也共用。卸载前完整检查所有目标，共享 Skill 入口阻断时列出路径和可能共用的其他宿主，明确尚未删除；按配置可能共用不代表客户端实际安装或运行。预览通过 `kept_shared_rule_files` 列出将保留的共享规则文件，执行使用同一判断，不扩大用户指定范围。
 
