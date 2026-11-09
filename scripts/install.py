@@ -5,6 +5,8 @@ import argparse
 import hashlib
 import json
 import os
+import stat
+import subprocess
 from pathlib import Path, PurePosixPath
 
 
@@ -90,11 +92,50 @@ def _require_source_checkout() -> None:
         raise RuntimeError(f"安装器需要 Git 源码仓库或校验通过的 Skill 安装包：{SOURCE}（{exc}）") from exc
 
 
+def _is_junction(path: Path) -> bool:
+    try:
+        return getattr(path.lstat(), "st_reparse_tag", 0) == getattr(stat, "IO_REPARSE_TAG_MOUNT_POINT", 0xA0000003)
+    except FileNotFoundError:
+        return False
+
+
+def _is_alias(path: Path) -> bool:
+    return path.is_symlink() or _is_junction(path)
+
+
+def _unlink_alias(path: Path) -> str:
+    if path.is_symlink():
+        path.unlink()
+        return "removed_symlink"
+    if _is_junction(path):
+        # Remove only the junction node, never traverse its source directory.
+        path.rmdir()
+        return "removed_junction"
+    raise RuntimeError(f"拒绝移除非 Skill 别名：{path}")
+
+
+def _create_alias(target: Path) -> None:
+    if os.name != "nt":
+        target.symlink_to(SOURCE, target_is_directory=True)
+        return
+    # Junctions load the same source without requiring symlink privileges. Paths
+    # travel in environment values, not shell source; delayed expansion is off.
+    cmd = Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32/cmd.exe"
+    env = dict(os.environ, CK_SKILL_LINK=str(target), CK_SKILL_SOURCE=str(SOURCE))
+    command = f'"{cmd}" /d /v:off /c mklink /J "%CK_SKILL_LINK%" "%CK_SKILL_SOURCE%"'
+    try:
+        result = subprocess.run(command, env=env, capture_output=True, timeout=10)
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(f"创建 Windows Skill 目录联接超时，停止安装；请检查目标节点后再试：{target}") from exc
+    if result.returncode:
+        raise RuntimeError(f"创建 Windows Skill 目录联接失败（退出 {result.returncode}）：{target}")
+
+
 def _check_install_target(target_root: Path) -> Path:
     target = target_root.expanduser().resolve() / "context-keeper"
-    if target.is_symlink() and target.resolve() == SOURCE.resolve():
+    if _is_alias(target) and target.resolve() == SOURCE.resolve():
         return target
-    if target.is_symlink():
+    if _is_alias(target):
         raise RuntimeError(f"检测到其他来源的 Context Keeper 配置，拒绝静默替换：{target} → {target.resolve()}；请先核对后手动替换")
     marker = target / "SKILL.md"
     if target.exists():
@@ -107,27 +148,27 @@ def _check_install_target(target_root: Path) -> Path:
 def _link_skill(target_root: Path) -> Path:
     target = _check_install_target(target_root)
     target.parent.mkdir(parents=True, exist_ok=True)
-    if target.is_symlink():
+    if _is_alias(target):
         return target
-    target.symlink_to(SOURCE, target_is_directory=True)
-    if not target.is_symlink() or target.resolve() != SOURCE.resolve():
+    _create_alias(target)
+    if not _is_alias(target) or target.resolve() != SOURCE.resolve():
         raise RuntimeError(f"Skill 安装读回校验失败：{target}")
     return target
 
 
 def _remove_skill(target_root: Path) -> tuple[str, str]:
     target = _check_remove_target(target_root)
-    if not target.exists() and not target.is_symlink():
+    if not target.exists() and not _is_alias(target):
         return str(target), "absent"
-    target.unlink()
-    return str(target), "removed_symlink"
+    action = _unlink_alias(target)
+    return str(target), action
 
 
 def _check_remove_target(target_root: Path) -> Path:
     target = target_root.expanduser() / "context-keeper"
-    if not target.exists() and not target.is_symlink():
+    if not target.exists() and not _is_alias(target):
         return target
-    if target.is_symlink():
+    if _is_alias(target):
         if target.resolve() != SOURCE.resolve():
             raise RuntimeError(f"拒绝删除其他来源的 Context Keeper 配置：{target} → {target.resolve()}")
         return target
@@ -156,7 +197,7 @@ def _upsert_bridge(path: Path, agent: str = "codex") -> str:
     first, last, bridge = _bridge_spec(agent)
     path.parent.mkdir(parents=True, exist_ok=True)
     if not path.exists():
-        path.write_text(bridge + "\n", encoding="utf-8")
+        path.write_bytes((bridge + "\n").encode("utf-8"))
         return "created"
     # Decode bytes directly so block-external CRLF and trailing bytes survive.
     text = path.read_bytes().decode("utf-8")
@@ -164,7 +205,7 @@ def _upsert_bridge(path: Path, agent: str = "codex") -> str:
     replacement = bridge.rstrip("\n")
     if start >= 0:
         end += len(last)
-        if text[start:end] == replacement and (agent != "workbuddy" or start == 0):
+        if text[start:end].replace("\r\n", "\n") == replacement and (agent != "workbuddy" or start == 0):
             return "unchanged"
         if agent == "workbuddy" and start != 0:
             updated = replacement + "\n\n" + text[:start] + text[end:]
@@ -196,7 +237,7 @@ def _bridge_is_current(path: Path, agent: str = "codex") -> bool:
     first, last, bridge = _bridge_spec(agent)
     start, end = text.find(first), text.find(last)
     return (start >= 0 and end >= start and (agent != "workbuddy" or start == 0)
-            and text[start:end + len(last)] == bridge.rstrip("\n"))
+            and text[start:end + len(last)].replace("\r\n", "\n") == bridge.rstrip("\n"))
 
 
 def _ensure_bridge(args: argparse.Namespace) -> int:
@@ -250,7 +291,7 @@ def _ensure_bridge(args: argparse.Namespace) -> int:
     action = _upsert_bridge(bridge, agent)
     first, _, template = _bridge_spec(agent)
     actual = bridge.read_bytes().decode("utf-8")
-    if actual.count(first) != 1 or template.rstrip("\n") not in actual:
+    if actual.count(first) != 1 or not _bridge_is_current(bridge, agent):
         raise RuntimeError(f"入口读回校验失败：{bridge}")
     print(json.dumps({"scope": scope, "agent": agent, "bridge": str(bridge), "action": action}, ensure_ascii=False))
     return 0
@@ -273,12 +314,14 @@ def _remove_bridge(path: Path, agent: str = "codex") -> str:
             return "removed"
         path.unlink()
         return "removed_file"
-    updated = (original[:start].rstrip() + "\n\n" + original[end:].lstrip("\n")).strip()
-    if updated:
-        path.write_text(updated + "\n", encoding="utf-8")
-        return "removed"
-    path.unlink()
-    return "removed_file"
+    updated = original[:start] + original[end:]
+    if not updated.strip():
+        path.unlink()
+        return "removed_file"
+    # Splice out only the controlled block; every byte outside it is kept
+    # verbatim. Bytes, not text mode: Windows would translate LF to CRLF.
+    path.write_bytes(updated.encode("utf-8"))
+    return "removed"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -350,7 +393,7 @@ def main(argv: list[str] | None = None) -> int:
             other_consumers = sorted(AGENT_NAMES[agent] for agent in other_agents
                                      if any(root.expanduser().resolve() == resolved for root in roots_by_agent[agent]))
             target = skill_root.expanduser() / "context-keeper"
-            if other_consumers and (target.exists() or target.is_symlink()):
+            if other_consumers and (target.exists() or _is_alias(target)):
                 raise RuntimeError(f"安装位置由多个 Agent 共用，已停止卸载：{target}。"
                                    f"按路径配置，{'、'.join(other_consumers)} 也可能使用该入口。尚未删除任何入口。")
             _check_remove_target(skill_root)
@@ -391,7 +434,7 @@ def main(argv: list[str] | None = None) -> int:
             if not args.bridge_only:
                 for skill_root in selected_roots:
                     target = _check_install_target(skill_root)
-                    existed = target.is_symlink()
+                    existed = _is_alias(target)
                     if not existed:
                         created.append(target)
                     installed.append(str(_link_skill(skill_root)))
@@ -407,8 +450,8 @@ def main(argv: list[str] | None = None) -> int:
                         bridge.write_bytes(original)
             finally:
                 for target in reversed(created):
-                    if target.is_symlink() and target.resolve() == SOURCE.resolve():
-                        target.unlink()
+                    if _is_alias(target) and target.resolve() == SOURCE.resolve():
+                        _unlink_alias(target)
             raise
     print(json.dumps({
         "scope": "project" if project else "user",

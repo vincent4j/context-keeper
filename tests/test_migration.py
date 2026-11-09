@@ -29,7 +29,7 @@ class MigrationTests(IsolatedProbeTestCase):
             (root/'README.md').write_text('[日志](docs/worklog/'+old.name+')\n[日志目录](docs/worklog/)\n')
             (root/'unrelated.md').write_text('[保留](./evidence.json)\n')
             original = old.read_bytes()
-            expected = old.read_text().replace('../../evidence.json', '../../../evidence.json').encode()
+            expected = original.replace(b'../../evidence.json', b'../../../evidence.json')
             rc, out = _call('migrate', '--root', d, '--approved')
             self.assertEqual(rc, 0, out)
             store = root/'docs'/'context-keeper'

@@ -1,7 +1,7 @@
 {
   "type": "skill",
   "code": "context-keeper",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "name": "Context Keeper",
   "description": "续接项目进度、查找历史事实，并在有证据时沉淀可复用经验。",
   "runtimeTargets": [
@@ -16,27 +16,27 @@
   "files": [
     {
       "path": "SKILL.md",
-      "sha256": "d846ae26ba8ff321589aa89b63ef179d154dd9533229ccf47ae206a70c8ed4e5"
+      "sha256": "83801cddf303809b714c18336477a65f1abcc24b9620b82185f973e0f4e61fbd"
     },
     {
       "path": "README.md",
-      "sha256": "1af3511b932acd08df8d86224a95d712ccb79131b1fae1719a8c4c17edcdb54a"
+      "sha256": "f2a87816e89fd1968bff3f7b118321c972d30c1cddfd58d2e92096404a748927"
     },
     {
       "path": "docs/prd/README.md",
-      "sha256": "7468a220fbe6859977bc25c804d8644d5b5bca98eb9344d02f03406970d28183"
+      "sha256": "5180035a4d56e0227cbb52104b8bb5ddee263849f88059cbf3b3eeb6225d4b31"
     },
     {
       "path": "docs/prd/product.md",
-      "sha256": "5ce5ece1c1058373545e7f48aeda5a6ab28355a696addc7c4129882e16e38105"
+      "sha256": "c671e8d65c57fbd1a8d68da3c1f2726bbfe60db4a8ff1d515e96937613f7ddae"
     },
     {
       "path": "docs/prd/architecture.md",
-      "sha256": "bb193b9c12839d4d80278bc5a8111b431907c954ea78675e7b107543388ecabc"
+      "sha256": "cbae3384ba3e33c8d5669b2492fc22fed3174f54997e85cc84da8114192f2e9f"
     },
     {
       "path": "docs/prd/acceptance.md",
-      "sha256": "a87f9c8be8178c6ec1811af0f1664f89d1576c8b74d037ab0a038a92cdbbf5de"
+      "sha256": "242dc5588e6998869767662d485ec469694a609cbc66da1cbc2c523b38de952e"
     },
     {
       "path": "docs/prd/memory-reliability.md",
@@ -52,15 +52,15 @@
     },
     {
       "path": "scripts/install.py",
-      "sha256": "f43eaa7eec2be130d45a20825be189df8e890b33c20d4d1e24f2dc1ca4c5b373"
+      "sha256": "db8135c13fc075ad9c074876d720d2650e291cde024d13e995ee84b8b5b3fb6e"
     },
     {
       "path": "scripts/context_keeper_probe.py",
-      "sha256": "c61f337d4c724151451a8aff8ad0d6cf97e1584f0e57af28613dc72d15b4625a"
+      "sha256": "56c078bf4b233f123b6c3db719382893950f8696d1dc225f7ad2646040f980d6"
     },
     {
       "path": "references/save.md",
-      "sha256": "cbb168443037dace1e74fbfab7cd562d09ad6c48b8ae6ced390490a0c71ab2c9"
+      "sha256": "d23e6ca37cd5383d09f278c316a5ba94c4e2db911dbc033aaf02505276184717"
     },
     {
       "path": "references/resume.md",
@@ -68,7 +68,7 @@
     },
     {
       "path": "references/install.md",
-      "sha256": "6d4fc6cfd4759881f5036eeb59ff6cda7aac2e91ebb362ff97a7c2d226540d98"
+      "sha256": "fb78bdfb053b7a529867f09d5e674b21d95a2d36fe7a54b5a28a4c61f2f9f977"
     },
     {
       "path": "references/migrate.md",

@@ -1,7 +1,7 @@
 ---
 name: context-keeper
 description: 续接项目进度，查找历史事实；写入经验前检索并合并相关经验。
-version: "1.1.0"
+version: "1.2.0"
 display_name: "上下文守望者"
 display_name_en: "Context Keeper"
 description_zh: "给你的 AI Agent 装上项目记忆：续接进度、查找历史、自我进化。昨天的工作接着做，过去的事实找得到，新的经验自动沉淀，让 AI 在使用中持续自我进化。"
@@ -15,6 +15,8 @@ description_en: "Give your AI agent project memory: resume progress, find past f
 ## 源码与安装
 
 Git 源码仓库是唯一真实副本；各宿主 Skill 目录都从源码加载，禁止复制成第二份可编辑副本。安装器发现复制目录或指向其他来源的同名配置时保护性停止，提示先核对差异；正确配置保持幂等。安装、卸载和入口细节读 [references/install.md](references/install.md)。
+
+Windows 执行命令时，先确认实际可执行的 Python 3；用本机可用的 `python`、`py -3` 或解释器完整路径替换示例中的 `python3`，并为含空格路径加引号。Windows 安装使用目录联接从同一源码加载。
 
 ## 无项目聊天边界
 
@@ -32,7 +34,7 @@ Git 源码仓库是唯一真实副本；各宿主 Skill 目录都从源码加载
 python3 <skill-dir>/scripts/install.py --ensure-bridge --skill-dir <skill-dir> --root <repo> --codex
 ```
 
-返回 `created/appended/prepended/updated` 时简短告知后继续原操作；`unchanged` 静默继续；同一会话复用结果不重复检查。失败时如实说明，按需读 [安装说明](references/install.md)，不擅自扩大为全局安装；不把配置成功说成模型行为已验证。WorkBuddy 项目规则读取项目根 `AGENTS.md`，记录库使用用户确认的实际路径。WorkBuddy 项目入口为 `.workbuddy/memory/MEMORY.md` 顶部受控块，兼容既有 AGM 块；配置接管不代表 WorkBuddy 新会话已完成运行时验收。Codex、ZCode、DeepSeek Harness 与 OpenCode 在项目级共用根 `AGENTS.md` 的同一受控区块，用户级各写自己的规则文件；ZCode、DeepSeek Harness 与 OpenCode 的入口写入尚未完成真机运行时验收。
+返回 `created/appended/prepended/updated` 时简短告知后继续原操作；`unchanged` 静默继续；同一会话复用结果不重复检查。失败时如实说明，按需读 [安装说明](references/install.md)，不擅自扩大为全局安装；不把配置成功说成模型行为已验证。WorkBuddy 项目规则读取项目根 `AGENTS.md`，记录库使用用户确认的实际路径。WorkBuddy 项目入口为 `.workbuddy/memory/MEMORY.md` 顶部受控块，兼容既有 AGM 块；配置接管不代表 WorkBuddy 新会话已完成运行时验收。Codex、ZCode、DeepSeek Harness 与 OpenCode 在项目级共用根 `AGENTS.md` 的同一受控区块，用户级各写自己的规则文件；ZCode 已在 Windows 受控新会话中验证 Skill 读取、续接和查找；DeepSeek Harness 与 OpenCode 的入口写入尚未完成真机运行时验收。各宿主的验证范围见 [验收边界](docs/prd/acceptance.md)。
 
 ## 事实边界
 

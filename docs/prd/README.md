@@ -8,7 +8,7 @@
 | --- | --- | --- | --- | --- |
 | 产品与工作流 | 用户目标、触发边界、支持范围、非目标 | [product.md](product.md) | 正文需求与验收标准；无独立生效合同 | 无 |
 | 记录与检索架构 | 数据职责、历史保护、分层读取、经验治理 | [architecture.md](architecture.md) | 正文约束；无独立生效合同 | 无 |
-| 验收与能力边界 | 验收场景、已知限制、待验证项 | [acceptance.md](acceptance.md) | [合同说明](contracts/README.md) | 无 |
+| 验收与能力边界 | 验收场景、Windows 已验证范围、已知限制与待验证项 | [acceptance.md](acceptance.md) | [合同说明](contracts/README.md) | 无 |
 | 记忆可靠性 | 反证可达、读取预算、证据判断、优先级与验收边界 | [memory-reliability.md](memory-reliability.md) | 正文约束；无独立生效合同 | 无 |
 
 ## 操作手册

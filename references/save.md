@@ -16,6 +16,8 @@ python3 <skill-dir>/scripts/context_keeper_probe.py init --root <repo> --approve
 python3 <skill-dir>/scripts/context_keeper_probe.py status --root <repo>
 ```
 
+`status` 只报告 Git 状态；PATH 中缺少 Git 时明确说明分支和差异未检查，不将其表述为已检查或干净，也不阻止独立的记录库操作。
+
 init 返回值：rc=0（已创建或已就绪）/ rc=2（拒绝：迁移需 `--migrate`、配置无效、目标冲突）/ rc=5（需要用户确认，先展示建议位置再重跑）。脚本按 `<repo>/docs/context-keeper/`、`<repo>/context-keeper/` 自动发现已有记录库；不在候选位置或歧义时用 `--store-dir <path>` 显式指定。`--store-dir` 指到候选位置之外才写 `context-keeper.json`。改记录位置用 `init --store-dir <path> --migrate --approved`，不能直接创建第二套记录；迁移若会改变历史文件中外部证据链接的指向会停止，不为迁移改写旧会话记录。
 
 为当前会话使用稳定的 `session-id`（优先平台当前会话 ID，不复制旧记录的 ID）。第一次写入前运行 `record-path` 或 `record-guard` 建立旧计划和日志的内容指纹（保存在用户缓存，绑定仓库实路径、记录库实路径和会话 ID）；缺少基线不能宣称历史保护已验证。脚本直接创建带会话标识的文件：

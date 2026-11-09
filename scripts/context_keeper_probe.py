@@ -52,9 +52,9 @@ def _read_text(path: Path) -> str:
 
 def _rel(root: Path, path: Path) -> str:
     try:
-        return str(path.relative_to(root))
+        return path.relative_to(root).as_posix()
     except ValueError:
-        return str(path)
+        return path.as_posix()
 
 
 def _load_config(root: Path) -> dict:
@@ -109,7 +109,7 @@ def _discover_store(root: Path) -> Path | None:
 
 def _configured_value(root: Path, store: Path) -> str:
     try:
-        return str(store.relative_to(root))
+        return store.relative_to(root).as_posix()
     except ValueError:
         return str(store)
 
@@ -203,7 +203,7 @@ def cmd_migrate(args: argparse.Namespace) -> int:
         def replace(match: re.Match[str]) -> str:
             raw = match.group(1) or match.group(2)
             local, sep, fragment = raw.partition("#")
-            if not local or re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*:", local):
+            if not local or _is_remote_link(local):
                 return match.group(0)
             before = (old.parent / local).resolve()
             after = mapping.get(before, before)
@@ -213,7 +213,7 @@ def cmd_migrate(args: argparse.Namespace) -> int:
                     break
             if old == new and after == before:
                 return match.group(0)
-            updated = str(after) if Path(local).is_absolute() else os.path.relpath(after, new.parent)
+            updated = after.as_posix() if Path(local).is_absolute() else Path(os.path.relpath(after, new.parent)).as_posix()
             updated += sep + fragment
             if updated == raw:
                 return match.group(0)
@@ -283,12 +283,12 @@ def cmd_migrate(args: argparse.Namespace) -> int:
         for target in mapping.values():
             relative = target.relative_to(layout.store)
             if relative.parts[0] in ("plans", "worklogs") and target.suffix == ".md":
-                records.append(str(relative))
-                text += f"- [{target.stem}]({relative})\n"
+                records.append(relative.as_posix())
+                text += f"- [{target.stem}]({relative.as_posix()})\n"
         memory.write_text(text)
         (stage / "evolution/index.md").write_text("# 自我进化索引\n\n## 有效经验\n\n- 暂无\n")
         manifest = {"schema_version": 2, "backup": str(backup), "historical_records": records,
-                    "files": [{"old": str(p.relative_to(root)), "new": str(t), "sha256": hashlib.sha256(originals[p]).hexdigest()} for p,t in mapping.items()]}
+                    "files": [{"old": p.relative_to(root).as_posix(), "new": t.as_posix(), "sha256": hashlib.sha256(originals[p]).hexdigest()} for p,t in mapping.items()]}
         (stage / "migration-manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2)+"\n")
         # Abort if anything changed since preparing the backup.
         drifted = [p for p, content in originals.items() if not p.exists() or p.read_bytes() != content]
@@ -532,12 +532,18 @@ def _mark_pending_hit(line: str) -> str:
     return f"（待验证，暂停采用，仅供核查）{line}"
 
 
+def _is_remote_link(value: str) -> bool:
+    # A Windows drive path has a colon but is a local file, not a URI scheme.
+    return bool(re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*:", value)
+                and not re.match(r"^[a-zA-Z]:[\\/]", value))
+
+
 def _linked_records(text: str, base: Path) -> set[str]:
     """提取文本中的本地 Markdown 链接目标并解析为绝对路径，用于跨源去重。"""
     resolved: set[str] = set()
     for enclosed, bare in LOCAL_LINK_RE.findall(text):
         raw = (enclosed or bare).split("#", 1)[0]
-        if not raw or re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*:", raw):
+        if not raw or _is_remote_link(raw):
             continue
         target = Path(raw)
         if not target.is_absolute():
@@ -612,7 +618,7 @@ def _canonical_experience(path: Path) -> str:
     for raw in LINK_RE.findall(text):
         if "://" not in raw and not Path(raw.split("#", 1)[0]).is_absolute():
             local, sep, fragment = raw.partition("#")
-            text = text.replace(f"]({raw})", f"]({(path.parent / local).resolve()}{sep}{fragment})")
+            text = text.replace(f"]({raw})", f"]({(path.parent / local).resolve().as_posix()}{sep}{fragment})")
     return text
 
 
@@ -850,7 +856,7 @@ def cmd_init(args: argparse.Namespace) -> int:
             for enclosed, bare in LOCAL_LINK_RE.findall(_read_text(document)):
                 raw = enclosed or bare
                 local = raw.split("#", 1)[0]
-                if not local or re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*:", local):
+                if not local or _is_remote_link(local):
                     continue
                 before = (document.parent / local).resolve()
                 after = ((target.store / document.relative_to(current.store)).parent / local).resolve()
@@ -1816,6 +1822,10 @@ def _clip_block(text: str, limit: int = 30) -> str:
 
 def cmd_status(args: argparse.Namespace) -> int:
     root = Path(args.root).resolve()
+    if shutil.which("git") is None:
+        print("Git 不可用：PATH 中未找到 git；分支和差异未检查。")
+        print("记录库操作可继续；需要 Git 状态时请先配置可执行的 Git。")
+        return 0
     for title, content in (
         ("branch", _git(root, "status", "--short", "--branch")),
         ("name-status", _git(root, "diff", "--name-status", "HEAD")),
