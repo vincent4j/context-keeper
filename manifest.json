@@ -3,7 +3,7 @@
   "code": "context-keeper",
   "version": "1.2.0",
   "name": "Context Keeper",
-  "description": "续接项目进度、查找历史事实，并在有证据时沉淀可复用经验。",
+  "description": "给你的 AI Agent 装上项目记忆：续接进度、查找历史、自我进化。昨天的工作接着做，过去的事实找得到。新的经验自动沉淀，让 AI 在使用中持续自我进化。",
   "runtimeTargets": [
     "codex",
     "claude-code"

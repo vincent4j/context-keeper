@@ -1,16 +1,16 @@
 ---
 name: context-keeper
-description: 续接项目进度，查找历史事实；写入经验前检索并合并相关经验。
+description: "给你的 AI Agent 装上项目记忆：续接进度、查找历史、自我进化。昨天的工作接着做，过去的事实找得到。新的经验自动沉淀，让 AI 在使用中持续自我进化。"
 version: "1.2.0"
 display_name: "上下文守望者"
 display_name_en: "Context Keeper"
-description_zh: "给你的 AI Agent 装上项目记忆：续接进度、查找历史、自我进化。昨天的工作接着做，过去的事实找得到，新的经验自动沉淀，让 AI 在使用中持续自我进化。"
+description_zh: "给你的 AI Agent 装上项目记忆：续接进度、查找历史、自我进化。昨天的工作接着做，过去的事实找得到。新的经验自动沉淀，让 AI 在使用中持续自我进化。"
 description_en: "Give your AI agent project memory: resume progress, find past facts, and evolve through use. Pick up yesterday’s work, retrieve what happened before, and automatically capture new lessons for continuous self-evolution."
 ---
 
 # Context Keeper
 
-用有限上下文保存进度、恢复工作、检索历史事实，并在有证据时积累可复用经验。普通新需求不自动搜索历史。
+给你的 AI Agent 装上项目记忆：续接进度、查找历史、自我进化。昨天的工作接着做，过去的事实找得到。新的经验自动沉淀，让 AI 在使用中持续自我进化。
 
 ## 源码与安装
 
