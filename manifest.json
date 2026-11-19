@@ -1,8 +1,8 @@
 {
   "type": "skill",
   "code": "context-keeper",
-  "version": "1.2.0",
-  "name": "Context Keeper",
+  "version": "1.2.1",
+  "name": "上下文记忆守望者",
   "description": "给你的 AI Agent 装上项目记忆：续接进度、查找历史、自我进化。昨天的工作接着做，过去的事实找得到。新的经验自动沉淀，让 AI 在使用中持续自我进化。",
   "runtimeTargets": [
     "codex",
@@ -20,11 +20,11 @@
   "files": [
     {
       "path": "SKILL.md",
-      "sha256": "c455d44cd098a21b4af91b2175a8c6855a65472b3bbe1b42406c7f852428de87"
+      "sha256": "0f5ba5e57a9904489260132b57649ad52377a9da4dfedf34fedf80df9d469155"
     },
     {
       "path": "README.md",
-      "sha256": "c8e06b4db012f05e53a6f2dabf92ed6b527f7cacc3e6bcdb1d2a3da65ee64bfc"
+      "sha256": "92848aee1807660282205440b209dc72d55f070886e6e031094963282123aa49"
     },
     {
       "path": "docs/README.md",
